@@ -3,6 +3,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useEditor } from "~/hooks/useEditor";
 import { fabric } from "fabric";
+import { Navbar } from "~/components/navbar";
+import { Sidebar } from "~/components/sidebar";
+import { Toolbar } from "~/components/toolbar";
+import { Footer } from "~/components/footer";
 
 const Editor = () => {
   const { init } = useEditor();
@@ -28,11 +32,18 @@ const Editor = () => {
   }, [init]);
 
   return (
-    <div
-      className="bg-secondary flex h-full items-center justify-center"
-      ref={containerRef}
-    >
-      <canvas ref={canvasRef} className="" />
+    <div className="flex h-screen flex-col">
+      <Navbar />
+      <div className="flex h-full w-full">
+        <Sidebar />
+        <main className="bg-secondary relative flex h-full w-full flex-1 flex-col overflow-auto">
+          <Toolbar />
+          <div className="h-full" ref={containerRef}>
+            <canvas ref={canvasRef} />
+          </div>
+          <Footer />
+        </main>
+      </div>
     </div>
   );
 };

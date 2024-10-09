@@ -3,7 +3,7 @@ import Editor from "~/features/editor/components/editor";
 
 const EditorPage = () => {
   return (
-    <div className="h-screen w-screen">
+    <div className="h-[calc(100%-68px)] w-full">
       <Editor />
     </div>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "~/components/ui/button";
 import { useToast } from "~/components/ui/use-toast";
 export default function Home() {
@@ -7,16 +8,17 @@ export default function Home() {
   return (
     <div>
       <div className="">
-        Hello
-        <Button
-          onClick={() =>
-            toast({
-              description: "Your message has been sent.",
-            })
-          }
-        >
-          Click me
-        </Button>
+        <Link href="/editor/123">
+          <Button
+            onClick={() =>
+              toast({
+                description: "Your message has been sent.",
+              })
+            }
+          >
+            Go to editor
+          </Button>
+        </Link>
       </div>
     </div>
   );
