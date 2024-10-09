@@ -3,7 +3,7 @@ import Editor from "~/features/editor/components/editor";
 
 const EditorPage = () => {
   return (
-    <div>
+    <div className="h-screen w-screen">
       <Editor />
     </div>
   );
