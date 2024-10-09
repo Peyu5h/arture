@@ -38,7 +38,7 @@ const Editor = () => {
         <Sidebar />
         <main className="bg-secondary relative flex h-full w-full flex-1 flex-col overflow-auto">
           <Toolbar />
-          <div className="h-full" ref={containerRef}>
+          <div className="canvas-container" ref={containerRef}>
             <canvas ref={canvasRef} />
           </div>
           <Footer />
