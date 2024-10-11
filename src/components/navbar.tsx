@@ -57,11 +57,14 @@ export const Navbar = () => {
     <nav className="flex h-[68px] min-w-full items-center gap-x-8 overflow-hidden border-b bg-white p-4 lg:pl-8">
       <div className="select-none">
         <Image
+          priority
           className="cursor-pointer"
           src="https://res.cloudinary.com/dkysrpdi6/image/upload/v1728660806/Arture/arture-logo_oljtzy.png"
           width={56}
           height={56}
           alt="logo"
+          draggable={false}
+          unoptimized={true}
         />
       </div>
       <div className="flex h-full w-full items-center gap-x-1">

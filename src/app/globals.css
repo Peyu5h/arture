@@ -11,6 +11,7 @@ body,
 
 .canvas-container {
   height: calc(100vh - 176px);
+  width: calc(100vw - 150px);
   overflow: hidden;
 }
 
