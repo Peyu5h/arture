@@ -32,11 +32,11 @@ const Editor = () => {
   }, [init]);
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-screen w-screen flex-col overflow-x-hidden">
       <Navbar />
       <div className="flex h-full w-full">
         <Sidebar />
-        <main className="bg-secondary relative flex h-full w-full flex-1 flex-col overflow-auto">
+        <main className="relative flex h-full w-full flex-1 flex-col overflow-auto bg-secondary">
           <Toolbar />
           <div className="canvas-container" ref={containerRef}>
             <canvas ref={canvasRef} />
