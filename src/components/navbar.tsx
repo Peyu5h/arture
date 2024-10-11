@@ -51,10 +51,20 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import Image from "next/image";
+import { ActiveTool } from "./editor/types";
+import { ny } from "~/lib/utils";
 
-export const Navbar = () => {
+interface NavbarProps {
+  activeTool: ActiveTool;
+  onChangeActiveTool: (tool: ActiveTool) => void;
+}
+
+export const Navbar = ({ activeTool, onChangeActiveTool }: NavbarProps) => {
   return (
-    <nav className="flex h-[68px] min-w-full items-center gap-x-8 overflow-hidden border-b bg-white p-4 lg:pl-8">
+    <nav
+      style={{ zIndex: 40 }}
+      className="flex h-[68px] min-w-full items-center gap-x-8 overflow-hidden border-b bg-white p-4 lg:pl-8"
+    >
       <div className="select-none">
         <Image
           priority
@@ -138,10 +148,13 @@ export const Navbar = () => {
         </Menubar>
         <Separator orientation="vertical" className="mx-2" />
         <Hint label="Select" side="bottom" sideOffset={10}>
-          <Button variant="ghost" size="icon" onClick={() => {}}>
-            <span>
-              <MousePointerClick className="size-4" />
-            </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onChangeActiveTool("select")}
+            className={ny(activeTool === "select" && "bg-gray-100")}
+          >
+            <MousePointerClick className="size-4" />
           </Button>
         </Hint>
 
@@ -186,7 +199,7 @@ export const Navbar = () => {
                   Create collaboration link
                 </p>
                 <div className="gap- flex items-center">
-                  <p className="cursor-default select-none rounded-l-md border border-r-0 p-[9px] text-sm">
+                  <p className="cursor-default select-none rounded-l-md border border-r-0 p-[9px] pr-3 text-sm">
                     Anyone with this link
                   </p>
                   <Select>

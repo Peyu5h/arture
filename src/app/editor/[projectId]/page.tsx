@@ -1,5 +1,5 @@
 import React from "react";
-import Editor from "~/features/editor/components/editor";
+import Editor from "~/components/editor/editor";
 
 const EditorPage = () => {
   return (
