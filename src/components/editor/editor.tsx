@@ -16,7 +16,7 @@ import { SettingsSidebar } from "./sidebar/settings/settings-sidebar";
 import { TextSidebar } from "./sidebar/text/text-sidebar";
 
 const Editor = () => {
-  const { init } = useEditor();
+  const { init, editor } = useEditor();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -67,6 +67,7 @@ const Editor = () => {
           onChangeActiveTool={onChangeActiveTool}
         />
         <ShapeSidebar
+          editor={editor}
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
         />
