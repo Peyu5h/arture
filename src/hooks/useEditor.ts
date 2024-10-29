@@ -5,14 +5,28 @@ import { fabric } from "fabric";
 import { useAutoResize } from "./useAutoResize";
 import {
   CIRCLE_OPTIONS,
+  EditorProps,
+  FILL_COLOR,
   RECTANGLE_OPTIONS,
+  STROKE_COLOR,
+  STROKE_WIDTH,
   TRIANGLE_OPTIONS,
 } from "~/components/editor/types";
+import { useCanvasEvents } from "./useCanvasEvents";
+import { isText } from "~/lib/utils";
 
 const WORKSPACE_WIDTH = 900;
 const WORKSPACE_HEIGHT = 1200;
 
-const buildEditor = ({ canvas }: { canvas: fabric.Canvas }) => {
+const buildEditor = ({
+  canvas,
+  fillColor,
+  strokeColor,
+  strokeWidth,
+  setFillColor,
+  setStrokeColor,
+  setStrokeWidth,
+}: EditorProps) => {
   const getWorkspace = () => {
     return canvas.getObjects().find((object) => object.name === "clip");
   };
@@ -36,6 +50,31 @@ const buildEditor = ({ canvas }: { canvas: fabric.Canvas }) => {
   };
 
   return {
+    changeFillColor: (value: string) => {
+      setFillColor(value);
+      canvas.getActiveObjects().forEach((object) => {
+        object.set({ fill: value });
+      });
+    },
+
+    changeStrokeColor: (value: string) => {
+      setStrokeColor(value);
+      canvas.getActiveObjects().forEach((object) => {
+        if (isText(object.type)) {
+          object.set({ fill: value });
+        } else {
+          object.set({ stroke: value });
+        }
+      });
+    },
+
+    changeStrokeWidth: (value: number) => {
+      setStrokeWidth(value);
+      canvas.getActiveObjects().forEach((object) => {
+        object.set({ strokeWidth: value });
+      });
+    },
+
     addCircle: () => {
       const object = new fabric.Circle({
         ...CIRCLE_OPTIONS,
@@ -92,6 +131,9 @@ const buildEditor = ({ canvas }: { canvas: fabric.Canvas }) => {
       });
       addToCanvas(object);
     },
+    fillColor,
+    strokeColor,
+    strokeWidth,
   };
 };
 
@@ -99,17 +141,38 @@ export const useEditor = () => {
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
 
+  const [selectedObjects, setSelectedObjects] = useState<
+    fabric.Object[] | null
+  >(null);
+
+  const [fillColor, setFillColor] = useState(FILL_COLOR);
+  const [strokeColor, setStrokeColor] = useState(STROKE_COLOR);
+  const [strokeWidth, setStrokeWidth] = useState(STROKE_WIDTH);
+
   useAutoResize({
     canvas,
     container,
   });
 
+  useCanvasEvents({
+    canvas,
+    setSelectedObjects,
+  });
+
   const editor = useMemo(() => {
     if (canvas) {
-      return buildEditor({ canvas });
+      return buildEditor({
+        canvas,
+        fillColor,
+        strokeColor,
+        strokeWidth,
+        setFillColor,
+        setStrokeColor,
+        setStrokeWidth,
+      });
     }
     return undefined;
-  }, [canvas]);
+  }, [canvas, fillColor, strokeColor, strokeWidth]);
 
   const init = useCallback(
     ({
