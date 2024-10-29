@@ -55,6 +55,8 @@ const buildEditor = ({
       canvas.getActiveObjects().forEach((object) => {
         object.set({ fill: value });
       });
+
+      canvas.renderAll();
     },
 
     changeStrokeColor: (value: string) => {
@@ -66,6 +68,8 @@ const buildEditor = ({
           object.set({ stroke: value });
         }
       });
+
+      canvas.renderAll();
     },
 
     changeStrokeWidth: (value: number) => {
@@ -73,6 +77,8 @@ const buildEditor = ({
       canvas.getActiveObjects().forEach((object) => {
         object.set({ strokeWidth: value });
       });
+
+      canvas.renderAll();
     },
 
     addCircle: () => {
@@ -131,6 +137,7 @@ const buildEditor = ({
       });
       addToCanvas(object);
     },
+    canvas,
     fillColor,
     strokeColor,
     strokeWidth,

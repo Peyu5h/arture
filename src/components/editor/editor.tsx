@@ -14,6 +14,7 @@ import { DrawSidebar } from "./sidebar/draw/draw-sidebar";
 import { ImageSidebar } from "./sidebar/image/image-sidebar";
 import { SettingsSidebar } from "./sidebar/settings/settings-sidebar";
 import { TextSidebar } from "./sidebar/text/text-sidebar";
+import { FillColorSidebar } from "./sidebar/fillColor/fillColorSidebar";
 
 const Editor = () => {
   const { init, editor } = useEditor();
@@ -71,6 +72,11 @@ const Editor = () => {
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
         />
+        <FillColorSidebar
+          editor={editor}
+          activeTool={activeTool}
+          onChangeActiveTool={onChangeActiveTool}
+        />
         <AISidebar
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
@@ -92,7 +98,12 @@ const Editor = () => {
           onChangeActiveTool={onChangeActiveTool}
         />
         <main className="flex w-full flex-1 flex-col overflow-auto bg-secondary">
-          <Toolbar />
+          <Toolbar
+            // @ts-ignore
+            editor={editor}
+            activeTool={activeTool}
+            onChangeActiveTool={onChangeActiveTool}
+          />
           <div className="canvas-container" ref={containerRef}>
             <canvas ref={canvasRef} />
           </div>
