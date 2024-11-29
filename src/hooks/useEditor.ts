@@ -11,6 +11,7 @@ import {
   STROKE_COLOR,
   STROKE_WIDTH,
   TRIANGLE_OPTIONS,
+  UseEditorProps,
 } from "~/components/editor/types";
 import { useCanvasEvents } from "./useCanvasEvents";
 import { isText } from "~/lib/utils";
@@ -26,6 +27,10 @@ const buildEditor = ({
   setFillColor,
   setStrokeColor,
   setStrokeWidth,
+  selectedObjects,
+  getActiveFillColor,
+  getActiveStrokeColor,
+  changeFillColor,
 }: EditorProps) => {
   const getWorkspace = () => {
     return canvas.getObjects().find((object) => object.name === "clip");
@@ -50,15 +55,10 @@ const buildEditor = ({
   };
 
   return {
-    changeFillColor: (value: string) => {
-      setFillColor(value);
-      canvas.getActiveObjects().forEach((object) => {
-        object.set({ fill: value });
-      });
-
-      canvas.renderAll();
-    },
-
+    fillColor,
+    strokeColor,
+    strokeWidth,
+    changeFillColor,
     changeStrokeColor: (value: string) => {
       setStrokeColor(value);
       canvas.getActiveObjects().forEach((object) => {
@@ -68,26 +68,21 @@ const buildEditor = ({
           object.set({ stroke: value });
         }
       });
-
       canvas.renderAll();
     },
-
     changeStrokeWidth: (value: number) => {
       setStrokeWidth(value);
       canvas.getActiveObjects().forEach((object) => {
         object.set({ strokeWidth: value });
       });
-
       canvas.renderAll();
     },
-
     addCircle: () => {
       const object = new fabric.Circle({
         ...CIRCLE_OPTIONS,
       });
       addToCanvas(object);
     },
-
     addSoftRectangle: () => {
       const object = new fabric.Rect({
         ...RECTANGLE_OPTIONS,
@@ -96,21 +91,18 @@ const buildEditor = ({
       });
       addToCanvas(object);
     },
-
     addRectangle: () => {
       const object = new fabric.Rect({
         ...RECTANGLE_OPTIONS,
       });
       addToCanvas(object);
     },
-
     addTriangle: () => {
       const object = new fabric.Triangle({
         ...TRIANGLE_OPTIONS,
       });
       addToCanvas(object);
     },
-
     addInverseTriangle: () => {
       const HEIGHT = 400;
       const WIDTH = 400;
@@ -127,7 +119,6 @@ const buildEditor = ({
 
       addToCanvas(object);
     },
-
     addDiamond: () => {
       const object = new fabric.Rect({
         ...RECTANGLE_OPTIONS,
@@ -138,13 +129,12 @@ const buildEditor = ({
       addToCanvas(object);
     },
     canvas,
-    fillColor,
-    strokeColor,
-    strokeWidth,
+    getActiveFillColor,
+    getActiveStrokeColor,
   };
 };
 
-export const useEditor = () => {
+export const useEditor = ({ clearSelection }: UseEditorProps) => {
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
 
@@ -164,10 +154,35 @@ export const useEditor = () => {
   useCanvasEvents({
     canvas,
     setSelectedObjects,
+    clearSelection,
   });
 
   const editor = useMemo(() => {
     if (canvas) {
+      const getActiveFillColor = () => {
+        const selectedObject = selectedObjects?.[0];
+        if (!selectedObject) {
+          return fillColor;
+        }
+        return selectedObject.get("fill") || fillColor;
+      };
+
+      const getActiveStrokeColor = () => {
+        const selectedObject = selectedObjects?.[0];
+        if (!selectedObject) {
+          return strokeColor;
+        }
+        return selectedObject.get("stroke") || strokeColor;
+      };
+
+      const changeFillColor = (value: string) => {
+        setFillColor(value);
+        canvas.getActiveObjects().forEach((object) => {
+          object.set({ fill: value });
+        });
+        canvas.renderAll();
+      };
+
       return buildEditor({
         canvas,
         fillColor,
@@ -176,10 +191,14 @@ export const useEditor = () => {
         setFillColor,
         setStrokeColor,
         setStrokeWidth,
+        selectedObjects,
+        getActiveFillColor,
+        getActiveStrokeColor,
+        changeFillColor,
       });
     }
     return undefined;
-  }, [canvas, fillColor, strokeColor, strokeWidth]);
+  }, [canvas, fillColor, strokeColor, strokeWidth, selectedObjects]);
 
   const init = useCallback(
     ({

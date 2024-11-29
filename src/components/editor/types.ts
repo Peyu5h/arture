@@ -1,5 +1,18 @@
 import * as material from "material-colors";
 
+export const selectionDependentTool = [
+  "fill",
+  "font",
+  "filter",
+  "opacity",
+  "remove-bg",
+  "strokeColor",
+];
+
+export type UseEditorProps = {
+  clearSelection: () => void;
+};
+
 export type ActiveTool =
   | "select"
   | "shapes"
@@ -66,12 +79,16 @@ export const TRIANGLE_OPTIONS = {
 export type BuildEditorProps = {
   canvas: fabric.Canvas;
   fillColor: string;
-  strokeColor: string;
+  // strokeColor: string;
   strokeWidth: number;
   selectedObjects: fabric.Object[];
 };
 
-export interface Editor {
+export type Editor = {
+  canvas: fabric.Canvas;
+  fillColor: string;
+  strokeColor: string;
+  strokeWidth: number;
   changeFillColor: (value: string) => void;
   changeStrokeColor: (value: string) => void;
   changeStrokeWidth: (value: number) => void;
@@ -81,11 +98,9 @@ export interface Editor {
   addTriangle: () => void;
   addInverseTriangle: () => void;
   addDiamond: () => void;
-  canvas: fabric.Canvas;
-  fillColor: string;
-  strokeColor: string;
-  strokeWidth: number;
-}
+  getActiveFillColor: () => string | fabric.Pattern | fabric.Gradient;
+  getActiveStrokeColor: () => string | fabric.Pattern | fabric.Gradient;
+};
 
 export interface EditorProps {
   canvas: fabric.Canvas;
@@ -95,6 +110,11 @@ export interface EditorProps {
   setFillColor: (value: string) => void;
   setStrokeColor: (value: string) => void;
   setStrokeWidth: (value: number) => void;
+  getActiveFillColor: () => string | fabric.Pattern | fabric.Gradient;
+  getActiveStrokeColor: () => string | fabric.Pattern | fabric.Gradient;
+  changeFillColor: (value: string) => void;
+
+  selectedObjects: fabric.Object[] | null;
 }
 
 export const colors = [

@@ -6,11 +6,13 @@ interface CanvasEvents {
   setSelectedObjects: React.Dispatch<
     React.SetStateAction<fabric.Object[] | null>
   >;
+  clearSelection?: () => void;
 }
 
 export const useCanvasEvents = ({
   canvas,
   setSelectedObjects,
+  clearSelection,
 }: CanvasEvents) => {
   useEffect(() => {
     if (canvas) {
@@ -24,6 +26,7 @@ export const useCanvasEvents = ({
 
       canvas.on("selection:cleared", () => {
         setSelectedObjects(null);
+        clearSelection?.();
       });
     }
 
@@ -34,5 +37,5 @@ export const useCanvasEvents = ({
         canvas.off("selection:cleared");
       }
     };
-  }, [canvas, setSelectedObjects]);
+  }, [canvas, setSelectedObjects, clearSelection]);
 };

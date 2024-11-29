@@ -7,7 +7,7 @@ import { Navbar } from "~/components/navbar";
 import { Toolbar } from "~/components/editor/toolbar";
 import { Footer } from "~/components/editor/footer";
 import { Sidebar } from "~/components/editor/sidebar/sidebar";
-import { ActiveTool } from "~/components/editor/types";
+import { ActiveTool, selectionDependentTool } from "~/components/editor/types";
 import { ShapeSidebar } from "./sidebar/shapes/shape-sidebar";
 import { AISidebar } from "./sidebar/ai/ai-sidebar";
 import { DrawSidebar } from "./sidebar/draw/draw-sidebar";
@@ -15,14 +15,23 @@ import { ImageSidebar } from "./sidebar/image/image-sidebar";
 import { SettingsSidebar } from "./sidebar/settings/settings-sidebar";
 import { TextSidebar } from "./sidebar/text/text-sidebar";
 import { FillColorSidebar } from "./sidebar/fillColor/fillColorSidebar";
+import { StrokeColorSidebar } from "./sidebar/fillColor/strokeColorSidebar";
 
 const Editor = () => {
-  const { init, editor } = useEditor();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [activeTool, setActiveTool] = React.useState<ActiveTool>("select");
 
+  const onClearSelection = useCallback(() => {
+    if (selectionDependentTool.includes(activeTool)) {
+      setActiveTool("select");
+    }
+  }, [activeTool]);
+
+  const { init, editor } = useEditor({
+    clearSelection: onClearSelection,
+  });
   const onChangeActiveTool = useCallback(
     (tool: ActiveTool) => {
       if (tool === activeTool) {
@@ -73,6 +82,11 @@ const Editor = () => {
           onChangeActiveTool={onChangeActiveTool}
         />
         <FillColorSidebar
+          editor={editor}
+          activeTool={activeTool}
+          onChangeActiveTool={onChangeActiveTool}
+        />
+        <StrokeColorSidebar
           editor={editor}
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}

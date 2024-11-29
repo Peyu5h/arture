@@ -8,23 +8,22 @@ interface ColorPickerProps {
 }
 
 export const ColorPicker = ({ value, onChange }: ColorPickerProps) => {
+  const handleColorChange = (color: any) => {
+    const formattedValue = color.hex || rgbaObjectToString(color.rgb);
+    onChange(formattedValue);
+  };
+
   return (
     <div className="w-full space-y-4">
       <ChromePicker
-        color={value as any}
-        onChange={(color) => {
-          const formattedValue = rgbaObjectToString(color.rgb);
-          onChange(formattedValue);
-        }}
+        color={value}
+        onChange={handleColorChange}
         className="rounded-lg border"
       />
       <CirclePicker
-        color={value as any}
+        color={value}
         colors={colors}
-        onChangeComplete={(color) => {
-          const formattedValue = rgbaObjectToString(color.rgb);
-          onChange(formattedValue);
-        }}
+        onChangeComplete={handleColorChange}
       />
     </div>
   );

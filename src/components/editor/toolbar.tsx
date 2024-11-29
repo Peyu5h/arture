@@ -15,11 +15,16 @@ export const Toolbar = ({
   activeTool,
   onChangeActiveTool,
 }: ToolbarProps) => {
-  const fillColor = editor?.fillColor;
+  const fillColor = editor?.getActiveFillColor?.() || "#000000";
+  const strokeColor = editor?.getActiveStrokeColor?.() || "#000000";
+
+  const cssFillColor = typeof fillColor === "string" ? fillColor : "#000000";
+  const cssStrokeColor =
+    typeof strokeColor === "string" ? strokeColor : "#000000";
 
   return (
     <div className="z-[15] flex h-[56px] w-full shrink-0 items-center gap-x-2 overflow-x-auto border-b bg-white p-2">
-      <div className="flex h-full w-full items-center justify-between">
+      <div className="flex h-full items-center justify-between">
         <Hint label="Color" side="bottom">
           <Button
             size="icon"
@@ -28,11 +33,23 @@ export const Toolbar = ({
             onClick={() => onChangeActiveTool("fill")}
           >
             <div
-              className="size-4 rounded-sm"
-              style={{
-                backgroundColor:
-                  typeof fillColor === "string" ? fillColor : "black",
-              }}
+              className="size-4 rounded-sm border border-gray-200"
+              style={{ backgroundColor: cssFillColor }}
+            ></div>
+          </Button>
+        </Hint>
+      </div>
+      <div className="flex h-full items-center justify-between">
+        <Hint label="Stroke" side="bottom">
+          <Button
+            size="icon"
+            className={ny(activeTool == "strokeColor" && "bg-gray-100")}
+            variant="ghost"
+            onClick={() => onChangeActiveTool("strokeColor")}
+          >
+            <div
+              className="size-4 rounded-sm border border-gray-200"
+              style={{ borderColor: cssStrokeColor }}
             ></div>
           </Button>
         </Hint>
