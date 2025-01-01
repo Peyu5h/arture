@@ -19,6 +19,10 @@ import { isText } from "~/lib/utils";
 const WORKSPACE_WIDTH = 900;
 const WORKSPACE_HEIGHT = 1200;
 
+const getWorkspace = (canvas: fabric.Canvas) => {
+  return canvas.getObjects().find((object) => object.name === "clip");
+};
+
 const buildEditor = ({
   canvas,
   fillColor,
@@ -31,13 +35,11 @@ const buildEditor = ({
   getActiveFillColor,
   getActiveStrokeColor,
   changeFillColor,
+  bringForward,
+  sendBackward,
 }: EditorProps) => {
-  const getWorkspace = () => {
-    return canvas.getObjects().find((object) => object.name === "clip");
-  };
-
   const center = (object: fabric.Object) => {
-    const workspace = getWorkspace();
+    const workspace = getWorkspace(canvas);
     const center = workspace?.getCenterPoint();
 
     if (center) {
@@ -58,8 +60,11 @@ const buildEditor = ({
     fillColor,
     strokeColor,
     strokeWidth,
+    bringForward,
+    sendBackward,
     changeFillColor,
     changeStrokeColor: (value: string) => {
+      if (!canvas) return;
       setStrokeColor(value);
       canvas.getActiveObjects().forEach((object) => {
         if (isText(object.type)) {
@@ -71,12 +76,28 @@ const buildEditor = ({
       canvas.renderAll();
     },
     changeStrokeWidth: (value: number) => {
+      if (!canvas) return;
       setStrokeWidth(value);
       canvas.getActiveObjects().forEach((object) => {
         object.set({ strokeWidth: value });
       });
       canvas.renderAll();
     },
+    changeStrokeType: (type: "solid" | "dashed") => {
+      if (!canvas) return;
+      canvas.getActiveObjects().forEach((object) => {
+        object.set({
+          strokeDashArray: type === "dashed" ? [10, 5] : [],
+        });
+      });
+      canvas.renderAll();
+
+      const workspace = getWorkspace(canvas);
+      if (workspace) {
+        workspace.sendToBack();
+      }
+    },
+
     addCircle: () => {
       const object = new fabric.Circle({
         ...CIRCLE_OPTIONS,
@@ -183,6 +204,28 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         canvas.renderAll();
       };
 
+      const bringForward = () => {
+        canvas.getActiveObjects().forEach((object) => {
+          canvas.bringForward(object);
+        });
+
+        canvas.renderAll();
+
+        const workspace = getWorkspace(canvas);
+        workspace?.sendToBack();
+      };
+
+      const sendBackward = () => {
+        canvas.getActiveObjects().forEach((object) => {
+          canvas.sendBackwards(object);
+        });
+
+        canvas.renderAll();
+
+        const workspace = getWorkspace(canvas);
+        workspace?.sendToBack();
+      };
+
       return buildEditor({
         canvas,
         fillColor,
@@ -195,6 +238,8 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         getActiveFillColor,
         getActiveStrokeColor,
         changeFillColor,
+        bringForward,
+        sendBackward,
       });
     }
     return undefined;

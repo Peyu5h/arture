@@ -100,6 +100,10 @@ export type Editor = {
   addDiamond: () => void;
   getActiveFillColor: () => string | fabric.Pattern | fabric.Gradient;
   getActiveStrokeColor: () => string | fabric.Pattern | fabric.Gradient;
+  bringForward: () => void;
+  sendBackward: () => void;
+  strokeType: "solid" | "dashed";
+  changeStrokeType: (type: "solid" | "dashed") => void;
 };
 
 export interface EditorProps {
@@ -113,6 +117,8 @@ export interface EditorProps {
   getActiveFillColor: () => string | fabric.Pattern | fabric.Gradient;
   getActiveStrokeColor: () => string | fabric.Pattern | fabric.Gradient;
   changeFillColor: (value: string) => void;
+  bringForward: () => void;
+  sendBackward: () => void;
 
   selectedObjects: fabric.Object[] | null;
 }
