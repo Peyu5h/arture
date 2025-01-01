@@ -37,6 +37,8 @@ const buildEditor = ({
   changeFillColor,
   bringForward,
   sendBackward,
+  getActiveOpacity,
+  changeOpacity,
 }: EditorProps) => {
   const center = (object: fabric.Object) => {
     const workspace = getWorkspace(canvas);
@@ -152,6 +154,18 @@ const buildEditor = ({
     canvas,
     getActiveFillColor,
     getActiveStrokeColor,
+    getActiveOpacity: () => {
+      if (!canvas) return 1;
+      const activeObject = canvas.getActiveObject();
+      return activeObject?.opacity || 1;
+    },
+    changeOpacity: (value: number) => {
+      if (!canvas) return;
+      canvas.getActiveObjects().forEach((object) => {
+        object.set({ opacity: value });
+      });
+      canvas.renderAll();
+    },
   };
 };
 
@@ -226,6 +240,22 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         workspace?.sendToBack();
       };
 
+      const getActiveOpacity = () => {
+        const selectedObject = selectedObjects?.[0];
+        if (!selectedObject) {
+          return 1;
+        }
+        return selectedObject.get("opacity") || 1;
+      };
+
+      const changeOpacity = (value: number) => {
+        if (!canvas) return;
+        canvas.getActiveObjects().forEach((object) => {
+          object.set({ opacity: value });
+        });
+        canvas.renderAll();
+      };
+
       return buildEditor({
         canvas,
         fillColor,
@@ -240,6 +270,8 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         changeFillColor,
         bringForward,
         sendBackward,
+        getActiveOpacity,
+        changeOpacity,
       });
     }
     return undefined;

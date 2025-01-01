@@ -24,7 +24,8 @@ export type ActiveTool =
   | "templates"
   | "fill"
   | "strokeWidth"
-  | "strokeColor";
+  | "strokeColor"
+  | "opacity";
 
 export const FILL_COLOR = "rgba(0,0,0,1)";
 export const STROKE_COLOR = "rgba(0,0,0,1)";
@@ -104,6 +105,8 @@ export type Editor = {
   sendBackward: () => void;
   strokeType: "solid" | "dashed";
   changeStrokeType: (type: "solid" | "dashed") => void;
+  getActiveOpacity: () => number;
+  changeOpacity: (value: number) => void;
 };
 
 export interface EditorProps {
@@ -119,6 +122,8 @@ export interface EditorProps {
   changeFillColor: (value: string) => void;
   bringForward: () => void;
   sendBackward: () => void;
+  getActiveOpacity: () => number;
+  changeOpacity: (value: number) => void;
 
   selectedObjects: fabric.Object[] | null;
 }
