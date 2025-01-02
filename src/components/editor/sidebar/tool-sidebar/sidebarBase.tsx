@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useRef } from "react";
 import { ny } from "~/lib/utils";
 
-interface SidebarBaseProps {
+interface MainSidebarBaseProps {
   children: React.ReactNode;
   isVisible: boolean;
   onClose: () => void;
@@ -14,16 +14,26 @@ export const SidebarBase = ({
   isVisible,
   onClose,
   className,
-}: SidebarBaseProps) => {
+}: MainSidebarBaseProps) => {
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        sidebarRef.current &&
-        !sidebarRef.current.contains(event.target as Node) &&
-        isVisible
-      ) {
+      const target = event.target as HTMLElement;
+
+      if (sidebarRef.current?.contains(target)) {
+        return;
+      }
+
+      if (target.closest(".canvas-container")) {
+        return;
+      }
+
+      if (target.closest("[data-sidebar]")) {
+        return;
+      }
+
+      if (isVisible) {
         onClose();
       }
     };
@@ -33,22 +43,37 @@ export const SidebarBase = ({
   }, [isVisible, onClose]);
 
   return (
-    <AnimatePresence>
-      {isVisible && (
-        <motion.aside
-          ref={sidebarRef}
-          initial={{ x: -360, opacity: 1 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: -360, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className={ny(
-            "absolute z-[40] flex h-full w-[360px] flex-col border-r bg-white shadow-lg",
-            className,
-          )}
-        >
-          {children}
-        </motion.aside>
-      )}
-    </AnimatePresence>
+    <div className="relative">
+      <AnimatePresence>
+        {isVisible && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.1 }}
+              exit={{ opacity: 0 }}
+              className="pointer-events-none fixed inset-0 z-30"
+            />
+            <motion.aside
+              ref={sidebarRef}
+              data-sidebar="tool"
+              initial={{ x: -400, opacity: 1 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -400, opacity: 1 }}
+              transition={{
+                type: "spring",
+                stiffness: 400,
+                damping: 30,
+              }}
+              className={ny(
+                "absolute z-[40] flex h-full w-[360px] flex-col border-r bg-white shadow-lg",
+                className,
+              )}
+            >
+              {children}
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
   );
 };

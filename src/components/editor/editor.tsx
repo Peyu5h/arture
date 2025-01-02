@@ -16,6 +16,7 @@ import { SettingsSidebar } from "./sidebar/settings/settings-sidebar";
 import { TextSidebar } from "./sidebar/text/text-sidebar";
 import { FillColorSidebar } from "./sidebar/fillColor/fillColorSidebar";
 import { StrokeColorSidebar } from "./sidebar/fillColor/strokeColorSidebar";
+import { FontSidebar } from "./sidebar/text/font-sidebar";
 
 const Editor = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -110,6 +111,12 @@ const Editor = () => {
           onChangeActiveTool={onChangeActiveTool}
         />
         <TextSidebar
+          // @ts-ignore
+          editor={editor}
+          activeTool={activeTool}
+          onChangeActiveTool={onChangeActiveTool}
+        />
+        <FontSidebar
           // @ts-ignore
           editor={editor}
           activeTool={activeTool}

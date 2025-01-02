@@ -26,7 +26,8 @@ export type ActiveTool =
   | "fill"
   | "strokeWidth"
   | "strokeColor"
-  | "opacity";
+  | "opacity"
+  | "font";
 
 export const FILL_COLOR = "rgba(0,0,0,1)";
 export const STROKE_COLOR = "rgba(0,0,0,1)";
@@ -106,11 +107,29 @@ export type Editor = {
   getActiveStrokeColor: () => string | fabric.Pattern | fabric.Gradient;
   bringForward: () => void;
   sendBackward: () => void;
+  delete: () => void;
   strokeType: "solid" | "dashed";
   changeStrokeType: (type: "solid" | "dashed") => void;
   getActiveOpacity: () => number;
   changeOpacity: (value: number) => void;
   addText: (value: string, options?: ITextboxOptions) => void;
+  getActiveStrokeWidth: () => number;
+
+  // text tools
+  changeFontSize: (value: number) => void;
+  getActiveFontSize: () => number;
+  changeTextAlign: (value: string) => void;
+  getActiveTextAlign: () => string;
+  changeFontUnderline: (value: boolean) => void;
+  getActiveFontUnderline: () => boolean;
+  changeFontLinethrough: (value: boolean) => void;
+  getActiveFontLinethrough: () => boolean;
+  changeFontStyle: (value: string) => void;
+  getActiveFontStyle: () => string;
+  changeFontWeight: (value: number) => void;
+  getActiveFontWeight: () => number;
+  changeFontFamily: (value: string) => void;
+  getActiveFontFamily: () => string;
 };
 
 export interface EditorProps {
@@ -155,4 +174,25 @@ export const colors = [
   material.brown["500"],
   material.blueGrey["500"],
   "transparent",
+];
+
+export const fonts = [
+  "Arial",
+  "Arial Black",
+  "Verdana",
+  "Helvetica",
+  "Tahoma",
+  "Trebuchet MS",
+  "Times New Roman",
+  "Georgia",
+  "Garamond",
+  "Courier New",
+  "Brush Script MT",
+  "Palatino",
+  "Bookman",
+  "Comic Sans MS",
+  "Impact",
+  "Lucida Sans Unicode",
+  "Geneva",
+  "Lucida Console",
 ];

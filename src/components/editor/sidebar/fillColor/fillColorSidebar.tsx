@@ -4,7 +4,7 @@ import { ToolSidebarHeader } from "../tool-sidebar/tool-sidebar-header";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { ToolSidebarClose } from "../tool-sidebar/tool-sidebar-close";
 import { ColorPicker } from "./colorPicker";
-import { SidebarBase } from "../tool-sidebar/sidebarBase";
+import { ToolsSidebarBase } from "../tool-sidebar/toolsSidebarBase";
 
 interface FillColorSidebarProps {
   editor: Editor | undefined;
@@ -29,7 +29,7 @@ export const FillColorSidebar = ({
   };
 
   return (
-    <SidebarBase isVisible={activeTool === "fill"} onClose={onClose}>
+    <ToolsSidebarBase isVisible={activeTool === "fill"} onClose={onClose}>
       <ToolSidebarHeader
         title="Fill color"
         description="Add fill color to your element"
@@ -47,6 +47,6 @@ export const FillColorSidebar = ({
         </div>
       </ScrollArea>
       <ToolSidebarClose onClick={onClose} />
-    </SidebarBase>
+    </ToolsSidebarBase>
   );
 };

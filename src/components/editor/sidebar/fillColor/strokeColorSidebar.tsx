@@ -6,7 +6,7 @@ import { ToolSidebarClose } from "../tool-sidebar/tool-sidebar-close";
 import { StrokeWidthControl } from "./strokeWidthControl";
 import { Separator } from "~/components/ui/separator";
 import { BorderColorPicker } from "./borderColorPicker";
-import { SidebarBase } from "../tool-sidebar/sidebarBase";
+import { ToolsSidebarBase } from "../tool-sidebar/toolsSidebarBase";
 
 interface StrokeColorSidebarProps {
   editor: Editor | undefined;
@@ -41,7 +41,10 @@ export const StrokeColorSidebar = ({
   };
 
   return (
-    <SidebarBase isVisible={activeTool === "strokeColor"} onClose={onClose}>
+    <ToolsSidebarBase
+      isVisible={activeTool === "strokeColor"}
+      onClose={onClose}
+    >
       <ToolSidebarHeader
         title="Stroke"
         description="Customize stroke properties"
@@ -64,6 +67,6 @@ export const StrokeColorSidebar = ({
         </div>
       </ScrollArea>
       <ToolSidebarClose onClick={onClose} />
-    </SidebarBase>
+    </ToolsSidebarBase>
   );
 };
