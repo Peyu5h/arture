@@ -1,3 +1,4 @@
+import { ITextboxOptions } from "fabric/fabric-impl";
 import * as material from "material-colors";
 
 export const selectionDependentTool = [
@@ -32,7 +33,7 @@ export const STROKE_COLOR = "rgba(0,0,0,1)";
 export const STROKE_WIDTH = 2;
 export const STROKE_DASH_ARRAY = [];
 export const FONT_FAMILY = "Arial";
-export const FONT_SIZE = 32;
+export const FONT_SIZE = 100;
 export const FONT_WEIGHT = 400;
 
 export const CIRCLE_OPTIONS = {
@@ -77,12 +78,14 @@ export const TRIANGLE_OPTIONS = {
   angle: 0,
 };
 
-export type BuildEditorProps = {
-  canvas: fabric.Canvas;
-  fillColor: string;
-  // strokeColor: string;
-  strokeWidth: number;
-  selectedObjects: fabric.Object[];
+export const TEXT_OPTIONS = {
+  left: 100,
+  top: 100,
+  fill: FILL_COLOR,
+  fontSize: FONT_SIZE,
+  fontFamily: FONT_FAMILY,
+  fontWeight: FONT_WEIGHT,
+  text: "Hello",
 };
 
 export type Editor = {
@@ -107,6 +110,7 @@ export type Editor = {
   changeStrokeType: (type: "solid" | "dashed") => void;
   getActiveOpacity: () => number;
   changeOpacity: (value: number) => void;
+  addText: (value: string, options?: ITextboxOptions) => void;
 };
 
 export interface EditorProps {
@@ -114,6 +118,8 @@ export interface EditorProps {
   fillColor: string;
   strokeColor: string;
   strokeWidth: number;
+  fontFamily: string;
+  setFontFamily: (value: string) => void;
   setFillColor: (value: string) => void;
   setStrokeColor: (value: string) => void;
   setStrokeWidth: (value: number) => void;
@@ -124,8 +130,9 @@ export interface EditorProps {
   sendBackward: () => void;
   getActiveOpacity: () => number;
   changeOpacity: (value: number) => void;
-
   selectedObjects: fabric.Object[] | null;
+  strokeType: "solid" | "dashed";
+  changeStrokeType: (type: "solid" | "dashed") => void;
 }
 
 export const colors = [

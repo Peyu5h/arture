@@ -35,10 +35,11 @@ export const ShapeSidebar = ({
           activeTool === "shapes" ? "visible" : "hidden",
         )}
       >
+        {/* <SidebarBase isVisible={activeTool === "shapes"} onClose={onClose}>
         <ToolSidebarHeader
           title="Shapes"
           description="Add shapes to your canvas"
-        />
+        /> */}
         <ScrollArea>
           <div className="grid grid-cols-3 gap-4 p-4">
             <ShapeTool onClick={() => editor?.addCircle()} icon={FaCircle} />
@@ -76,6 +77,7 @@ export const ShapeSidebar = ({
           </div>
         </ScrollArea>
         <ToolSidebarClose onClick={onClose} />
+        {/* </SidebarBase> */}
       </aside>
     </div>
   );

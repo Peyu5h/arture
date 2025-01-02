@@ -38,6 +38,8 @@ export const Toolbar = ({
     editor?.changeOpacity?.(newOpacity);
   };
 
+  const selectedObject = editor?.canvas?.getActiveObject();
+  const isTextObject = selectedObject?.type === "text";
   return (
     <div className="z-[15] flex h-[56px] w-full shrink-0 items-center gap-x-2 overflow-x-auto border-b bg-white p-2">
       <div className="flex h-full items-center justify-between">
@@ -55,18 +57,20 @@ export const Toolbar = ({
           </Button>
         </Hint>
       </div>
-      <div className="flex h-full items-center justify-between">
-        <Hint label="Stroke" side="bottom">
-          <Button
-            size="icon"
-            className={ny(activeTool == "strokeColor" && "bg-gray-100")}
-            variant="ghost"
-            onClick={() => onChangeActiveTool("strokeColor")}
-          >
-            <BsBorderWidth size={20} />
-          </Button>
-        </Hint>
-      </div>
+      {!isTextObject && (
+        <div className="flex h-full items-center justify-between">
+          <Hint label="Stroke" side="bottom">
+            <Button
+              size="icon"
+              className={ny(activeTool == "strokeColor" && "bg-gray-100")}
+              variant="ghost"
+              onClick={() => onChangeActiveTool("strokeColor")}
+            >
+              <BsBorderWidth size={20} />
+            </Button>
+          </Hint>
+        </div>
+      )}
 
       <div className="flex h-full items-center justify-between">
         <Hint label="Bring forward" side="bottom">

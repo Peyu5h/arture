@@ -1,7 +1,8 @@
-import { ChromePicker, CirclePicker } from "react-color";
+import { ChromePicker, CirclePicker, ColorResult } from "react-color";
 import { rgbaObjectToString } from "~/lib/utils";
 import { Input } from "~/components/input";
 import * as material from "material-colors";
+import { useState, useEffect } from "react";
 
 const extendedColors = [
   "#000000",
@@ -28,26 +29,34 @@ const extendedColors = [
   "transparent",
 ];
 
-interface ColorPickerProps {
+interface BorderColorPickerProps {
   value: string;
   onChange: (value: string) => void;
 }
 
-export const BorderColorPicker = ({ value, onChange }: ColorPickerProps) => {
-  const handleColorChange = (color: any) => {
-    const formattedValue = color.hex || rgbaObjectToString(color.rgb);
-    onChange(formattedValue);
-  };
+export const BorderColorPicker = ({
+  value,
+  onChange,
+}: BorderColorPickerProps) => {
+  const [inputValue, setInputValue] = useState(value);
 
-  const handleHexInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
-    if (newValue.match(/^#[0-9A-Fa-f]{0,6}$/)) {
-      if (newValue.length === 7) {
-        // Complete hex color
-        onChange(newValue);
-      }
+    setInputValue(newValue);
+    if (/^#[0-9A-Fa-f]{6}$/.test(newValue)) {
+      onChange(newValue);
     }
   };
+
+  const handleColorChange = (color: ColorResult) => {
+    const newValue = color.hex;
+    setInputValue(newValue);
+    onChange(newValue);
+  };
+
+  useEffect(() => {
+    setInputValue(value);
+  }, [value]);
 
   return (
     <div className="w-full space-y-4">
@@ -57,8 +66,8 @@ export const BorderColorPicker = ({ value, onChange }: ColorPickerProps) => {
           style={{ backgroundColor: value }}
         />
         <Input
-          value={value}
-          onChange={handleHexInputChange}
+          value={inputValue}
+          onChange={handleInputChange}
           className="h-8 font-mono"
           placeholder="#000000"
         />
