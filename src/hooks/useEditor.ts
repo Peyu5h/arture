@@ -342,6 +342,22 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         });
         canvas.renderAll();
       },
+      addImage: (value: string) => {
+        fabric.Image.fromURL(
+          value,
+          (image) => {
+            const workspace = getWorkspace(canvas);
+
+            image.scaleToWidth(workspace?.width || 0);
+            image.scaleToHeight(workspace?.height || 0);
+
+            addObject(image);
+          },
+          {
+            crossOrigin: "anonymous",
+          },
+        );
+      },
       getActiveFontStyle: () => {
         const selectedObject = selectedObjects?.[0];
 

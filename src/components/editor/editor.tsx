@@ -11,12 +11,12 @@ import { ActiveTool, selectionDependentTool } from "~/components/editor/types";
 import { ShapeSidebar } from "./sidebar/shapes/shape-sidebar";
 import { AISidebar } from "./sidebar/ai/ai-sidebar";
 import { DrawSidebar } from "./sidebar/draw/draw-sidebar";
-import { ImageSidebar } from "./sidebar/image/image-sidebar";
 import { SettingsSidebar } from "./sidebar/settings/settings-sidebar";
 import { TextSidebar } from "./sidebar/text/text-sidebar";
 import { FillColorSidebar } from "./sidebar/fillColor/fillColorSidebar";
 import { StrokeColorSidebar } from "./sidebar/fillColor/strokeColorSidebar";
 import { FontSidebar } from "./sidebar/text/font-sidebar";
+import { ImageSidebar } from "./sidebar/image/image-sidebar";
 
 const Editor = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -103,6 +103,8 @@ const Editor = () => {
           onChangeActiveTool={onChangeActiveTool}
         />
         <ImageSidebar
+          // @ts-ignore
+          editor={editor}
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
         />

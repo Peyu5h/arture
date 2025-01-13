@@ -108,6 +108,7 @@ export type Editor = {
   bringForward: () => void;
   sendBackward: () => void;
   delete: () => void;
+  addImage: (value: string) => void;
   strokeType: "solid" | "dashed";
   changeStrokeType: (type: "solid" | "dashed") => void;
   getActiveOpacity: () => number;
