@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { fabric } from "fabric";
 import { useAutoResize } from "./useAutoResize";
 import {
@@ -22,6 +22,7 @@ import { isText } from "~/lib/utils";
 import { ITextboxOptions } from "fabric/fabric-impl";
 import { useClipboard } from "./useClipboard";
 import { useHistory } from "./useHistory";
+import { useShortcuts } from "./useShortcuts";
 
 const WORKSPACE_WIDTH = 900;
 const WORKSPACE_HEIGHT = 1200;
@@ -56,6 +57,15 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
     setSelectedObjects,
     clearSelection,
     save,
+  });
+
+  useShortcuts({
+    canvas,
+    save,
+    copy,
+    paste,
+    undo,
+    redo,
   });
 
   const editor = useMemo(() => {
