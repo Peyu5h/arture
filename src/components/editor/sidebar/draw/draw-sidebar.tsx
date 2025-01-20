@@ -1,36 +1,61 @@
-import { ny } from "~/lib/utils";
-import { ActiveTool } from "../../types";
+import { ActiveTool, Editor, STROKE_COLOR, STROKE_WIDTH } from "../../types";
 import { ToolSidebarHeader } from "../tool-sidebar/tool-sidebar-header";
 import { ToolSidebarClose } from "../tool-sidebar/tool-sidebar-close";
+import { ScrollArea } from "~/components/ui/scroll-area";
+import { SidebarBase } from "../tool-sidebar/sidebarBase";
+import { Slider } from "~/components/slider";
+import { ColorPicker } from "../fillColor/colorPicker";
+import { Label } from "~/components/label";
 
 interface DrawSidebarProps {
   activeTool: ActiveTool;
   onChangeActiveTool: (tool: ActiveTool) => void;
+  editor: Editor | undefined;
 }
 
 export const DrawSidebar = ({
   activeTool,
   onChangeActiveTool,
+  editor,
 }: DrawSidebarProps) => {
   const onClose = () => {
     onChangeActiveTool("select");
   };
 
+  const colorValue = editor?.getActiveStrokeColor() || STROKE_COLOR;
+  const widthValue = editor?.getActiveStrokeWidth() || STROKE_WIDTH;
+
+  const onColorChange = (value: string) => {
+    editor?.changeStrokeColor(value);
+  };
+
+  const onWidthChange = (value: number) => {
+    editor?.changeStrokeWidth(value);
+  };
+
   return (
-    <div className="relative">
-      <aside
-        style={{ zIndex: 20 }}
-        className={ny(
-          "absolute z-[40] flex h-full w-[360px] flex-col border-r bg-white",
-          activeTool === "draw" ? "visible" : "hidden",
-        )}
-      >
-        <ToolSidebarHeader
-          title="Draw"
-          description="Draw freely on your canvas"
-        />
-        <ToolSidebarClose onClick={onClose} />
-      </aside>
-    </div>
+    <SidebarBase isVisible={activeTool === "draw"} onClose={onClose}>
+      <ToolSidebarHeader
+        title="Draw"
+        description="Draw freely on your canvas"
+      />
+
+      <ScrollArea>
+        <div className="space-y-6 border-b p-4">
+          <Label className="text-sm">Brush width</Label>
+          <Slider
+            value={[widthValue]}
+            onValueChange={(values) => onWidthChange(values[0])}
+          />
+        </div>
+        <div className="space-y-6 p-4">
+          <ColorPicker
+            value={typeof colorValue === "string" ? colorValue : STROKE_COLOR}
+            onChange={onColorChange}
+          />
+        </div>
+      </ScrollArea>
+      <ToolSidebarClose onClick={onClose} />
+    </SidebarBase>
   );
 };

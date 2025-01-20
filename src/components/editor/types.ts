@@ -108,6 +108,10 @@ export type Editor = {
   bringForward: () => void;
   sendBackward: () => void;
   delete: () => void;
+  copy: () => void;
+  paste: () => void;
+  enableDrawingMode: () => void;
+  disableDrawingMode: () => void;
   addImage: (value: string) => void;
   strokeType: "solid" | "dashed";
   changeStrokeType: (type: "solid" | "dashed") => void;

@@ -108,6 +108,18 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         canvas.renderAll();
       },
 
+      enableDrawingMode: () => {
+        canvas.discardActiveObject();
+        canvas.renderAll();
+        canvas.isDrawingMode = true;
+        canvas.freeDrawingBrush.color = fillColor;
+        canvas.freeDrawingBrush.width = strokeWidth;
+      },
+
+      disableDrawingMode: () => {
+        canvas.isDrawingMode = false;
+      },
+
       addCircle: () => createBasicShape(fabric.Circle, CIRCLE_OPTIONS),
       addRectangle: () => createBasicShape(fabric.Rect, RECTANGLE_OPTIONS),
       addSoftRectangle: () =>
@@ -208,6 +220,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
             object.set({ stroke: value });
           }
         });
+        canvas.freeDrawingBrush.color = value;
         canvas.requestRenderAll();
       },
       changeStrokeWidth: (value: number) => {
@@ -215,6 +228,8 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         canvas.getActiveObjects().forEach((object) => {
           object.set({ strokeWidth: value });
         });
+
+        canvas.freeDrawingBrush.width = value;
         canvas.renderAll();
       },
       changeOpacity: (value: number) => {

@@ -40,10 +40,10 @@ const Editor = () => {
       }
 
       if (tool == "draw") {
-        //enable
+        editor?.enableDrawingMode();
       }
       if (activeTool == "draw") {
-        //disable
+        editor?.disableDrawingMode();
       }
 
       setActiveTool(tool);
@@ -98,7 +98,10 @@ const Editor = () => {
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
         />
+
         <DrawSidebar
+          // @ts-ignore
+          editor={editor}
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
         />
