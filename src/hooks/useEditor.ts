@@ -99,6 +99,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         canvas.renderAll();
         const workspace = getWorkspace(canvas);
         workspace?.sendToBack();
+        save();
       },
 
       sendBackward: () => {
@@ -108,6 +109,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         canvas.renderAll();
         const workspace = getWorkspace(canvas);
         workspace?.sendToBack();
+        save();
       },
 
       delete: () => {
