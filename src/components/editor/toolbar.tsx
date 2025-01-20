@@ -14,6 +14,7 @@ import {
   Plus,
   Trash2,
   Trash,
+  Copy,
 } from "lucide-react";
 import { BsBorderWidth } from "react-icons/bs";
 import { RxTransparencyGrid } from "react-icons/rx";
@@ -430,6 +431,21 @@ export const Toolbar = ({
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
+        </div>
+
+        <div className="flex h-full items-center justify-between">
+          <Hint label="Duplicate" side="bottom">
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => {
+                editor?.copy();
+                editor?.paste();
+              }}
+            >
+              <Copy size={20} />
+            </Button>
+          </Hint>
         </div>
 
         <div className="flex h-full items-center justify-between">

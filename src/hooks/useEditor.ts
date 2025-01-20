@@ -19,6 +19,7 @@ import {
 import { useCanvasEvents } from "./useCanvasEvents";
 import { isText } from "~/lib/utils";
 import { ITextboxOptions } from "fabric/fabric-impl";
+import { useClipboard } from "./useClipboard";
 
 const WORKSPACE_WIDTH = 900;
 const WORKSPACE_HEIGHT = 1200;
@@ -43,6 +44,8 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
     canvas,
     container,
   });
+
+  const { copy, paste } = useClipboard({ canvas });
 
   useCanvasEvents({
     canvas,
@@ -107,6 +110,9 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         canvas.discardActiveObject();
         canvas.renderAll();
       },
+
+      copy: () => copy(),
+      paste: () => paste(),
 
       enableDrawingMode: () => {
         canvas.discardActiveObject();
@@ -403,6 +409,8 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
     strokeType,
     fontFamily,
     selectedObjects,
+    copy,
+    paste,
   ]);
 
   const init = useCallback(
