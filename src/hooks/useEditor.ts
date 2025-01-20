@@ -42,7 +42,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
   const [strokeType, setStrokeType] = useState<"solid" | "dashed">("solid");
   const [fontFamily, setFontFamily] = useState(FONT_FAMILY);
 
-  useAutoResize({
+  const { autoZoom } = useAutoResize({
     canvas,
     container,
   });
@@ -129,6 +129,42 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
 
       canUndo: () => canUndo(),
       canRedo: () => canRedo(),
+
+      zoomIn: () => {
+        let zoomRatio = canvas?.getZoom() || 1;
+        zoomRatio += 0.05;
+        const center = canvas.getCenter();
+        canvas.zoomToPoint(
+          new fabric.Point(center.left, center.top),
+          zoomRatio > 1 ? 1 : zoomRatio,
+        );
+        save();
+      },
+
+      zoomOut: () => {
+        let zoomRatio = canvas?.getZoom() || 1;
+        zoomRatio -= 0.05;
+        const center = canvas.getCenter();
+        canvas.zoomToPoint(
+          new fabric.Point(center.left, center.top),
+          zoomRatio < 0.2 ? 0.2 : zoomRatio,
+        );
+        save();
+      },
+
+      changeSize: (value: { width: number; height: number }) => {
+        const workspace = getWorkspace(canvas);
+        workspace?.set(value);
+        autoZoom();
+        save();
+      },
+
+      changeBackground: (value: string) => {
+        const workspace = getWorkspace(canvas);
+        workspace?.set({ fill: value });
+        canvas.renderAll();
+        save();
+      },
 
       enableDrawingMode: () => {
         canvas.discardActiveObject();
@@ -427,6 +463,9 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         canvas.renderAll();
         save();
       },
+
+      getWorkspace: () => getWorkspace(canvas),
+      autoZoom: () => autoZoom(),
     };
   }, [
     canvas,
@@ -443,6 +482,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
     canUndo,
     undo,
     redo,
+    autoZoom,
   ]);
 
   const init = useCallback(

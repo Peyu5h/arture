@@ -117,6 +117,10 @@ export type Editor = {
   canUndo: () => boolean;
   canRedo: () => boolean;
   save: (skip?: boolean) => void;
+  changeSize: (value: { width: number; height: number }) => void;
+  changeBackground: (value: string) => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
   enableDrawingMode: () => void;
   disableDrawingMode: () => void;
   addImage: (value: string) => void;
@@ -126,6 +130,8 @@ export type Editor = {
   changeOpacity: (value: number) => void;
   addText: (value: string, options?: ITextboxOptions) => void;
   getActiveStrokeWidth: () => number;
+  getWorkspace: () => fabric.Rect | null;
+  autoZoom: () => void;
 
   // text tools
   changeFontSize: (value: number) => void;

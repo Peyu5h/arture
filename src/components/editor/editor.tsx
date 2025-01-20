@@ -117,6 +117,8 @@ const Editor = () => {
           onChangeActiveTool={onChangeActiveTool}
         />
         <SettingsSidebar
+          // @ts-ignore
+          editor={editor}
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
         />
@@ -142,7 +144,10 @@ const Editor = () => {
           <div className="canvas-container" ref={containerRef}>
             <canvas ref={canvasRef} />
           </div>
-          <Footer />
+          <Footer
+            // @ts-ignore
+            editor={editor}
+          />
         </main>
       </div>
     </div>
