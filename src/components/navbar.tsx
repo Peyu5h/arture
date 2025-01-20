@@ -51,15 +51,20 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import Image from "next/image";
-import { ActiveTool } from "./editor/types";
+import { ActiveTool, Editor } from "./editor/types";
 import { ny } from "~/lib/utils";
 
 interface NavbarProps {
   activeTool: ActiveTool;
   onChangeActiveTool: (tool: ActiveTool) => void;
+  editor: Editor | undefined;
 }
 
-export const Navbar = ({ activeTool, onChangeActiveTool }: NavbarProps) => {
+export const Navbar = ({
+  activeTool,
+  onChangeActiveTool,
+  editor,
+}: NavbarProps) => {
   return (
     <nav
       style={{ zIndex: 40 }}
@@ -159,7 +164,14 @@ export const Navbar = ({ activeTool, onChangeActiveTool }: NavbarProps) => {
         </Hint>
 
         <Hint label="Undo" side="bottom" sideOffset={10}>
-          <Button variant="ghost" size="icon" onClick={() => {}}>
+          <Button
+            disabled={!editor?.canUndo()}
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              editor?.undo();
+            }}
+          >
             <span>
               <Undo2 className="size-4" />
             </span>
@@ -167,7 +179,14 @@ export const Navbar = ({ activeTool, onChangeActiveTool }: NavbarProps) => {
         </Hint>
 
         <Hint label="Redo" side="bottom" sideOffset={10}>
-          <Button variant="ghost" size="icon" onClick={() => {}}>
+          <Button
+            disabled={!editor?.canRedo()}
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              editor?.redo();
+            }}
+          >
             <span>
               <Redo2 className="size-4" />
             </span>

@@ -439,8 +439,8 @@ export const Toolbar = ({
               size="icon"
               variant="ghost"
               onClick={() => {
-                editor?.copy();
-                editor?.paste();
+                editor?.onCopy();
+                editor?.onPaste();
               }}
             >
               <Copy size={20} />

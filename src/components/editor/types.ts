@@ -108,8 +108,15 @@ export type Editor = {
   bringForward: () => void;
   sendBackward: () => void;
   delete: () => void;
-  copy: () => void;
-  paste: () => void;
+  onCopy: () => void;
+  onPaste: () => void;
+  undo: () => void;
+  redo: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
+  save: (skip?: boolean) => void;
   enableDrawingMode: () => void;
   disableDrawingMode: () => void;
   addImage: (value: string) => void;
@@ -200,4 +207,15 @@ export const fonts = [
   "Lucida Sans Unicode",
   "Geneva",
   "Lucida Console",
+];
+
+export const JSON_KEYS = [
+  "name",
+  "gradientAngle",
+  "selectable",
+  "hasControls",
+  "linkData",
+  "editable",
+  "extensionType",
+  "extension",
 ];

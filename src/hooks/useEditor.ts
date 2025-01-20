@@ -9,6 +9,7 @@ import {
   FONT_FAMILY,
   FONT_SIZE,
   FONT_WEIGHT,
+  JSON_KEYS,
   RECTANGLE_OPTIONS,
   STROKE_COLOR,
   STROKE_WIDTH,
@@ -20,6 +21,7 @@ import { useCanvasEvents } from "./useCanvasEvents";
 import { isText } from "~/lib/utils";
 import { ITextboxOptions } from "fabric/fabric-impl";
 import { useClipboard } from "./useClipboard";
+import { useHistory } from "./useHistory";
 
 const WORKSPACE_WIDTH = 900;
 const WORKSPACE_HEIGHT = 1200;
@@ -46,11 +48,14 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
   });
 
   const { copy, paste } = useClipboard({ canvas });
+  const { save, canRedo, canUndo, undo, redo, canvasHistory, setHistoryIndex } =
+    useHistory({ canvas });
 
   useCanvasEvents({
     canvas,
     setSelectedObjects,
     clearSelection,
+    save,
   });
 
   const editor = useMemo(() => {
@@ -111,8 +116,17 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         canvas.renderAll();
       },
 
-      copy: () => copy(),
-      paste: () => paste(),
+      onCopy: () => copy(),
+      onPaste: () => paste(),
+      save: () => save(),
+      undo: () => undo(),
+      redo: () => redo(),
+
+      onUndo: () => undo(),
+      onRedo: () => redo(),
+
+      canUndo: () => canUndo(),
+      canRedo: () => canRedo(),
 
       enableDrawingMode: () => {
         canvas.discardActiveObject();
@@ -216,6 +230,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         setFillColor(value);
         canvas.getActiveObjects().forEach((obj) => obj.set({ fill: value }));
         canvas.renderAll();
+        save();
       },
       changeStrokeColor: (value: string) => {
         setStrokeColor(value);
@@ -228,21 +243,23 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         });
         canvas.freeDrawingBrush.color = value;
         canvas.requestRenderAll();
+        save();
       },
       changeStrokeWidth: (value: number) => {
         setStrokeWidth(value);
         canvas.getActiveObjects().forEach((object) => {
           object.set({ strokeWidth: value });
         });
-
         canvas.freeDrawingBrush.width = value;
         canvas.renderAll();
+        save();
       },
       changeOpacity: (value: number) => {
         canvas.getActiveObjects().forEach((object) => {
           object.set({ opacity: value });
         });
         canvas.renderAll();
+        save();
       },
 
       changeStrokeType: (type: "solid" | "dashed") => {
@@ -255,6 +272,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
           }
         });
         canvas.renderAll();
+        save();
       },
 
       changeFontFamily: (value: string) => {
@@ -266,6 +284,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
           }
         });
         canvas.renderAll();
+        save();
       },
 
       //text tools
@@ -277,6 +296,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
           }
         });
         canvas.renderAll();
+        save();
       },
       getActiveFontSize: () => {
         const selectedObject = selectedObjects?.[0];
@@ -298,6 +318,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
           }
         });
         canvas.renderAll();
+        save();
       },
       getActiveTextAlign: () => {
         const selectedObject = selectedObjects?.[0];
@@ -320,6 +341,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
           }
         });
         canvas.renderAll();
+        save();
       },
       getActiveFontUnderline: () => {
         const selectedObject = selectedObjects?.[0];
@@ -341,6 +363,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
           }
         });
         canvas.renderAll();
+        save();
       },
       getActiveFontLinethrough: () => {
         const selectedObject = selectedObjects?.[0];
@@ -362,6 +385,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
           }
         });
         canvas.renderAll();
+        save();
       },
       addImage: (value: string) => {
         fabric.Image.fromURL(
@@ -399,6 +423,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
           }
         });
         canvas.renderAll();
+        save();
       },
     };
   }, [
@@ -411,6 +436,11 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
     selectedObjects,
     copy,
     paste,
+    save,
+    canRedo,
+    canUndo,
+    undo,
+    redo,
   ]);
 
   const init = useCallback(
@@ -454,17 +484,14 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
       setCanvas(initialCanvas);
       setContainer(initialContainer);
 
-      const test = new fabric.Rect({
-        height: 100,
-        width: 100,
-        fill: "black",
-      });
-      initialCanvas.add(test);
-      initialCanvas.centerObject(test);
+      // initialCanvas.renderAll();
 
-      initialCanvas.renderAll();
+      const currState = JSON.stringify(initialCanvas.toJSON(JSON_KEYS));
+
+      canvasHistory.current = [currState];
+      setHistoryIndex(0);
     },
-    [],
+    [canvasHistory, setHistoryIndex],
   );
 
   return {

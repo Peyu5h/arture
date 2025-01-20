@@ -71,7 +71,12 @@ const Editor = () => {
 
   return (
     <div className="flex h-screen w-screen flex-col">
-      <Navbar activeTool={activeTool} onChangeActiveTool={onChangeActiveTool} />
+      <Navbar
+        // @ts-ignore
+        editor={editor}
+        activeTool={activeTool}
+        onChangeActiveTool={onChangeActiveTool}
+      />
       <div className="relative flex h-full w-full overflow-hidden">
         <Sidebar
           activeTool={activeTool}
