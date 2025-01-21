@@ -5,7 +5,7 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import React from "react";
-import { Button } from "./ui/button";
+import { Button } from "../ui/button";
 import {
   ChevronDown,
   Download,
@@ -15,10 +15,10 @@ import {
 } from "lucide-react";
 import { SiSvgdotjs } from "react-icons/si";
 import { BsFileEarmarkPdf, BsFiletypeSvg } from "react-icons/bs";
-import { DropdownMenuItem } from "./ui/dropdown-menu";
+import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { CiFileOn } from "react-icons/ci";
-import { Separator } from "./ui/separator";
-import { Hint } from "./hintToolTip";
+import { Separator } from "../ui/separator";
+import { Hint } from "../hintToolTip";
 import { BsCloudCheck } from "react-icons/bs";
 import { CiImageOn } from "react-icons/ci";
 
@@ -50,7 +50,7 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import Image from "next/image";
-import { ActiveTool, Editor } from "./editor/types";
+import { ActiveTool, Editor } from "../../lib/types";
 import { ny } from "~/lib/utils";
 import { useFilePicker } from "use-file-picker";
 
@@ -132,9 +132,18 @@ export const Navbar = ({
               <MenubarSub>
                 <MenubarSubTrigger>Download</MenubarSubTrigger>
                 <MenubarSubContent>
-                  <MenubarItem>PNG</MenubarItem>
-                  <MenubarItem>PDF</MenubarItem>
-                  <MenubarItem>JSON</MenubarItem>
+                  <MenubarItem onClick={() => editor?.savePng()}>
+                    PNG
+                  </MenubarItem>
+                  <MenubarItem onClick={() => editor?.saveJson()}>
+                    JSON
+                  </MenubarItem>
+                  <MenubarItem onClick={() => editor?.savePdf()}>
+                    PDF
+                  </MenubarItem>
+                  <MenubarItem onClick={() => editor?.saveSvg()}>
+                    SVG
+                  </MenubarItem>
                 </MenubarSubContent>
               </MenubarSub>
               <MenubarSeparator />

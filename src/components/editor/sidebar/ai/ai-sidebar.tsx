@@ -1,5 +1,5 @@
 import { ny } from "~/lib/utils";
-import { ActiveTool } from "../../types";
+import { ActiveTool } from "../../../../lib/types";
 import { ToolSidebarHeader } from "../tool-sidebar/tool-sidebar-header";
 import { ToolSidebarClose } from "../tool-sidebar/tool-sidebar-close";
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Input } from "~/components/input";
-import { Slider } from "~/components/slider";
+import { Input } from "~/components/ui/input";
+import { Slider } from "~/components/ui/slider";
 
 interface StrokeWidthControlProps {
   value: number;

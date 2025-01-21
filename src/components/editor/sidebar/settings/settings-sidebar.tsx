@@ -1,13 +1,18 @@
-import { ActiveTool, Editor, STROKE_COLOR, STROKE_WIDTH } from "../../types";
+import {
+  ActiveTool,
+  Editor,
+  STROKE_COLOR,
+  STROKE_WIDTH,
+} from "../../../../lib/types";
 import { ToolSidebarHeader } from "../tool-sidebar/tool-sidebar-header";
 import { ToolSidebarClose } from "../tool-sidebar/tool-sidebar-close";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { SidebarBase } from "../tool-sidebar/sidebarBase";
-import { Slider } from "~/components/slider";
+import { Slider } from "~/components/ui/slider";
 import { ColorPicker } from "../fillColor/colorPicker";
-import { Label } from "~/components/label";
+import { Label } from "~/components/ui/label";
 import { useEffect, useMemo, useState } from "react";
-import { Input } from "~/components/input";
+import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 
 interface SettingsSidebarProps {
@@ -66,7 +71,7 @@ export const SettingsSidebar = ({
         description="Configure canvas settings"
       />
 
-      <ScrollArea>
+      <ScrollArea className="h-full">
         <form className="space-y-4 p-4" onSubmit={onSubmit}>
           <div className="space-y-2">
             <Label>Height</Label>
@@ -92,6 +97,7 @@ export const SettingsSidebar = ({
         </form>
         <div className="p-4">
           <ColorPicker
+            canvas={editor?.canvas}
             value={background as string}
             onChange={changeBackground}
           />

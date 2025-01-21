@@ -2,7 +2,7 @@ import { IoTriangle } from "react-icons/io5";
 import { FaDiamond } from "react-icons/fa6";
 import { FaCircle, FaSquare, FaSquareFull } from "react-icons/fa";
 import { ScrollArea } from "~/components/ui/scroll-area";
-import { ActiveTool } from "../../types";
+import { ActiveTool } from "../../../../lib/types";
 import { ToolSidebarHeader } from "../tool-sidebar/tool-sidebar-header";
 import { ToolSidebarClose } from "../tool-sidebar/tool-sidebar-close";
 import { ShapeTool } from "./shape-tool";

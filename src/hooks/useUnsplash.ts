@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { getPhotosByQuery, getRandomPhotos } from "~/lib/unsplash";
 
-const staleTime = 1000 * 60 * 60 * 2; // 2 hours
+const staleTime = 1000 * 60 * 60 * 2;
 
-export const useGetRandomPhotos = ({ count = 20 }: { count?: number } = {}) =>
+export const useGetRandomPhotos = ({ count }: { count?: number } = {}) =>
   useQuery({
     queryKey: ["random-photos", count],
     queryFn: () => getRandomPhotos({ count }),

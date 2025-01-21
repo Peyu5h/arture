@@ -1,6 +1,6 @@
 import { ChromePicker, CirclePicker, ColorResult } from "react-color";
 import { rgbaObjectToString } from "~/lib/utils";
-import { Input } from "~/components/input";
+import { Input } from "~/components/ui/input";
 import * as material from "material-colors";
 import { useState, useEffect } from "react";
 

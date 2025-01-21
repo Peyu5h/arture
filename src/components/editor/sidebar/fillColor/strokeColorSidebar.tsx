@@ -1,5 +1,5 @@
 import { ny } from "~/lib/utils";
-import { ActiveTool, Editor } from "../../types";
+import { ActiveTool, Editor } from "../../../../lib/types";
 import { ToolSidebarHeader } from "../tool-sidebar/tool-sidebar-header";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { ToolSidebarClose } from "../tool-sidebar/tool-sidebar-close";

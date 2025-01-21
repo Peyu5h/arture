@@ -1,5 +1,5 @@
 import { ny } from "~/lib/utils";
-import { Editor, ActiveTool, fonts } from "../../types";
+import { Editor, ActiveTool, fonts } from "../../../../lib/types";
 import { ToolSidebarHeader } from "../tool-sidebar/tool-sidebar-header";
 import { ToolSidebarClose } from "../tool-sidebar/tool-sidebar-close";
 import { Button } from "~/components/ui/button";

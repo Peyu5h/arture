@@ -1,5 +1,5 @@
 import { ny } from "~/lib/utils";
-import { ActiveTool, Editor, FILL_COLOR } from "../../types";
+import { ActiveTool, Editor, FILL_COLOR } from "../../../../lib/types";
 import { ToolSidebarHeader } from "../tool-sidebar/tool-sidebar-header";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { ToolSidebarClose } from "../tool-sidebar/tool-sidebar-close";
@@ -43,7 +43,11 @@ export const FillColorSidebar = ({
       </div>
       <ScrollArea>
         <div className="space-y-6 p-4">
-          <ColorPicker value={backgroundColorValue} onChange={onChange} />
+          <ColorPicker
+            canvas={editor?.canvas}
+            value={backgroundColorValue}
+            onChange={onChange}
+          />
         </div>
       </ScrollArea>
       <ToolSidebarClose onClick={onClose} />

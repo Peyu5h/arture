@@ -4,14 +4,14 @@ import { ChevronLeft, ChevronRight, LucideLoader2, Search } from "lucide-react";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Button } from "~/components/ui/button";
 import { ny } from "~/lib/utils";
-import { Editor, ActiveTool } from "../../types";
 import { ToolSidebarHeader } from "../tool-sidebar/tool-sidebar-header";
 import { ToolSidebarClose } from "../tool-sidebar/tool-sidebar-close";
 import { SidebarBase } from "../tool-sidebar/sidebarBase";
 import { useGetPhotosByQuery, useGetRandomPhotos } from "~/hooks/useUnsplash";
-import { Input } from "~/components/input";
+import { Input } from "~/components/ui/input";
 import Image from "next/image";
 import { AiOutlineCloudUpload } from "react-icons/ai";
+import { ActiveTool, Editor } from "~/lib/types";
 
 const imageTags = [
   "Background",
@@ -55,7 +55,7 @@ export const ImageSidebar = ({
   const [debouncedSearch] = useDebounce(searchQuery, 1000);
   const tagsRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
 

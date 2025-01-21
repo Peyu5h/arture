@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActiveTool, Editor, FONT_SIZE, FONT_WEIGHT } from "./types";
+import { ActiveTool, Editor, FONT_SIZE, FONT_WEIGHT } from "../../lib/types";
 import { Hint } from "../hintToolTip";
 import { Button } from "../ui/button";
 import { ny } from "~/lib/utils";
@@ -23,14 +23,14 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import { Slider } from "../slider";
+import { Slider } from "../ui/slider";
 import {
   FaBold,
   FaItalic,
   FaStrikethrough,
   FaUnderline,
 } from "react-icons/fa6";
-import { Input } from "../input";
+import { Input } from "../ui/input";
 
 interface ToolbarProps {
   editor?: Editor;

@@ -1,6 +1,6 @@
 import { fabric } from "fabric";
 import { useCallback, useRef, useState, useEffect } from "react";
-import { JSON_KEYS } from "~/components/editor/types";
+import { JSON_KEYS } from "~/lib/types";
 
 interface HistoryProps {
   canvas: fabric.Canvas | null;

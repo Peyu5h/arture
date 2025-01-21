@@ -16,7 +16,7 @@ import {
   TEXT_OPTIONS,
   TRIANGLE_OPTIONS,
   UseEditorProps,
-} from "~/components/editor/types";
+} from "~/lib/types";
 import { useCanvasEvents } from "./useCanvasEvents";
 import { downloadFile, downloadPdf, isText, transformText } from "~/lib/utils";
 import { ITextboxOptions } from "fabric/fabric-impl";
