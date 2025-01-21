@@ -92,7 +92,7 @@ export const SettingsSidebar = ({
         </form>
         <div className="p-4">
           <ColorPicker
-            value={background as string} // We dont support gradients or patterns
+            value={background as string}
             onChange={changeBackground}
           />
         </div>

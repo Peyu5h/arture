@@ -1,6 +1,8 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { RGBColor } from "react-color";
+import { v4 as uuid } from "uuid";
+import { jsPDF } from "jspdf";
 
 export function ny(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -53,4 +55,56 @@ export function rgbaObjectToHex(rgba: any): string {
   };
 
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+export function downloadFile(file: string, type: string) {
+  const anchorElement = document.createElement("a");
+
+  anchorElement.href = file;
+  anchorElement.download = `${uuid()}.${type}`;
+  document.body.appendChild(anchorElement);
+  anchorElement.click();
+  anchorElement.remove();
+}
+
+export function transformText(objects: any) {
+  if (!objects) return;
+
+  objects.forEach((item: any) => {
+    if (item.objects) {
+      transformText(item.objects);
+    } else {
+      if (item.type === "text" || item.type === "textbox") {
+        console.log("Item is of type text or textbox");
+      }
+    }
+  });
+}
+
+export async function downloadPdf(imageBlob: Blob, filename: string) {
+  try {
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "px",
+    });
+
+    const reader = new FileReader();
+    const base64Promise = new Promise((resolve) => {
+      reader.onloadend = () => resolve(reader.result);
+      reader.readAsDataURL(imageBlob);
+    });
+
+    const base64Image = (await base64Promise) as string;
+
+    const imgProps = pdf.getImageProperties(base64Image);
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+    pdf.addImage(base64Image, "PNG", 0, 0, pdfWidth, pdfHeight);
+
+    pdf.save(`${filename}.pdf`);
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    throw new Error("Failed to generate PDF");
+  }
 }

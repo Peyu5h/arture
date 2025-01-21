@@ -1,5 +1,4 @@
 "use client";
-
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +13,8 @@ import {
   Redo2,
   Undo2,
 } from "lucide-react";
-import { BsFileEarmarkPdf } from "react-icons/bs";
+import { SiSvgdotjs } from "react-icons/si";
+import { BsFileEarmarkPdf, BsFiletypeSvg } from "react-icons/bs";
 import { DropdownMenuItem } from "./ui/dropdown-menu";
 import { CiFileOn } from "react-icons/ci";
 import { Separator } from "./ui/separator";
@@ -39,7 +39,6 @@ import {
 } from "~/components/ui/menubar";
 import { CiExport } from "react-icons/ci";
 import { CiShare1 } from "react-icons/ci";
-import { FiDownload } from "react-icons/fi";
 
 import {
   Select,
@@ -53,6 +52,7 @@ import {
 import Image from "next/image";
 import { ActiveTool, Editor } from "./editor/types";
 import { ny } from "~/lib/utils";
+import { useFilePicker } from "use-file-picker";
 
 interface NavbarProps {
   activeTool: ActiveTool;
@@ -60,11 +60,43 @@ interface NavbarProps {
   editor: Editor | undefined;
 }
 
+interface FileSelectionResult {
+  filesContent: Array<{ content: string }>;
+  plainFiles: File[];
+}
+
 export const Navbar = ({
   activeTool,
   onChangeActiveTool,
   editor,
 }: NavbarProps) => {
+  const { openFilePicker } = useFilePicker({
+    accept: ".json",
+    multiple: false,
+    onFilesSuccessfullySelected: (files: FileSelectionResult) => {
+      try {
+        if (files.plainFiles && files.plainFiles.length > 0) {
+          const file = files.plainFiles[0];
+          const reader = new FileReader();
+
+          reader.onload = (event) => {
+            if (event.target?.result) {
+              editor?.loadJson(event.target.result as string);
+            }
+          };
+
+          reader.onerror = (error) => {
+            console.error("Error reading file:", error);
+          };
+
+          reader.readAsText(file, "UTF-8");
+        }
+      } catch (error) {
+        console.error("Error processing file:", error);
+      }
+    },
+  });
+
   return (
     <nav
       style={{ zIndex: 40 }}
@@ -89,7 +121,7 @@ export const Navbar = ({
               File
             </MenubarTrigger>
             <MenubarContent>
-              <MenubarItem>
+              <MenubarItem onClick={() => openFilePicker()}>
                 Import Project <MenubarShortcut>⌘T</MenubarShortcut>
               </MenubarItem>
               <MenubarItem>
@@ -241,9 +273,11 @@ export const Navbar = ({
             <Separator />
             <p className="text mx-2 my-2 mb-2 flex cursor-default select-none items-center gap-x-2 font-medium">
               Download your project
-              <FiDownload className="size-5" />
             </p>
-            <DropdownMenuItem className="flex cursor-pointer items-center gap-x-2">
+            <DropdownMenuItem
+              onClick={() => editor?.saveJson()}
+              className="flex cursor-pointer items-center gap-x-2"
+            >
               <CiFileOn className="size-6" />
               <div className="">
                 <p>JSON</p>
@@ -252,19 +286,39 @@ export const Navbar = ({
                 </p>
               </div>
             </DropdownMenuItem>
-            <DropdownMenuItem className="flex cursor-pointer items-center gap-x-2">
+            <DropdownMenuItem
+              onClick={() => editor?.savePng()}
+              className="flex cursor-pointer items-center gap-x-2"
+            >
               <CiImageOn className="size-6" />
               <div className="">
                 <p>PNG</p>
                 <p className="text-xs text-muted-foreground">Save as image</p>
               </div>
             </DropdownMenuItem>
-            <DropdownMenuItem className="flex cursor-pointer items-center gap-x-2">
-              <BsFileEarmarkPdf className="size-6 bg-opacity-85" />
+            <DropdownMenuItem
+              onClick={() => editor?.savePdf()}
+              className="flex cursor-pointer items-center gap-x-2"
+            >
+              <BsFileEarmarkPdf className="size-6 bg-opacity-85 text-zinc-700" />
               <div className="">
                 <p>PDF</p>
                 <p className="text-xs text-muted-foreground">
                   Save as document
+                </p>
+              </div>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              onClick={() => editor?.saveSvg()}
+              className="flex cursor-pointer items-center gap-x-2"
+            >
+              <BsFiletypeSvg className="size-6 bg-opacity-85 text-zinc-700" />
+
+              <div className="">
+                <p>SVG</p>
+                <p className="text-xs text-muted-foreground">
+                  Save as vector file
                 </p>
               </div>
             </DropdownMenuItem>

@@ -18,7 +18,7 @@ import {
   UseEditorProps,
 } from "~/components/editor/types";
 import { useCanvasEvents } from "./useCanvasEvents";
-import { isText } from "~/lib/utils";
+import { downloadFile, downloadPdf, isText, transformText } from "~/lib/utils";
 import { ITextboxOptions } from "fabric/fabric-impl";
 import { useClipboard } from "./useClipboard";
 import { useHistory } from "./useHistory";
@@ -26,10 +26,6 @@ import { useShortcuts } from "./useShortcuts";
 
 const WORKSPACE_WIDTH = 900;
 const WORKSPACE_HEIGHT = 1200;
-
-const getWorkspace = (canvas: fabric.Canvas) => {
-  return canvas.getObjects().find((object) => object.name === "clip");
-};
 
 export const useEditor = ({ clearSelection }: UseEditorProps) => {
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
@@ -42,6 +38,93 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
   const [strokeWidth, setStrokeWidth] = useState(STROKE_WIDTH);
   const [strokeType, setStrokeType] = useState<"solid" | "dashed">("solid");
   const [fontFamily, setFontFamily] = useState(FONT_FAMILY);
+
+  const getWorkspace = useCallback(() => {
+    return canvas?.getObjects().find((object) => object.name === "clip");
+  }, [canvas]);
+
+  const generateSaveOptions = () => {
+    const { width, height, left, top } = getWorkspace() as fabric.Rect;
+
+    return {
+      name: "Image",
+      format: "png",
+      quality: 1,
+      width,
+      height,
+      left,
+      top,
+    };
+  };
+
+  const savePng = () => {
+    const options = generateSaveOptions();
+
+    canvas?.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    const dataUrl = canvas?.toDataURL(options);
+
+    if (dataUrl) {
+      downloadFile(dataUrl, "png");
+    }
+    autoZoom();
+  };
+
+  const savePdf = async () => {
+    const options = generateSaveOptions();
+
+    canvas?.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    const dataUrl = canvas?.toDataURL(options);
+
+    if (dataUrl) {
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      downloadPdf(blob, "document");
+    }
+    autoZoom();
+  };
+
+  const saveSvg = () => {
+    const options = generateSaveOptions();
+
+    canvas?.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    const dataUrl = canvas?.toDataURL(options);
+
+    if (dataUrl) {
+      downloadFile(dataUrl, "svg");
+    }
+    autoZoom();
+  };
+
+  const saveJpg = () => {
+    const options = generateSaveOptions();
+
+    canvas?.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    const dataUrl = canvas?.toDataURL(options);
+    if (dataUrl) {
+      downloadFile(dataUrl, "jpg");
+    }
+    autoZoom();
+  };
+
+  const saveJson = async () => {
+    const dataUrl = canvas?.toJSON(JSON_KEYS);
+    if (dataUrl) {
+      await transformText(dataUrl.objects);
+      const fileString = `data:text/json;charset=utf-8,${encodeURIComponent(
+        JSON.stringify(dataUrl, null, "\t"),
+      )}`;
+
+      downloadFile(fileString, "json");
+    }
+  };
+
+  const loadJson = (json: string) => {
+    const data = JSON.parse(json);
+
+    canvas?.loadFromJSON(data, () => {
+      autoZoom();
+    });
+  };
 
   const { autoZoom } = useAutoResize({
     canvas,
@@ -107,7 +190,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
           canvas.bringForward(object);
         });
         canvas.renderAll();
-        const workspace = getWorkspace(canvas);
+        const workspace = getWorkspace();
         workspace?.sendToBack();
         save();
       },
@@ -117,7 +200,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
           canvas.sendBackwards(object);
         });
         canvas.renderAll();
-        const workspace = getWorkspace(canvas);
+        const workspace = getWorkspace();
         workspace?.sendToBack();
         save();
       },
@@ -163,18 +246,25 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
       },
 
       changeSize: (value: { width: number; height: number }) => {
-        const workspace = getWorkspace(canvas);
+        const workspace = getWorkspace();
         workspace?.set(value);
         autoZoom();
         save();
       },
 
       changeBackground: (value: string) => {
-        const workspace = getWorkspace(canvas);
+        const workspace = getWorkspace();
         workspace?.set({ fill: value });
         canvas.renderAll();
         save();
       },
+
+      savePng,
+      savePdf,
+      saveSvg,
+      saveJpg,
+      saveJson,
+      loadJson,
 
       enableDrawingMode: () => {
         canvas.discardActiveObject();
@@ -439,7 +529,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         fabric.Image.fromURL(
           value,
           (image) => {
-            const workspace = getWorkspace(canvas);
+            const workspace = getWorkspace();
 
             image.scaleToWidth(workspace?.width || 0);
             image.scaleToHeight(workspace?.height || 0);
@@ -474,7 +564,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         save();
       },
 
-      getWorkspace: () => getWorkspace(canvas),
+      getWorkspace: () => getWorkspace(),
       autoZoom: () => autoZoom(),
     };
   }, [
@@ -493,6 +583,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
     undo,
     redo,
     autoZoom,
+    getWorkspace,
   ]);
 
   const init = useCallback(

@@ -79,7 +79,7 @@ export const useShortcuts = ({
       if (center) {
         canvas?.zoomToPoint(
           new fabric.Point(center.left, center.top),
-          zoomRatio > 1 ? 1 : zoomRatio,
+          zoomRatio < 0.2 ? 0.2 : zoomRatio,
         );
       }
     }

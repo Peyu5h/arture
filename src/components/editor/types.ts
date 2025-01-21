@@ -11,7 +11,7 @@ export const selectionDependentTool = [
 ];
 
 export type UseEditorProps = {
-  clearSelection: () => void;
+  clearSelection: () => void | boolean;
 };
 
 export type ActiveTool =
@@ -132,6 +132,12 @@ export type Editor = {
   getActiveStrokeWidth: () => number;
   getWorkspace: () => fabric.Rect | null;
   autoZoom: () => void;
+  savePng: () => void;
+  savePdf: () => void;
+  saveSvg: () => void;
+  saveJpg: () => void;
+  saveJson: () => void;
+  loadJson: (value: string) => void;
 
   // text tools
   changeFontSize: (value: number) => void;

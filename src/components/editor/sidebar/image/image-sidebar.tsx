@@ -209,8 +209,9 @@ export const ImageSidebar = ({
                 tagsRef.current?.scrollBy({ left: -200, behavior: "smooth" })
               }
               className="absolute left-0 z-20 h-8 w-8 hover:bg-transparent"
+              style={{ color: "black" }}
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4" style={{ color: "black" }} />
             </Button>
           )}
 
@@ -247,8 +248,9 @@ export const ImageSidebar = ({
                 tagsRef.current?.scrollBy({ left: 200, behavior: "smooth" })
               }
               className="absolute right-0 z-20 h-8 w-8 hover:bg-transparent"
+              style={{ color: "black" }}
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4" style={{ color: "black" }} />
             </Button>
           )}
         </div>
@@ -257,7 +259,7 @@ export const ImageSidebar = ({
           {isLoadingSearch || isLoadingRandom ? (
             <LoadingSkeleton />
           ) : (
-            <div className="grid grid-cols-2 gap-2 p-2">
+            <div className="grid grid-cols-2 gap-2 p-2 pb-24">
               {displayPhotos?.map((photo, index) => (
                 <div
                   onClick={() => editor?.addImage(photo.urls.small)}
