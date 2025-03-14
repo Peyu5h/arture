@@ -18,7 +18,7 @@ import { Button } from "~/components/ui/button";
 interface SettingsSidebarProps {
   activeTool: ActiveTool;
   onChangeActiveTool: (tool: ActiveTool) => void;
-  editor: Editor | undefined;
+  editor: any;
 }
 
 export const SettingsSidebar = ({

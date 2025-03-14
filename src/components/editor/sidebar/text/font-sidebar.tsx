@@ -10,7 +10,7 @@ import { ToolsSidebarBase } from "../tool-sidebar/toolsSidebarBase";
 interface FontSidebarProps {
   activeTool: ActiveTool;
   onChangeActiveTool: (tool: ActiveTool) => void;
-  editor: Editor | undefined;
+  editor: Editor | any;
 }
 
 export const FontSidebar = ({

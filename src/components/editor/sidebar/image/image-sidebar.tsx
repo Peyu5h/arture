@@ -48,7 +48,7 @@ export const ImageSidebar = ({
 }: {
   activeTool: ActiveTool;
   onChangeActiveTool: (tool: ActiveTool) => void;
-  editor: Editor | undefined;
+  editor: any;
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState("");

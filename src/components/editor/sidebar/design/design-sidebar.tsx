@@ -12,17 +12,17 @@ import { Slider } from "~/components/ui/slider";
 import { ColorPicker } from "../fillColor/colorPicker";
 import { Label } from "~/components/ui/label";
 
-interface DrawSidebarProps {
-  onChangeActiveTool: (tool: ActiveTool) => void;
-  editor: any;
+interface DesignSidebar {
   activeTool: ActiveTool;
+  onChangeActiveTool: (tool: ActiveTool) => void;
+  editor: Editor | any;
 }
 
-export const DrawSidebar = ({
+export const DesignSidebar = ({
   activeTool,
   onChangeActiveTool,
   editor,
-}: DrawSidebarProps) => {
+}: DesignSidebar) => {
   const onClose = () => {
     onChangeActiveTool("select");
   };
@@ -42,7 +42,7 @@ export const DrawSidebar = ({
   const backgroundColorValue = typeof value === "string" ? value : "#000000";
 
   return (
-    <SidebarBase isVisible={activeTool === "draw"} onClose={onClose}>
+    <SidebarBase isVisible={activeTool === "templates"} onClose={onClose}>
       <ToolSidebarHeader
         title="Draw"
         description="Draw freely on your canvas"

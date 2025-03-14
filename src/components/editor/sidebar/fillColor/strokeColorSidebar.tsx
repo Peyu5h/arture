@@ -9,7 +9,7 @@ import { BorderColorPicker } from "./borderColorPicker";
 import { ToolsSidebarBase } from "../tool-sidebar/toolsSidebarBase";
 
 interface StrokeColorSidebarProps {
-  editor: Editor | undefined;
+  editor: Editor | any;
   activeTool: ActiveTool;
   onChangeActiveTool: (tool: ActiveTool) => void;
 }

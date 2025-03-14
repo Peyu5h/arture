@@ -4,7 +4,7 @@ import { Button } from "../ui/button";
 import { Editor } from "../../lib/types";
 
 interface FooterProps {
-  editor: Editor | undefined;
+  editor: Editor | any;
 }
 
 export const Footer = ({ editor }: FooterProps) => {

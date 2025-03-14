@@ -57,7 +57,7 @@ import { useFilePicker } from "use-file-picker";
 interface NavbarProps {
   activeTool: ActiveTool;
   onChangeActiveTool: (tool: ActiveTool) => void;
-  editor: Editor | undefined;
+  editor: Editor | any;
 }
 
 interface FileSelectionResult {
@@ -193,16 +193,6 @@ export const Navbar = ({
           </MenubarMenu>
         </Menubar>
         <Separator orientation="vertical" className="mx-2" />
-        <Hint label="Select" side="bottom" sideOffset={10}>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onChangeActiveTool("select")}
-            className={ny(activeTool === "select" && "bg-gray-100")}
-          >
-            <MousePointerClick className="size-4" />
-          </Button>
-        </Hint>
 
         <Hint label="Undo" side="bottom" sideOffset={10}>
           <Button

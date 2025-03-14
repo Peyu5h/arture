@@ -7,7 +7,7 @@ import { ColorPicker } from "./colorPicker";
 import { ToolsSidebarBase } from "../tool-sidebar/toolsSidebarBase";
 
 interface FillColorSidebarProps {
-  editor: Editor | undefined;
+  editor: Editor | any;
   activeTool: ActiveTool;
   onChangeActiveTool: (tool: ActiveTool) => void;
 }

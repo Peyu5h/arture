@@ -108,3 +108,18 @@ export async function downloadPdf(imageBlob: Blob, filename: string) {
     throw new Error("Failed to generate PDF");
   }
 }
+
+export const fetchCallback = ({
+  setIsPending,
+}: {
+  setIsPending: (value: boolean) => void;
+}) => {
+  return {
+    onRequest: () => {
+      setIsPending(true);
+    },
+    onResponse: () => {
+      setIsPending(false);
+    },
+  };
+};

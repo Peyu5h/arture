@@ -9,7 +9,7 @@ import { SidebarBase } from "../tool-sidebar/sidebarBase";
 interface TextSidebarProps {
   activeTool: ActiveTool;
   onChangeActiveTool: (tool: ActiveTool) => void;
-  editor: Editor | undefined;
+  editor: Editor | any;
 }
 
 export const TextSidebar = ({

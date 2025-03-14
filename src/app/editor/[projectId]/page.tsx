@@ -17,6 +17,7 @@ import { ImageSidebar } from "~/components/editor/sidebar/image/image-sidebar";
 import { SettingsSidebar } from "~/components/editor/sidebar/settings/settings-sidebar";
 import { TextSidebar } from "~/components/editor/sidebar/text/text-sidebar";
 import { FontSidebar } from "~/components/editor/sidebar/text/font-sidebar";
+import { DesignSidebar } from "~/components/editor/sidebar/design/design-sidebar";
 
 const Editor = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -48,7 +49,7 @@ const Editor = () => {
 
       setActiveTool(tool);
     },
-    [activeTool],
+    [activeTool, editor],
   );
 
   useEffect(() => {
@@ -72,7 +73,6 @@ const Editor = () => {
   return (
     <div className="flex h-screen w-screen flex-col">
       <Navbar
-        // @ts-ignore
         editor={editor}
         activeTool={activeTool}
         onChangeActiveTool={onChangeActiveTool}
@@ -82,19 +82,22 @@ const Editor = () => {
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
         />
+        <DesignSidebar
+          editor={editor}
+          activeTool={activeTool}
+          onChangeActiveTool={onChangeActiveTool}
+        />
         <ShapeSidebar
           editor={editor}
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
         />
         <FillColorSidebar
-          // @ts-ignore
           editor={editor}
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
         />
         <StrokeColorSidebar
-          // @ts-ignore
           editor={editor}
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
@@ -105,38 +108,32 @@ const Editor = () => {
         />
 
         <DrawSidebar
-          // @ts-ignore
           editor={editor}
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
         />
         <ImageSidebar
-          // @ts-ignore
           editor={editor}
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
         />
         <SettingsSidebar
-          // @ts-ignore
           editor={editor}
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
         />
         <TextSidebar
-          // @ts-ignore
           editor={editor}
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
         />
         <FontSidebar
-          // @ts-ignore
           editor={editor}
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
         />
         <main className="flex w-full flex-1 flex-col overflow-auto bg-secondary">
           <Toolbar
-            // @ts-ignore
             editor={editor}
             activeTool={activeTool}
             onChangeActiveTool={onChangeActiveTool}
@@ -144,10 +141,7 @@ const Editor = () => {
           <div className="canvas-container" ref={containerRef}>
             <canvas ref={canvasRef} />
           </div>
-          <Footer
-            // @ts-ignore
-            editor={editor}
-          />
+          <Footer editor={editor} />
         </main>
       </div>
     </div>
