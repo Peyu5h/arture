@@ -1,3 +1,4 @@
+// useUpdateProject.ts
 import { Project } from "@prisma/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "~/components/ui/use-toast";
@@ -18,13 +19,16 @@ export function useUpdateProject() {
       return api.put(`/api/projects/${id}`, data);
     },
     onSuccess: (_, variables) => {
+      // Only invalidate the specific project query
+      // This is safer than trying to update the cache directly
       queryClient.invalidateQueries({ queryKey: ["projects", variables.id] });
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
-      console.log("saved");
+
+      // Don't try to update the projects list cache directly
+      // as it might not be an array or might not be loaded yet
     },
     onError: (error) => {
       toast({
-        description: `Failed to update project: ${error.message}`,
+        description: `Failed to save changes: ${error.message}`,
         variant: "destructive",
       });
     },

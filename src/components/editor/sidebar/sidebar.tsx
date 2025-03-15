@@ -1,3 +1,4 @@
+// Sidebar.tsx
 "use client";
 
 import {
@@ -12,6 +13,7 @@ import {
 
 import { SidebarItem } from "./sidebar-item";
 import { ActiveTool } from "../../../lib/types";
+import { cn } from "~/lib/utils"; // Import your utility function
 
 interface SidebarProps {
   activeTool: ActiveTool;
@@ -20,7 +22,7 @@ interface SidebarProps {
 
 export const Sidebar = ({ activeTool, onChangeActiveTool }: SidebarProps) => {
   return (
-    <aside className="z-45 z-[45] flex min-w-[100px] max-w-[100px] flex-shrink-0 flex-col overflow-y-auto border-r bg-white">
+    <aside className="fixed left-0 top-[68px] z-50 flex h-[calc(100vh-68px)] min-w-[100px] max-w-[100px] flex-shrink-0 flex-col overflow-y-auto border-r bg-white shadow-md">
       <ul className="flex flex-col">
         <SidebarItem
           icon={LayoutTemplate}
@@ -52,7 +54,6 @@ export const Sidebar = ({ activeTool, onChangeActiveTool }: SidebarProps) => {
           isActive={activeTool === "draw"}
           onClick={() => onChangeActiveTool("draw")}
         />
-
         <SidebarItem
           icon={Sparkles}
           label="AI"

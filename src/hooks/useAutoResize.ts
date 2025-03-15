@@ -1,6 +1,5 @@
-"use client";
-
-import { useCallback, useEffect } from "react";
+// useAutoResize.ts
+import { useCallback, useEffect, useRef } from "react";
 import { fabric } from "fabric";
 
 interface UseAutoResizeProps {
@@ -9,69 +8,80 @@ interface UseAutoResizeProps {
 }
 
 export const useAutoResize = ({ canvas, container }: UseAutoResizeProps) => {
+  // Track if initial zoom has been applied
+  const initialZoomApplied = useRef(false);
+
   const autoZoom = useCallback(() => {
     if (!canvas || !container) return;
 
-    const width = container.offsetWidth;
-    const height = container.offsetHeight;
+    const adjustCanvas = () => {
+      try {
+        // Set canvas dimensions to match container
+        const width = container.offsetWidth;
+        const height = container.offsetHeight;
+        canvas.setWidth(width);
+        canvas.setHeight(height);
 
-    canvas?.setWidth(width);
-    canvas?.setHeight(height);
+        // Get the workspace
+        const workspace = canvas
+          .getObjects()
+          .find((obj) => obj.name === "clip");
+        if (!workspace) return;
 
-    const center = canvas?.getCenter();
-    const zoomRatio = 0.85;
+        // Calculate zoom level to fit workspace
+        // @ts-expect-error fabric.util type not fully defined
+        const scale = fabric.util.findScaleToFit(workspace, {
+          width: width * 0.85,
+          height: height * 0.85,
+        });
 
-    const localWorkSpace = canvas
-      ?.getObjects()
-      .find((obj) => obj.name === "clip");
+        // Apply zoom and center
+        canvas.setViewportTransform(fabric.iMatrix.concat());
+        const center = canvas.getCenter();
+        canvas.zoomToPoint(new fabric.Point(center.left, center.top), scale);
 
-    // @ts-expect-error fabric.util type not fully defined
-    const scale = fabric.util.findScaleToFit(localWorkSpace, {
-      width: width,
-      height: height,
-    });
+        // Center the workspace
+        const workspaceCenter = workspace.getCenterPoint();
+        const viewportTransform = canvas.viewportTransform;
+        if (!viewportTransform) return;
 
-    const zoom = scale * zoomRatio;
-    canvas.setViewportTransform(fabric.iMatrix.concat());
-    canvas.zoomToPoint(new fabric.Point(center.left, center.top), zoom);
+        viewportTransform[4] =
+          width / 2 - workspaceCenter.x * viewportTransform[0];
+        viewportTransform[5] =
+          height / 2 - workspaceCenter.y * viewportTransform[3];
 
-    if (!localWorkSpace) return;
+        canvas.setViewportTransform(viewportTransform);
+        canvas.renderAll();
 
-    const workspaceCenter = localWorkSpace.getCenterPoint();
-    const viewportTransform = canvas.viewportTransform;
+        // Update clipPath
+        workspace.clone((cloned: fabric.Rect) => {
+          canvas.clipPath = cloned;
+          canvas.requestRenderAll();
+        });
+      } catch (error) {
+        console.error("Error in autoZoom:", error);
+      }
+    };
 
-    if (
-      canvas.width == undefined ||
-      canvas.height == undefined ||
-      !viewportTransform
-    )
-      return;
-
-    viewportTransform[4] =
-      canvas.width / 2 - workspaceCenter.x * viewportTransform[0];
-    viewportTransform[5] =
-      canvas.height / 2 - workspaceCenter.y * viewportTransform[3];
-
-    canvas.setViewportTransform(viewportTransform);
-
-    localWorkSpace.clone((cloned: fabric.Rect) => {
-      canvas.clipPath = cloned;
-      canvas.requestRenderAll();
-    });
+    // Delay to ensure container dimensions are settled
+    setTimeout(adjustCanvas, 100);
   }, [canvas, container]);
 
+  // Set up resize observer
   useEffect(() => {
     if (!canvas || !container) return;
 
-    let resizeObserver: ResizeObserver | null = null;
-
-    if (canvas && container) {
-      resizeObserver = new ResizeObserver(() => {
-        autoZoom();
-      });
-
-      resizeObserver.observe(container);
+    // Only apply initial zoom once
+    if (!initialZoomApplied.current) {
+      autoZoom();
+      initialZoomApplied.current = true;
     }
+
+    let resizeObserver: ResizeObserver | null = null;
+    resizeObserver = new ResizeObserver(() => {
+      autoZoom();
+    });
+    resizeObserver.observe(container);
 
     return () => {
       if (resizeObserver) {

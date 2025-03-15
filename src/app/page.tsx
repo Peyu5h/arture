@@ -3,6 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { LucideLoader2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import TempCards from "~/components/hompage/tempCards";
 import { Button } from "~/components/ui/button";
 import { useToast } from "~/components/ui/use-toast";
@@ -12,20 +13,16 @@ import { useUpdateProject } from "~/hooks/useUpdateProject";
 import api from "~/lib/api";
 import { authClient } from "~/lib/auth-client";
 
+// Home page component update
 export default function Home() {
   const { toast } = useToast();
+  const router = useRouter();
+
   const {
     data: session,
     isPending: isSessionLoading,
     error,
   } = authClient.useSession();
-
-  const data = {
-    name: "My third project",
-    json: "{}",
-    height: 500,
-    width: 500,
-  };
 
   const {
     data: projects,
@@ -33,16 +30,48 @@ export default function Home() {
     error: projectsError,
   } = useProjects();
 
-  const projectId = "cm89vjdmq0001wunkml4nd9im";
-  const { mutate: updateProject } = useUpdateProject();
+  // Create project mutation
+  const createProjectMutation = useMutation({
+    mutationFn: async () => {
+      return api.post("/api/projects", {
+        name: "Untitled Design",
+        json: "{}",
+        height: 1200,
+        width: 900,
+      });
+    },
+    onSuccess: (response) => {
+      // Check response structure and handle accordingly
+      const projectId = response.data?.data?.id || response.data?.id;
 
-  // if (isSessionLoading || isProjectsLoading) {
-  //   return (
-  //     <div className="flex h-screen items-center justify-center">
-  //       <LucideLoader2 className="animate-spin" />
-  //     </div>
-  //   );
-  // }
+      if (projectId) {
+        toast({
+          description: "New project created successfully.",
+        });
+        router.push(`/editor/${projectId}`);
+      } else {
+        toast({
+          description: "Project created but could not navigate to editor.",
+          variant: "destructive",
+        });
+        console.error("Invalid project response:", response);
+      }
+    },
+    onError: (error) => {
+      console.error("Create project error:", error);
+      toast({
+        description: `Failed to create project: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+  if (isSessionLoading || isProjectsLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <LucideLoader2 className="animate-spin" />
+      </div>
+    );
+  }
 
   if (projectsError) {
     return (
@@ -52,38 +81,26 @@ export default function Home() {
     );
   }
 
-  // const createPostMutation = useMutation({
-  //   mutationFn: async () => {
-  //     return api.put("/api/projects/cm89vjdmq0001wunkml4nd9im", data);
-  //   },
-  //   onSuccess: () => {
-  //     toast({
-  //       description: "Project created successfully.",
-  //     });
-  //   },
-  //   onError: (error) => {
-  //     toast({
-  //       description: error.message,
-  //     });
-  //   },
-  // });
-
   return (
     <div className="flex h-screen flex-col items-center justify-center bg-gradient-to-r from-purple-500 to-blue-500">
       <h1 className="mb-6 text-xl text-white">
         What will you design today? {session?.user?.name}
       </h1>
 
-      <Button
-        onClick={() =>
-          updateProject({ id: projectId, data: { json: "Myyy updated" } })
-        }
-        className="bg-white text-purple-600 transition duration-300 hover:bg-purple-100"
-      >
-        Update Project
-      </Button>
+      <div className="mb-8 flex gap-4">
+        <Button
+          onClick={() => createProjectMutation.mutate()}
+          className="bg-white text-purple-600 transition duration-300 hover:bg-purple-100"
+          disabled={createProjectMutation.isPending}
+        >
+          {createProjectMutation.isPending ? (
+            <LucideLoader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : null}
+          Create New Project
+        </Button>
+      </div>
 
-      <div className="mt-2 flex gap-2">
+      <div className="mt-2 flex max-w-4xl flex-wrap justify-center gap-4">
         {projects?.map((project) => (
           <TempCards key={project.id} project={project} />
         ))}

@@ -3,6 +3,7 @@ import { twMerge } from "tailwind-merge";
 import type { RGBColor } from "react-color";
 import { v4 as uuid } from "uuid";
 import { jsPDF } from "jspdf";
+import { formatDistanceToNowStrict, isValid } from "date-fns";
 
 export function ny(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -123,3 +124,27 @@ export const fetchCallback = ({
     },
   };
 };
+
+export function formatDistanceToNow(
+  date: Date | number | string,
+  options?: { addSuffix?: boolean; includeSeconds?: boolean },
+): string {
+  try {
+    // Handle string dates
+    const dateObj = typeof date === "string" ? new Date(date) : date;
+
+    // Validate the date
+    if (!isValid(dateObj)) {
+      return "Invalid date";
+    }
+
+    // Use date-fns to format the distance
+    return formatDistanceToNowStrict(dateObj, {
+      addSuffix: options?.addSuffix ?? false,
+      ...options,
+    });
+  } catch (error) {
+    console.error("Error formatting date:", error);
+    return "Invalid date";
+  }
+}

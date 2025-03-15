@@ -11,6 +11,7 @@ export const selectionDependentTool = [
 
 export type UseEditorProps = {
   clearSelection: () => void;
+  onModified: () => void;
 };
 
 export type ActiveTool =

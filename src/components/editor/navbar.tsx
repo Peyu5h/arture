@@ -11,7 +11,9 @@ import {
   Download,
   MousePointerClick,
   Redo2,
+  Save,
   Undo2,
+  LucideLoader2,
 } from "lucide-react";
 import { SiSvgdotjs } from "react-icons/si";
 import { BsFileEarmarkPdf, BsFiletypeSvg } from "react-icons/bs";
@@ -19,7 +21,7 @@ import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { CiFileOn } from "react-icons/ci";
 import { Separator } from "../ui/separator";
 import { Hint } from "../hintToolTip";
-import { BsCloudCheck } from "react-icons/bs";
+import { BsCloudCheck, BsCloudSlash } from "react-icons/bs";
 import { CiImageOn } from "react-icons/ci";
 
 import {
@@ -51,13 +53,19 @@ import {
 } from "~/components/ui/select";
 import Image from "next/image";
 import { ActiveTool, Editor } from "../../lib/types";
-import { ny } from "~/lib/utils";
+import { formatDistanceToNow, ny } from "~/lib/utils";
 import { useFilePicker } from "use-file-picker";
+import Link from "next/link";
 
 interface NavbarProps {
   activeTool: ActiveTool;
   onChangeActiveTool: (tool: ActiveTool) => void;
   editor: Editor | any;
+  onSave?: () => void;
+  isSaving?: boolean;
+  lastSaved?: Date | null;
+  unsavedChanges?: boolean;
+  projectName?: string;
 }
 
 interface FileSelectionResult {
@@ -69,6 +77,11 @@ export const Navbar = ({
   activeTool,
   onChangeActiveTool,
   editor,
+  onSave,
+  isSaving,
+  lastSaved,
+  unsavedChanges,
+  projectName = "Untitled Design",
 }: NavbarProps) => {
   const { openFilePicker } = useFilePicker({
     accept: ".json",
@@ -103,18 +116,23 @@ export const Navbar = ({
       className="flex h-[68px] min-w-full items-center gap-x-8 overflow-hidden border-b bg-white p-4 lg:pl-8"
     >
       <div className="select-none">
-        <Image
-          priority
-          className="cursor-pointer"
-          src="https://res.cloudinary.com/dkysrpdi6/image/upload/v1728660806/Arture/arture-logo_oljtzy.png"
-          width={56}
-          height={56}
-          alt="logo"
-          draggable={false}
-          unoptimized={true}
-        />
+        <Link href="/">
+          <Image
+            priority
+            className="cursor-pointer"
+            src="https://res.cloudinary.com/dkysrpdi6/image/upload/v1728660806/Arture/arture-logo_oljtzy.png"
+            width={56}
+            height={56}
+            alt="logo"
+            draggable={false}
+            unoptimized={true}
+          />
+        </Link>
       </div>
       <div className="flex h-full w-full items-center gap-x-1">
+        <div className="mr-4">
+          <p className="text-sm font-medium">{projectName}</p>
+        </div>
         <Menubar className="border-none">
           <MenubarMenu>
             <MenubarTrigger className="cursor-pointer hover:bg-secondary/60">
@@ -124,10 +142,17 @@ export const Navbar = ({
               <MenubarItem onClick={() => openFilePicker()}>
                 Import Project <MenubarShortcut>⌘T</MenubarShortcut>
               </MenubarItem>
-              <MenubarItem>
-                New Project <MenubarShortcut>⌘N</MenubarShortcut>
+              <MenubarItem asChild>
+                <Link href="/">New Project</Link>
+                <MenubarShortcut>⌘N</MenubarShortcut>
               </MenubarItem>
-              <MenubarItem disabled>Save all changes</MenubarItem>
+              <MenubarItem
+                onClick={onSave}
+                disabled={isSaving || !unsavedChanges}
+              >
+                Save changes
+                <MenubarShortcut>⌘S</MenubarShortcut>
+              </MenubarItem>
               <MenubarSeparator />
               <MenubarSub>
                 <MenubarSubTrigger>Download</MenubarSubTrigger>
@@ -157,16 +182,28 @@ export const Navbar = ({
               Edit
             </MenubarTrigger>
             <MenubarContent>
-              <MenubarItem>
+              <MenubarItem
+                onClick={() => editor?.undo()}
+                disabled={!editor?.canUndo()}
+              >
                 Undo <MenubarShortcut>⌘Z</MenubarShortcut>
               </MenubarItem>
-              <MenubarItem>
+              <MenubarItem
+                onClick={() => editor?.redo()}
+                disabled={!editor?.canRedo()}
+              >
                 Redo <MenubarShortcut>⌘Y</MenubarShortcut>
               </MenubarItem>
-
-              <MenubarItem>Cut</MenubarItem>
-              <MenubarItem>Copy</MenubarItem>
-              <MenubarItem>Paste</MenubarItem>
+              <MenubarSeparator />
+              <MenubarItem onClick={() => editor?.onCopy()}>
+                Copy <MenubarShortcut>⌘C</MenubarShortcut>
+              </MenubarItem>
+              <MenubarItem onClick={() => editor?.onPaste()}>
+                Paste <MenubarShortcut>⌘V</MenubarShortcut>
+              </MenubarItem>
+              <MenubarItem onClick={() => editor?.delete()}>
+                Delete <MenubarShortcut>Del</MenubarShortcut>
+              </MenubarItem>
             </MenubarContent>
           </MenubarMenu>
           <MenubarMenu>
@@ -185,7 +222,6 @@ export const Navbar = ({
                 </MenubarSubContent>
               </MenubarSub>
               <MenubarSeparator />
-
               <MenubarItem inset>Toggle Fullscreen</MenubarItem>
               <MenubarSeparator />
               <MenubarItem inset>Hide Sidebar</MenubarItem>
@@ -224,19 +260,55 @@ export const Navbar = ({
           </Button>
         </Hint>
         <Separator orientation="vertical" className="mx-2" />
-        <div className="flex items-center gap-x-2"></div>
-        <BsCloudCheck className="size-5 text-muted-foreground" />
-        <div className="text-xs text-muted-foreground">Saved</div>
+
+        {/* Save status indicator */}
+        <div className="flex items-center gap-x-2">
+          {isSaving ? (
+            <>
+              <LucideLoader2 className="size-4 animate-spin text-muted-foreground" />
+              <div className="text-xs text-muted-foreground">Saving...</div>
+            </>
+          ) : unsavedChanges ? (
+            <>
+              <BsCloudSlash className="size-4 text-amber-500" />
+              <div className="text-xs text-amber-500">Unsaved changes</div>
+            </>
+          ) : (
+            <>
+              <BsCloudCheck className="size-4 text-emerald-600" />
+              <div className="text-xs text-muted-foreground">
+                {lastSaved
+                  ? `Saved ${formatDistanceToNow(lastSaved, { addSuffix: true })}`
+                  : "All changes saved"}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Manual save button */}
+        {onSave && (
+          <Hint label="Save" side="bottom" sideOffset={10}>
+            <Button
+              disabled={isSaving || !unsavedChanges}
+              variant="ghost"
+              size="icon"
+              onClick={onSave}
+              className="ml-2"
+            >
+              <span>
+                <Save className="size-4" />
+              </span>
+            </Button>
+          </Hint>
+        )}
       </div>
       <div className="ml-auto flex items-center gap-x-4">
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline">
-                Share
-                <CiShare1 className="ml-3 size-5" />
-              </Button>
-            </DropdownMenuTrigger>
+            <Button size="sm" variant="outline">
+              Share
+              <CiShare1 className="ml-3 size-5" />
+            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-60">
             <div className="mx-2">
@@ -259,7 +331,7 @@ export const Navbar = ({
                     <SelectContent>
                       <SelectGroup>
                         <SelectItem value="edit">Can Edit</SelectItem>
-                        <SelectItem value="pineapple">Can View</SelectItem>
+                        <SelectItem value="view">Can View</SelectItem>
                       </SelectGroup>
                     </SelectContent>
                   </Select>

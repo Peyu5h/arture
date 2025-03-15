@@ -27,7 +27,7 @@ import { useShortcuts } from "./useShortcuts";
 const WORKSPACE_WIDTH = 900;
 const WORKSPACE_HEIGHT = 1200;
 
-export const useEditor = ({ clearSelection }: UseEditorProps) => {
+export const useEditor = ({ clearSelection, onModified }: UseEditorProps) => {
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const [selectedObjects, setSelectedObjects] = useState<
@@ -140,6 +140,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
     setSelectedObjects,
     clearSelection,
     save,
+    onModified,
   });
 
   useShortcuts({

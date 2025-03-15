@@ -17,21 +17,31 @@ export const createProject = async (c: Context) => {
     }
 
     const { name, json, height, width } = result.data;
+
+    console.log("Creating project with data:", { name, height, width });
+
     const project = await prisma.project.create({
       data: {
         name,
-        json,
-        height,
-        width,
+        json: json || JSON.stringify({}),
+        height: height || 1200,
+        width: width || 900,
         userId: user.id,
       },
     });
+
+    console.log("Project created:", project);
+
+    // Return the project directly
     return c.json(success(project), 201);
   } catch (error) {
-    return c.json(err("Failed to fetch users"), 500);
+    console.error("Create project error:", error);
+    return c.json(
+      err("Failed to create project: " + (error as Error).message),
+      500,
+    );
   }
 };
-
 export const getUserProjects = async (c: Context) => {
   try {
     const user = c.get("user");
