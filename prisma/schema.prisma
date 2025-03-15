@@ -25,9 +25,27 @@ model User {
   members          Member[]
   invitations      Invitation[]
   twofactors       TwoFactor[]
+  projects         Project[]
 
   @@unique([email])
   @@map("user")
+}
+
+model Project {
+  id           String   @id @default(cuid()) @map("_id")
+  name         String
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  json         Json
+  height       Int
+  width        Int
+  thumbnailUrl String?
+  isTemplate   Boolean  @default(false)
+  isPro        Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now())
+
+  @@map("project")
 }
 
 model Session {

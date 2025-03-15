@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import authRoutes from "./auth";
+import projectsRoutes from "./projects.route";
 
 const indexRoute = new Hono();
 
@@ -10,5 +11,6 @@ indexRoute.get("/", (c) => {
 
 // routes
 indexRoute.route("/auth", authRoutes);
+indexRoute.route("/projects", projectsRoutes);
 
 export default indexRoute;
