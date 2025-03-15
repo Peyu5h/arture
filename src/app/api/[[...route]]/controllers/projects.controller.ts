@@ -26,7 +26,7 @@ export const createProject = async (c: Context) => {
         userId: user.id,
       },
     });
-    return c.json(success({ project }), 201);
+    return c.json(success(project), 201);
   } catch (error) {
     return c.json(err("Failed to fetch users"), 500);
   }
@@ -40,7 +40,7 @@ export const getUserProjects = async (c: Context) => {
         userId: user.id,
       },
     });
-    return c.json(success({ projects }));
+    return c.json(success(projects));
   } catch (error) {
     return c.json(err("Failed to fetch users"), 500);
   }
@@ -59,7 +59,7 @@ export const getUserProjectsById = async (c: Context) => {
     if (!project) {
       return c.json(err("Project not found"), 404);
     }
-    return c.json(success({ project }));
+    return c.json(success(project));
   } catch (error) {
     return c.json(err("Failed to fetch users"), 500);
   }
@@ -88,6 +88,10 @@ export const updateUserProject = async (c: Context) => {
       where: { id, userId: user.id },
       data: updateData,
     });
+
+    if (!project) {
+      return c.json(err("Project not found"), 404);
+    }
 
     return c.json(success({ success: true }));
   } catch (error) {

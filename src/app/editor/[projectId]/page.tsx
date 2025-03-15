@@ -18,10 +18,20 @@ import { SettingsSidebar } from "~/components/editor/sidebar/settings/settings-s
 import { TextSidebar } from "~/components/editor/sidebar/text/text-sidebar";
 import { FontSidebar } from "~/components/editor/sidebar/text/font-sidebar";
 import { DesignSidebar } from "~/components/editor/sidebar/design/design-sidebar";
+import { useParams } from "next/navigation";
+import { useProject } from "~/hooks/projects.hooks";
+import { LucideLoader2 } from "lucide-react";
 
-const Editor = () => {
+export default function Editor() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const projectId = useParams().projectId;
+  const {
+    data: project,
+    isLoading: isProjectLoading,
+    error: projectError,
+  } = useProject(`${projectId}`);
 
   const [activeTool, setActiveTool] = React.useState<ActiveTool>("select");
 
@@ -34,6 +44,7 @@ const Editor = () => {
   const { init, editor } = useEditor({
     clearSelection: onClearSelection,
   });
+
   const onChangeActiveTool = useCallback(
     (tool: ActiveTool) => {
       if (tool === activeTool) {
@@ -69,6 +80,61 @@ const Editor = () => {
       canvas.dispose();
     };
   }, [init]);
+
+  // useEffect(() => {
+  //   if (!canvasRef.current || !containerRef.current) return;
+
+  //   const canvas = new fabric.Canvas(canvasRef.current, {
+  //     controlsAboveOverlay: true,
+  //     preserveObjectStacking: true,
+  //   });
+
+  //   init({
+  //     initialCanvas: canvas,
+  //     initialContainer: containerRef.current,
+  //   });
+
+  //   // Load project data after initialization
+  //   if (project?.json) {
+  //     try {
+  //       const jsonData =
+  //         typeof project.json === "string"
+  //           ? JSON.parse(project.json)
+  //           : project.json;
+  //       canvas.loadFromJSON(jsonData, () => {
+  //         if (project.width && project.height) {
+  //           canvas.setDimensions({
+  //             width: project.width,
+  //             height: project.height,
+  //           });
+  //         }
+  //         canvas.renderAll();
+  //       });
+  //     } catch (error) {
+  //       console.error("Failed to load project data:", error);
+  //     }
+  //   }
+
+  //   return () => {
+  //     canvas.dispose();
+  //   };
+  // }, [init, project]);
+
+  if (isProjectLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <LucideLoader2 className="animate-spin" />
+      </div>
+    );
+  }
+
+  if (projectError) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <p>Error loading project: {projectError.message}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-screen flex-col">
@@ -146,6 +212,4 @@ const Editor = () => {
       </div>
     </div>
   );
-};
-
-export default Editor;
+}
