@@ -53,6 +53,9 @@ import Image from "next/image";
 import { ActiveTool, Editor } from "../../lib/types";
 import { ny } from "~/lib/utils";
 import { useFilePicker } from "use-file-picker";
+import { useUpdateProject } from "~/hooks/useUpdateProject";
+import { useParams } from "next/navigation";
+import { useToast } from "../ui/use-toast";
 
 interface NavbarProps {
   activeTool: ActiveTool;
@@ -70,6 +73,76 @@ export const Navbar = ({
   onChangeActiveTool,
   editor,
 }: NavbarProps) => {
+  const { projectId } = useParams();
+  const updateProject = useUpdateProject();
+  const { toast } = useToast();
+
+  const handleSave = async () => {
+    if (!editor?.canvas || !projectId) return;
+
+    try {
+      const canvasState = editor.canvas.toJSON([
+        'name',
+        'selectable',
+        'hasControls',
+        'width',
+        'height',
+        'fill',
+        'stroke',
+        'strokeWidth',
+        'strokeDashArray',
+        'fontFamily',
+        'fontSize',
+        'fontWeight',
+        'fontStyle',
+        'textAlign',
+        'underline',
+        'linethrough',
+        'opacity',
+        'shadow',
+        'clipPath',
+        'visible',
+        'backgroundColor',
+        'radius',
+        'startAngle',
+        'endAngle',
+        'type',
+        'originX',
+        'originY',
+        'left',
+        'top',
+        'scaleX',
+        'scaleY',
+        'flipX',
+        'flipY',
+        'skewX',
+        'skewY',
+        'angle'
+      ]);
+      
+      await updateProject.mutate({
+        id: projectId as string,
+        data: { 
+          json: canvasState,
+          width: editor.canvas.getWidth(),
+          height: editor.canvas.getHeight()
+        }
+      });
+
+      toast({
+        title: "Changes saved",
+        description: "Your project has been saved successfully.",
+      });
+    } catch (error) {
+      console.error("Error saving project:", error);
+      toast({
+        title: "Save failed",
+        description: "Failed to save your changes. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const { openFilePicker } = useFilePicker({
     accept: ".json",
     multiple: false,
@@ -224,9 +297,27 @@ export const Navbar = ({
           </Button>
         </Hint>
         <Separator orientation="vertical" className="mx-2" />
-        <div className="flex items-center gap-x-2"></div>
-        <BsCloudCheck className="size-5 text-muted-foreground" />
-        <div className="text-xs text-muted-foreground">Saved</div>
+        <div className="flex items-center gap-x-2">
+          <Button
+            onClick={handleSave}
+            disabled={updateProject.isPending}
+            variant="ghost"
+            size="sm"
+            className="flex items-center gap-x-2"
+          >
+            {updateProject.isPending ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <span className="text-xs">Saving...</span>
+              </>
+            ) : (
+              <>
+                <BsCloudCheck className="h-4 w-4" />
+                <span className="text-xs">Save</span>
+              </>
+            )}
+          </Button>
+        </div>
       </div>
       <div className="ml-auto flex items-center gap-x-4">
         <DropdownMenu modal={false}>

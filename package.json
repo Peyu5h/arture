@@ -11,6 +11,7 @@
   "dependencies": {
     "@hono/node-server": "^1.13.8",
     "@prisma/client": "^6.5.0",
+    "@radix-ui/react-dialog": "^1.1.6",
     "@radix-ui/react-dropdown-menu": "^2.1.4",
     "@radix-ui/react-label": "^2.1.1",
     "@radix-ui/react-menubar": "^1.1.2",

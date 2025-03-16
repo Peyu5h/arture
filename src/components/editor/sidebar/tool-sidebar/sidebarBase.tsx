@@ -43,7 +43,7 @@ export const SidebarBase = ({
   }, [isVisible, onClose]);
 
   return (
-    <div className="relative">
+    <div className="absolute left-24 h-full ">
       <AnimatePresence>
         {isVisible && (
           <>

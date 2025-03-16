@@ -66,9 +66,16 @@ export default function Editor() {
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
 
+    // Set initial canvas element dimensions
+    canvasRef.current.width = project?.width || 500;
+    canvasRef.current.height = project?.height || 500;
+
     const canvas = new fabric.Canvas(canvasRef.current, {
-      controlsAboveOverlay: true,
+      backgroundColor: '#ffffff',
       preserveObjectStacking: true,
+      selection: true,
+      width: containerRef.current.offsetWidth,
+      height: containerRef.current.offsetHeight,
     });
 
     init({
@@ -76,49 +83,66 @@ export default function Editor() {
       initialContainer: containerRef.current,
     });
 
+    // Load project data after initialization
+    if (project?.json) {
+      try {
+        const jsonData =
+          typeof project.json === "string"
+            ? JSON.parse(project.json)
+            : project.json;
+        
+        canvas.loadFromJSON(jsonData, () => {
+          const workspace = canvas.getObjects().find(obj => obj.name === "clip");
+          if (!workspace) {
+            // Create default workspace if none exists
+            const workspaceObj = new fabric.Rect({
+              width: project?.width || 500,
+              height: project?.height || 500,
+              name: "clip",
+              fill: "white",
+              selectable: false,
+              hasControls: false,
+              shadow: new fabric.Shadow({
+                color: "rgba(0, 0, 0, 0.1)",
+                blur: 5,
+                offsetX: 0,
+                offsetY: 2,
+              }),
+            });
+            canvas.add(workspaceObj);
+            canvas.centerObject(workspaceObj);
+            canvas.clipPath = workspaceObj;
+          }
+          canvas.renderAll();
+        });
+      } catch (error) {
+        console.error("Failed to load project data:", error);
+      }
+    }
+
+    // Handle window resize
+    const handleResize = () => {
+      if (!containerRef.current) return;
+      
+      const containerWidth = containerRef.current.offsetWidth;
+      const containerHeight = containerRef.current.offsetHeight;
+      
+      canvas.setDimensions({
+        width: containerWidth,
+        height: containerHeight,
+      });
+      
+      canvas.renderAll();
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Initial resize
+
     return () => {
+      window.removeEventListener('resize', handleResize);
       canvas.dispose();
     };
-  }, [init]);
-
-  // useEffect(() => {
-  //   if (!canvasRef.current || !containerRef.current) return;
-
-  //   const canvas = new fabric.Canvas(canvasRef.current, {
-  //     controlsAboveOverlay: true,
-  //     preserveObjectStacking: true,
-  //   });
-
-  //   init({
-  //     initialCanvas: canvas,
-  //     initialContainer: containerRef.current,
-  //   });
-
-  //   // Load project data after initialization
-  //   if (project?.json) {
-  //     try {
-  //       const jsonData =
-  //         typeof project.json === "string"
-  //           ? JSON.parse(project.json)
-  //           : project.json;
-  //       canvas.loadFromJSON(jsonData, () => {
-  //         if (project.width && project.height) {
-  //           canvas.setDimensions({
-  //             width: project.width,
-  //             height: project.height,
-  //           });
-  //         }
-  //         canvas.renderAll();
-  //       });
-  //     } catch (error) {
-  //       console.error("Failed to load project data:", error);
-  //     }
-  //   }
-
-  //   return () => {
-  //     canvas.dispose();
-  //   };
-  // }, [init, project]);
+  }, [init, project]);
 
   if (isProjectLoading) {
     return (
@@ -148,6 +172,17 @@ export default function Editor() {
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
         />
+        <main className="flex w-full flex-1 flex-col overflow-hidden bg-secondary">
+          <Toolbar
+            editor={editor}
+            activeTool={activeTool}
+            onChangeActiveTool={onChangeActiveTool}
+          />
+          <div className="canvas-container" ref={containerRef}>
+            <canvas ref={canvasRef} />
+          </div>
+          <Footer editor={editor} />
+        </main>
         <DesignSidebar
           editor={editor}
           activeTool={activeTool}
@@ -172,7 +207,6 @@ export default function Editor() {
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
         />
-
         <DrawSidebar
           editor={editor}
           activeTool={activeTool}
@@ -198,17 +232,6 @@ export default function Editor() {
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
         />
-        <main className="flex w-full flex-1 flex-col overflow-auto bg-secondary">
-          <Toolbar
-            editor={editor}
-            activeTool={activeTool}
-            onChangeActiveTool={onChangeActiveTool}
-          />
-          <div className="canvas-container" ref={containerRef}>
-            <canvas ref={canvasRef} />
-          </div>
-          <Footer editor={editor} />
-        </main>
       </div>
     </div>
   );
