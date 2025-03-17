@@ -22,45 +22,6 @@ interface CanvasState {
 
 export type SaveState = "Idle" | "Saving" | "Saved" | "Save failed";
 
-export const canvasState = editor.canvas.toJSON([
-  "name",
-  "selectable",
-  "hasControls",
-  "width",
-  "height",
-  "fill",
-  "stroke",
-  "strokeWidth",
-  "strokeDashArray",
-  "fontFamily",
-  "fontSize",
-  "fontWeight",
-  "fontStyle",
-  "textAlign",
-  "underline",
-  "linethrough",
-  "opacity",
-  "shadow",
-  "clipPath",
-  "visible",
-  "backgroundColor",
-  "radius",
-  "startAngle",
-  "endAngle",
-  "type",
-  "originX",
-  "originY",
-  "left",
-  "top",
-  "scaleX",
-  "scaleY",
-  "flipX",
-  "flipY",
-  "skewX",
-  "skewY",
-  "angle",
-]);
-
 export const useAutoSave = (editor: Editor | undefined) => {
   const { projectId } = useParams();
   const updateProject = useUpdateProject();
@@ -77,7 +38,46 @@ export const useAutoSave = (editor: Editor | undefined) => {
       savingRef.current = true;
       setSaveState("Saving");
 
-      const rawState = editor.canvas.toJSON(canvasState);
+      const rawState = editor.canvas.toJSON([
+        "name",
+        "selectable",
+        "hasControls",
+        "width",
+        "height",
+        "fill",
+        "stroke",
+        "strokeWidth",
+        "strokeDashArray",
+        "fontFamily",
+        "fontSize",
+        "fontWeight",
+        "fontStyle",
+        "textAlign",
+        "underline",
+        "linethrough",
+        "opacity",
+        "shadow",
+        "clipPath",
+        "visible",
+        "backgroundColor",
+        "radius",
+        "startAngle",
+        "endAngle",
+        "type",
+        "originX",
+        "originY",
+        "left",
+        "top",
+        "scaleX",
+        "scaleY",
+        "flipX",
+        "flipY",
+        "skewX",
+        "skewY",
+        "angle",
+        "src",
+        "crossOrigin",
+      ]);
 
       const canvasState = rawState as unknown as CanvasState;
       if (!canvasState.version || !Array.isArray(canvasState.objects)) {

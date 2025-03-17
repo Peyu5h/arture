@@ -84,7 +84,46 @@ export const Navbar = ({
     if (!editor?.canvas || !projectId) return;
 
     try {
-      const canvasState = editor.canvas.toJSON(canvasState);
+      const canvasState = editor.canvas.toJSON([
+        "name",
+        "selectable",
+        "hasControls",
+        "width",
+        "height",
+        "fill",
+        "stroke",
+        "strokeWidth",
+        "strokeDashArray",
+        "fontFamily",
+        "fontSize",
+        "fontWeight",
+        "fontStyle",
+        "textAlign",
+        "underline",
+        "linethrough",
+        "opacity",
+        "shadow",
+        "clipPath",
+        "visible",
+        "backgroundColor",
+        "radius",
+        "startAngle",
+        "endAngle",
+        "type",
+        "originX",
+        "originY",
+        "left",
+        "top",
+        "scaleX",
+        "scaleY",
+        "flipX",
+        "flipY",
+        "skewX",
+        "skewY",
+        "angle",
+        "src",
+        "crossOrigin",
+      ]);
 
       await updateProject.mutate({
         id: projectId as string,
