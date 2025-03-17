@@ -8,6 +8,7 @@ interface CanvasEvents {
     React.SetStateAction<fabric.Object[] | null>
   >;
   clearSelection?: () => void;
+  onModified?: () => void;
 }
 
 export const useCanvasEvents = ({
@@ -15,6 +16,7 @@ export const useCanvasEvents = ({
   save,
   setSelectedObjects,
   clearSelection,
+  onModified,
 }: CanvasEvents) => {
   useEffect(() => {
     if (canvas) {
@@ -34,12 +36,18 @@ export const useCanvasEvents = ({
         save();
       });
 
-      canvas.on("object:added", save);
-      canvas.on("object:removed", save);
-      canvas.on("object:modified", save); // Call save on modification
-      canvas.on("object:scaling", save); // Call save on scaling
-      canvas.on("object:moving", save); // Call save on moving
-      canvas.on("object:updated", save);
+      const handleModification = () => {
+        save();
+        onModified?.();
+      };
+
+      canvas.on("object:added", handleModification);
+      canvas.on("object:removed", handleModification);
+      canvas.on("object:modified", handleModification);
+      canvas.on("object:scaling", handleModification);
+      canvas.on("object:moving", handleModification);
+      canvas.on("object:rotating", handleModification);
+      canvas.on("object:updated", handleModification);
     }
 
     return () => {
@@ -52,8 +60,9 @@ export const useCanvasEvents = ({
         canvas.off("object:modified");
         canvas.off("object:scaling");
         canvas.off("object:moving");
+        canvas.off("object:rotating");
         canvas.off("object:updated");
       }
     };
-  }, [canvas, setSelectedObjects, clearSelection, save]);
+  }, [canvas, setSelectedObjects, clearSelection, save, onModified]);
 };

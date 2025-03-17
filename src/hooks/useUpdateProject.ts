@@ -18,9 +18,19 @@ export function useUpdateProject() {
       return api.put(`/api/projects/${id}`, data);
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["projects", variables.id] });
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
-      console.log("saved");
+      queryClient.setQueryData(
+        ["project", variables.id],
+        (oldData: Project | undefined) => {
+          if (oldData) {
+            return {
+              ...oldData,
+              ...variables.data,
+              updatedAt: new Date().toISOString(),
+            };
+          }
+          return oldData;
+        },
+      );
     },
     onError: (error) => {
       toast({

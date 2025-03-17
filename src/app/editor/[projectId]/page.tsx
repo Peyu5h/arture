@@ -21,6 +21,8 @@ import { DesignSidebar } from "~/components/editor/sidebar/design/design-sidebar
 import { useParams } from "next/navigation";
 import { useProject } from "~/hooks/projects.hooks";
 import { LucideLoader2 } from "lucide-react";
+import { useAutoSave } from "~/hooks/useAutoSave";
+import { useCanvasEvents } from "~/hooks/useCanvasEvents";
 
 export default function Editor() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -34,6 +36,10 @@ export default function Editor() {
   } = useProject(`${projectId}`);
 
   const [activeTool, setActiveTool] = React.useState<ActiveTool>("select");
+  const [unsavedChanges, setUnsavedChanges] = React.useState(false);
+  const [selectedObjects, setSelectedObjects] = React.useState<
+    fabric.Object[] | null
+  >(null);
 
   const onClearSelection = useCallback(() => {
     if (selectionDependentTool.includes(activeTool)) {
@@ -43,6 +49,18 @@ export default function Editor() {
 
   const { init, editor } = useEditor({
     clearSelection: onClearSelection,
+    onModified: () => setUnsavedChanges(true),
+  });
+
+  //@ts-ignore
+  const { debouncedSave, saveState } = useAutoSave(editor);
+
+  useCanvasEvents({
+    canvas: editor?.canvas || null,
+    save: debouncedSave,
+    setSelectedObjects: setSelectedObjects,
+    clearSelection: onClearSelection,
+    onModified: () => setUnsavedChanges(true),
   });
 
   const onChangeActiveTool = useCallback(
@@ -71,7 +89,7 @@ export default function Editor() {
     canvasRef.current.height = project?.height || 500;
 
     const canvas = new fabric.Canvas(canvasRef.current, {
-      backgroundColor: '#ffffff',
+      backgroundColor: "#ffffff",
       preserveObjectStacking: true,
       selection: true,
       width: containerRef.current.offsetWidth,
@@ -90,9 +108,11 @@ export default function Editor() {
           typeof project.json === "string"
             ? JSON.parse(project.json)
             : project.json;
-        
+
         canvas.loadFromJSON(jsonData, () => {
-          const workspace = canvas.getObjects().find(obj => obj.name === "clip");
+          const workspace = canvas
+            .getObjects()
+            .find((obj) => obj.name === "clip");
           if (!workspace) {
             // Create default workspace if none exists
             const workspaceObj = new fabric.Rect({
@@ -123,23 +143,23 @@ export default function Editor() {
     // Handle window resize
     const handleResize = () => {
       if (!containerRef.current) return;
-      
+
       const containerWidth = containerRef.current.offsetWidth;
       const containerHeight = containerRef.current.offsetHeight;
-      
+
       canvas.setDimensions({
         width: containerWidth,
         height: containerHeight,
       });
-      
+
       canvas.renderAll();
     };
 
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
     handleResize(); // Initial resize
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
       canvas.dispose();
     };
   }, [init, project]);
@@ -166,6 +186,7 @@ export default function Editor() {
         editor={editor}
         activeTool={activeTool}
         onChangeActiveTool={onChangeActiveTool}
+        saveState={saveState}
       />
       <div className="relative flex h-full w-full overflow-hidden">
         <Sidebar

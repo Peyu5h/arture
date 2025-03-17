@@ -11,7 +11,8 @@ export const selectionDependentTool = [
 ];
 
 export type UseEditorProps = {
-  clearSelection: () => void | boolean;
+  clearSelection: () => void;
+  onModified?: () => void;
 };
 
 export type ActiveTool =
@@ -154,6 +155,7 @@ export type Editor = {
   getActiveFontWeight: () => number;
   changeFontFamily: (value: string) => void;
   getActiveFontFamily: () => string;
+  onModified?: () => void;
 };
 
 export interface EditorProps {
@@ -254,3 +256,54 @@ export interface SearchResponse {
   total_pages: number;
   results: UnsplashImage[];
 }
+
+export interface CanvasEvents {
+  canvas: fabric.Canvas | null;
+  save: () => void;
+  setSelectedObjects: React.Dispatch<
+    React.SetStateAction<fabric.Object[] | null>
+  >;
+  clearSelection?: () => void;
+  onModified?: () => void;
+}
+
+export type CanvasStateValue = [
+  "name",
+  "selectable",
+  "hasControls",
+  "width",
+  "height",
+  "fill",
+  "stroke",
+  "strokeWidth",
+  "strokeDashArray",
+  "fontFamily",
+  "fontSize",
+  "fontWeight",
+  "fontStyle",
+  "textAlign",
+  "underline",
+  "linethrough",
+  "opacity",
+  "shadow",
+  "clipPath",
+  "visible",
+  "backgroundColor",
+  "radius",
+  "startAngle",
+  "endAngle",
+  "type",
+  "originX",
+  "originY",
+  "left",
+  "top",
+  "scaleX",
+  "scaleY",
+  "flipX",
+  "flipY",
+  "skewX",
+  "skewY",
+  "angle",
+  "src",
+  "crossOrigin",
+];

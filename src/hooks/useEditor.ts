@@ -43,6 +43,89 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
     return canvas?.getObjects().find((object) => object.name === "clip");
   }, [canvas]);
 
+  const generateSaveOptions = () => {
+    const { width, height, left, top } = getWorkspace() as fabric.Rect;
+
+    return {
+      name: "Image",
+      format: "png",
+      quality: 1,
+      width,
+      height,
+      left,
+      top,
+    };
+  };
+
+  const savePng = () => {
+    const options = generateSaveOptions();
+
+    canvas?.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    const dataUrl = canvas?.toDataURL(options);
+
+    if (dataUrl) {
+      downloadFile(dataUrl, "png");
+    }
+    autoZoom();
+  };
+
+  const savePdf = async () => {
+    const options = generateSaveOptions();
+
+    canvas?.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    const dataUrl = canvas?.toDataURL(options);
+
+    if (dataUrl) {
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      downloadPdf(blob, "document");
+    }
+    autoZoom();
+  };
+
+  const saveSvg = () => {
+    const options = generateSaveOptions();
+
+    canvas?.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    const dataUrl = canvas?.toDataURL(options);
+
+    if (dataUrl) {
+      downloadFile(dataUrl, "svg");
+    }
+    autoZoom();
+  };
+
+  const saveJpg = () => {
+    const options = generateSaveOptions();
+
+    canvas?.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    const dataUrl = canvas?.toDataURL(options);
+    if (dataUrl) {
+      downloadFile(dataUrl, "jpg");
+    }
+    autoZoom();
+  };
+
+  const saveJson = async () => {
+    const dataUrl = canvas?.toJSON(JSON_KEYS);
+    if (dataUrl) {
+      await transformText(dataUrl.objects);
+      const fileString = `data:text/json;charset=utf-8,${encodeURIComponent(
+        JSON.stringify(dataUrl, null, "\t"),
+      )}`;
+
+      downloadFile(fileString, "json");
+    }
+  };
+
+  const loadJson = (json: string) => {
+    const data = JSON.parse(json);
+
+    canvas?.loadFromJSON(data, () => {
+      autoZoom();
+    });
+  };
+
   const { autoZoom } = useAutoResize({
     canvas,
     container,
@@ -91,59 +174,6 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         strokeWidth: strokeWidth,
       });
       addObject(object);
-    };
-
-    const generateSaveOptions = () => {
-      const { width, height, left, top } = getWorkspace() as fabric.Rect;
-      return {
-        name: "Image",
-        format: "png",
-        quality: 1,
-        width,
-        height,
-        left,
-        top,
-      };
-    };
-
-    const handleSave = (format: string) => {
-      const options = generateSaveOptions();
-      canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-      const dataUrl = canvas.toDataURL(options);
-      if (dataUrl) {
-        downloadFile(dataUrl, format);
-      }
-      autoZoom();
-    };
-
-    const handleSavePdf = async () => {
-      const options = generateSaveOptions();
-      canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-      const dataUrl = canvas.toDataURL(options);
-      if (dataUrl) {
-        const response = await fetch(dataUrl);
-        const blob = await response.blob();
-        downloadPdf(blob, "document");
-      }
-      autoZoom();
-    };
-
-    const handleSaveJson = async () => {
-      const dataUrl = canvas.toJSON(JSON_KEYS);
-      if (dataUrl) {
-        await transformText(dataUrl.objects);
-        const fileString = `data:text/json;charset=utf-8,${encodeURIComponent(
-          JSON.stringify(dataUrl, null, "\t"),
-        )}`;
-        downloadFile(fileString, "json");
-      }
-    };
-
-    const handleLoadJson = (json: string) => {
-      const data = JSON.parse(json);
-      canvas.loadFromJSON(data, () => {
-        autoZoom();
-      });
     };
 
     return {
@@ -229,12 +259,12 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         save();
       },
 
-      savePng: () => handleSave("png"),
-      savePdf: handleSavePdf,
-      saveSvg: () => handleSave("svg"),
-      saveJpg: () => handleSave("jpg"),
-      saveJson: handleSaveJson,
-      loadJson: handleLoadJson,
+      savePng,
+      savePdf,
+      saveSvg,
+      saveJpg,
+      saveJson,
+      loadJson,
 
       enableDrawingMode: () => {
         canvas.discardActiveObject();
@@ -536,6 +566,14 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
 
       getWorkspace: () => getWorkspace(),
       autoZoom: () => autoZoom(),
+      useAutoSave: () => {
+        return {
+          saveState: "Idle",
+          setSaveState: (state: string) => {
+            // Implement state management here
+          },
+        };
+      },
     };
   }, [
     canvas,
@@ -574,14 +612,6 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         cornerStrokeColor: "#3b82f6",
       });
 
-      // Set initial canvas dimensions based on container
-      const containerWidth = initialContainer.offsetWidth;
-      const containerHeight = initialContainer.offsetHeight;
-
-      initialCanvas.setWidth(containerWidth);
-      initialCanvas.setHeight(containerHeight);
-
-      // Create workspace with default dimensions
       const initialWorkspace = new fabric.Rect({
         width: WORKSPACE_WIDTH,
         height: WORKSPACE_HEIGHT,
@@ -590,44 +620,29 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         selectable: false,
         hasControls: false,
         shadow: new fabric.Shadow({
-          color: "rgba(0, 0, 0, 0.1)",
+          color: "rgba(0, 0, 0, 0.8)",
           blur: 5,
-          offsetX: 0,
-          offsetY: 2,
         }),
       });
 
-      // Add and center workspace
+      initialCanvas.setHeight(initialContainer.offsetHeight);
+      initialCanvas.setWidth(initialContainer.offsetWidth);
+
       initialCanvas.add(initialWorkspace);
       initialCanvas.centerObject(initialWorkspace);
-
-      // Set workspace as clip path
       initialCanvas.clipPath = initialWorkspace;
-
-      // Calculate zoom to fit workspace in view
-      const zoomX = (containerWidth - 100) / WORKSPACE_WIDTH;
-      const zoomY = (containerHeight - 100) / WORKSPACE_HEIGHT;
-      const zoom = Math.min(zoomX, zoomY, 1);
-
-      // Apply zoom and center
-      initialCanvas.setZoom(zoom);
-      initialCanvas.absolutePan(
-        new fabric.Point(
-          (containerWidth - WORKSPACE_WIDTH * zoom) / 2,
-          (containerHeight - WORKSPACE_HEIGHT * zoom) / 2
-        )
-      );
 
       setCanvas(initialCanvas);
       setContainer(initialContainer);
 
+      // initialCanvas.renderAll();
+
       const currState = JSON.stringify(initialCanvas.toJSON(JSON_KEYS));
+
       canvasHistory.current = [currState];
       setHistoryIndex(0);
-
-      initialCanvas.renderAll();
     },
-    [canvasHistory, setHistoryIndex]
+    [canvasHistory, setHistoryIndex],
   );
 
   return {

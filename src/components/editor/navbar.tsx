@@ -9,6 +9,7 @@ import { Button } from "../ui/button";
 import {
   ChevronDown,
   Download,
+  LucideLoader2,
   MousePointerClick,
   Redo2,
   Undo2,
@@ -19,7 +20,7 @@ import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { CiFileOn } from "react-icons/ci";
 import { Separator } from "../ui/separator";
 import { Hint } from "../hintToolTip";
-import { BsCloudCheck } from "react-icons/bs";
+import { BsCloudCheck, BsCloudSlash } from "react-icons/bs";
 import { CiImageOn } from "react-icons/ci";
 
 import {
@@ -56,11 +57,13 @@ import { useFilePicker } from "use-file-picker";
 import { useUpdateProject } from "~/hooks/useUpdateProject";
 import { useParams } from "next/navigation";
 import { useToast } from "../ui/use-toast";
+import { SaveState } from "~/hooks/useAutoSave";
 
 interface NavbarProps {
   activeTool: ActiveTool;
   onChangeActiveTool: (tool: ActiveTool) => void;
   editor: Editor | any;
+  saveState?: SaveState;
 }
 
 interface FileSelectionResult {
@@ -70,8 +73,8 @@ interface FileSelectionResult {
 
 export const Navbar = ({
   activeTool,
-  onChangeActiveTool,
   editor,
+  saveState = "Idle",
 }: NavbarProps) => {
   const { projectId } = useParams();
   const updateProject = useUpdateProject();
@@ -81,52 +84,15 @@ export const Navbar = ({
     if (!editor?.canvas || !projectId) return;
 
     try {
-      const canvasState = editor.canvas.toJSON([
-        'name',
-        'selectable',
-        'hasControls',
-        'width',
-        'height',
-        'fill',
-        'stroke',
-        'strokeWidth',
-        'strokeDashArray',
-        'fontFamily',
-        'fontSize',
-        'fontWeight',
-        'fontStyle',
-        'textAlign',
-        'underline',
-        'linethrough',
-        'opacity',
-        'shadow',
-        'clipPath',
-        'visible',
-        'backgroundColor',
-        'radius',
-        'startAngle',
-        'endAngle',
-        'type',
-        'originX',
-        'originY',
-        'left',
-        'top',
-        'scaleX',
-        'scaleY',
-        'flipX',
-        'flipY',
-        'skewX',
-        'skewY',
-        'angle'
-      ]);
-      
+      const canvasState = editor.canvas.toJSON(canvasState);
+
       await updateProject.mutate({
         id: projectId as string,
-        data: { 
+        data: {
           json: canvasState,
           width: editor.canvas.getWidth(),
-          height: editor.canvas.getHeight()
-        }
+          height: editor.canvas.getHeight(),
+        },
       });
 
       toast({
@@ -298,25 +264,31 @@ export const Navbar = ({
         </Hint>
         <Separator orientation="vertical" className="mx-2" />
         <div className="flex items-center gap-x-2">
-          <Button
-            onClick={handleSave}
-            disabled={updateProject.isPending}
-            variant="ghost"
-            size="sm"
-            className="flex items-center gap-x-2"
-          >
-            {updateProject.isPending ? (
+          <div className="flex items-center gap-x-2">
+            {(saveState === "Saving" ||
+              saveState === "Saved" ||
+              saveState == "Idle") && (
               <>
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                <span className="text-xs">Saving...</span>
-              </>
-            ) : (
-              <>
-                <BsCloudCheck className="h-4 w-4" />
-                <span className="text-xs">Save</span>
+                <span className="text-xs">
+                  {saveState === "Saving" ? (
+                    <LucideLoader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <BsCloudCheck className="h-4 w-4" />
+                  )}
+                </span>
+
+                <span className="text-xs">
+                  {saveState === "Saving" ? "Saving..." : "Saved"}
+                </span>
               </>
             )}
-          </Button>
+            {saveState === "Save failed" && (
+              <>
+                <BsCloudSlash className="h-4 w-4 text-red-500" />
+                <span className="text-xs text-red-500">Save failed</span>
+              </>
+            )}
+          </div>
         </div>
       </div>
       <div className="ml-auto flex items-center gap-x-4">
