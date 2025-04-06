@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import {
   Search,
   Sparkles,
@@ -252,7 +252,7 @@ const TRENDING_DESIGNS = [
   },
 ];
 
-export default function TemplatesPage() {
+function TemplatesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
@@ -288,15 +288,18 @@ export default function TemplatesPage() {
     window.history.replaceState(null, "", newUrl);
   }, [searchQuery, searchParams]);
 
-  const category = searchParams.get("category");
-  if (category) {
-    const matchingCategory = CATEGORIES.find(
-      (c) => c.id === category.toLowerCase(),
-    );
-    if (matchingCategory) {
-      setActiveCategory(matchingCategory.id);
+  // Set initial active category from URL
+  useEffect(() => {
+    const category = searchParams.get("category");
+    if (category) {
+      const matchingCategory = CATEGORIES.find(
+        (c) => c.id === category.toLowerCase(),
+      );
+      if (matchingCategory) {
+        setActiveCategory(matchingCategory.id);
+      }
     }
-  }
+  }, [searchParams]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -533,5 +536,19 @@ export default function TemplatesPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function TemplatesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center">
+          Loading...
+        </div>
+      }
+    >
+      <TemplatesContent />
+    </Suspense>
   );
 }
