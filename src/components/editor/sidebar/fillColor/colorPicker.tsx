@@ -8,7 +8,7 @@ import { useDocumentColors } from "~/hooks/useDocumentColors";
 import { Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaEyeDropper } from "react-icons/fa6";
-import { Card } from "~/components/card";
+import { Card } from "~/components/ui/card";
 
 interface ColorPickerProps {
   value: string;

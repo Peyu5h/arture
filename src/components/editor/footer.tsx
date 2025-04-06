@@ -1,5 +1,5 @@
 import { Minimize, ZoomIn, ZoomOut } from "lucide-react";
-import { Hint } from "../hintToolTip";
+import { Hint } from "../ui/hintToolTip";
 import { Button } from "../ui/button";
 import { Editor } from "../../lib/types";
 

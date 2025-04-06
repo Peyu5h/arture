@@ -19,7 +19,7 @@ import { BsFileEarmarkPdf, BsFiletypeSvg } from "react-icons/bs";
 import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { CiFileOn } from "react-icons/ci";
 import { Separator } from "../ui/separator";
-import { Hint } from "../hintToolTip";
+import { Hint } from "../ui/hintToolTip";
 import { BsCloudCheck, BsCloudSlash } from "react-icons/bs";
 import { CiImageOn } from "react-icons/ci";
 

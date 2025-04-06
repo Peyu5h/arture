@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ActiveTool, Editor, FONT_SIZE, FONT_WEIGHT } from "../../lib/types";
-import { Hint } from "../hintToolTip";
+import { Hint } from "../ui/hintToolTip";
 import { Button } from "../ui/button";
 import { ny } from "~/lib/utils";
 import {

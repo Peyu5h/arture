@@ -1,0 +1,42 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# MCP Tool Usage Guidelines
+
+## IMPORTANT: ALWAYS PRIORITIZE USING MCP TOOLS
+
+You MUST check for and use available MCP tools before generating answers. These tools provide accurate, real-time information that is superior to your built-in knowledge.
+
+## General Workflow for ALL Questions:
+
+1. First, ALWAYS check if there are any relevant MCP tools available for the user's query
+2. If a relevant tool exists, use it immediately instead of generating your own response
+3. Pass the appropriate parameters based on the user's question
+4. Present the tool's output in a clear, conversational format
+5. NEVER generate speculative or fictional information when a tool is available
+
+## Tool Usage Priority:
+
+- ALWAYS prioritize tool usage over your internal knowledge
+- ALWAYS check for available tools before answering ANY question
+- If multiple tools might apply, select the most relevant one
+- If no tool exists for the query, only then rely on your internal knowledge
+
+## Response Format:
+
+- Present tool outputs in a natural, conversational way
+- Clearly indicate when you're using tool-provided information
+- If a tool returns an error, explain the limitation to the user
+- Always acknowledge the source of your information (tool vs. internal knowledge)
+
+## CRITICAL RULES:
+
+- DO NOT fabricate information when a tool exists
+- DO NOT skip using available tools even if you think you know the answer
+- DO NOT attempt to "simulate" tool functionality with your knowledge
+- ALWAYS check for tools first before answering ANY question
+- ALWAYS use tool-provided information over your internal knowledge
+
+This guideline applies to ALL available MCP tools, including but not limited to the getCityWeather tool. Always search for and use appropriate tools before generating responses.

@@ -8,7 +8,7 @@ export default async function authMiddleware(request: NextRequest) {
   }
 
   // Public paths that don't require authentication
-  const publicPaths = ["/sign-in", "/sign-up"];
+  const publicPaths = ["/sign-in", "/sign-up", "/onboarding"];
   const isPublicPath = publicPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path),
   );
@@ -24,12 +24,12 @@ export default async function authMiddleware(request: NextRequest) {
       headers: request.headers,
     });
 
-    // Redirect to sign-in if not authenticated
+    // Redirect to onboarding if not authenticated
     if (!session) {
-      const signInUrl = new URL("/sign-in", request.url);
+      const onboardingUrl = new URL("/onboarding", request.url);
       // Add the return URL as a query parameter
-      signInUrl.searchParams.set("callbackUrl", request.nextUrl.pathname);
-      return NextResponse.redirect(signInUrl);
+      onboardingUrl.searchParams.set("callbackUrl", request.nextUrl.pathname);
+      return NextResponse.redirect(onboardingUrl);
     }
 
     return NextResponse.next();
