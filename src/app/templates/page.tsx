@@ -341,7 +341,8 @@ function TemplatesContent() {
   };
 
   const handleTemplateClick = (templateId: string) => {
-    router.push(`/editor/${templateId}`);
+    // router.push(`/editor/${templateId}`);
+    router.push(`/editor/cm8d40lf80001wu38m5oyp8qj`);
   };
 
   const filteredTemplates = getFilteredTemplates();

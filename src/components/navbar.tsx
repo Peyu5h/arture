@@ -17,7 +17,7 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { LogOut, User } from "lucide-react";
 
-export function Navbar() {
+export function Navbar({ onAuthDialogOpen }: { onAuthDialogOpen: () => void }) {
   const router = useRouter();
   const [isScrolled, setIsScrolled] = useState(false);
   const { data: session, isPending } = authClient.useSession();
@@ -120,12 +120,12 @@ export function Navbar() {
             <>
               <Button
                 variant="ghost"
-                onClick={() => router.push("/sign-in")}
+                onClick={onAuthDialogOpen}
                 className="hidden sm:flex"
               >
                 Log in
               </Button>
-              <Button onClick={() => router.push("/sign-up")}>Sign up</Button>
+              <Button onClick={onAuthDialogOpen}>Sign up</Button>
             </>
           )}
         </div>

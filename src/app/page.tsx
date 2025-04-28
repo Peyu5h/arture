@@ -147,12 +147,13 @@ export default function Home() {
 
   const handleCanvasRatioClick = (ratio: any) => {
     router.push(
-      `/editor/new?width=${ratio.width}&height=${ratio.height}&name=${encodeURIComponent(ratio.name)}`,
+      // `/editor/new?width=${ratio.width}&height=${ratio.height}&name=${encodeURIComponent(ratio.name)}`,
+      `/editor/cm8d40lf80001wu38m5oyp8qj`,
     );
   };
 
   const handleTrendingDesignClick = (design: any) => {
-    router.push(`/editor/template/${design.id}`);
+    router.push(`/editor/cm8d40lf80001wu38m5oyp8qj`);
   };
 
   const formatDate = (dateString: any) => {
@@ -168,7 +169,7 @@ export default function Home() {
     <main className="">
       <div className="mx-auto max-w-[1440px] px-4 pb-8 sm:px-6 lg:px-8">
         <div className="container">
-          <div className="my-20">
+          {/* <div className="my-20">
             <motion.h2
               className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl"
               initial={{ opacity: 0, y: 20 }}
@@ -208,10 +209,10 @@ export default function Home() {
                 </div>
               ))}
             </motion.div>
-          </div>
+          </div> */}
 
           {/* ========= RECENT DESIGNS ========= */}
-          <div className="mb-20">
+          <div className="my-20">
             <div className="mb-8 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h2 className="text-2xl font-bold tracking-tight text-foreground">
@@ -309,7 +310,8 @@ export default function Home() {
                 {recentDesigns.map((design, idx) => (
                   <Link
                     key={design.id || idx}
-                    href={`/editor/${design.id}`}
+                    // href={`/editor/${design.id}`}
+                    href={`/editor/cm8d40lf80001wu38m5oyp8qj`}
                     className="block"
                   >
                     <div className="group relative aspect-[4/3] overflow-hidden rounded-xl border bg-card shadow-sm transition-all hover:shadow-md">
