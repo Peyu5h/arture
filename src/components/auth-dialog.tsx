@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { Button } from "~/components/ui/button";
-import { X } from "lucide-react";
+import { User } from "lucide-react";
 import { authClient } from "~/lib/auth-client";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
@@ -32,6 +32,7 @@ export function AuthDialog({
 }: AuthDialogProps) {
   const router = useRouter();
   const [view, setView] = useState<"signin" | "signup">(defaultView);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -39,42 +40,67 @@ export function AuthDialog({
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  async function handleEmailSignIn(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
     try {
-      const result = await authClient.signIn.email(
-        {
-          email,
-          password,
-        },
-        {
-          onRequest: () => {
-            setIsLoading(true);
+      if (view === "signin") {
+        const result = await authClient.signIn.email(
+          {
+            email,
+            password,
           },
-          onSuccess: () => {
-            toast.success("You've successfully signed in", {
-              description: "Welcome back!",
-            });
-            onClose();
-            router.push("/templates");
+          {
+            onRequest: () => setIsLoading(true),
+            onSuccess: () => {
+              toast.success("You've successfully signed in", {
+                description: "Welcome back!",
+              });
+              onClose();
+              router.refresh();
+            },
+            onError: (ctx) => {
+              setError(ctx.error.message || "Failed to sign in");
+            },
+            onSettled: () => setIsLoading(false),
           },
-          onError: (ctx) => {
-            setError(ctx.error.message || "Failed to sign in");
-          },
-        },
-      );
+        );
 
-      if (result && result.error) {
-        setError(result.error.message || "Failed to sign in");
-        return;
+        if (result?.error) {
+          setError(result.error.message || "Failed to sign in");
+        }
+      } else {
+        const result = await authClient.signUp.email(
+          {
+            name,
+            email,
+            password,
+          },
+          {
+            onRequest: () => setIsLoading(true),
+            onSuccess: () => {
+              toast.success("Account created successfully", {
+                description: "Welcome to Arture!",
+              });
+              onClose();
+              router.refresh();
+            },
+            onError: (ctx) => {
+              setError(ctx.error.message || "Failed to sign up");
+            },
+            onSettled: () => setIsLoading(false),
+          },
+        );
+
+        if (result?.error) {
+          setError(result.error.message || "Failed to sign up");
+        }
       }
     } catch (err) {
-      console.error("Sign-in error:", err);
-      setError(err instanceof Error ? err.message : "Failed to sign in");
-    } finally {
+      console.error(`${view} error:`, err);
+      setError(err instanceof Error ? err.message : `Failed to ${view}`);
       setIsLoading(false);
     }
   }
@@ -83,13 +109,31 @@ export function AuthDialog({
     await authClient.signIn.social(
       {
         provider: "google",
-        callbackURL: "/",
+        callbackURL: "/onboading",
       },
       fetchCallback({
         setIsPending: setIsGoogleLoading,
+        // onSuccess: () => {
+        //   onClose();
+        //   router.refresh();
+        // },
+        // onError: (ctx) => {
+        //   toast.error(ctx.error.message || "Google sign-in failed");
+        // },
       }),
     );
   }
+
+  const handleViewChange = (newView: "signin" | "signup") => {
+    setView(newView);
+    setError("");
+    setName("");
+    setEmail("");
+    setPassword("");
+    setShowPassword(false);
+    setIsLoading(false);
+    setIsGoogleLoading(false);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -103,7 +147,7 @@ export function AuthDialog({
           <p className="text-sm text-muted-foreground">
             {view === "signin"
               ? "Enter your credentials to access account"
-              : "Sign up to get started with Arture"}
+              : "Enter your information to get started"}
           </p>
         </DialogHeader>
 
@@ -115,7 +159,25 @@ export function AuthDialog({
             </Alert>
           )}
 
-          <form onSubmit={handleEmailSignIn} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {view === "signup" && (
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="name"
+                    placeholder="Enter your name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="pl-10"
+                    disabled={isLoading}
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
@@ -127,6 +189,7 @@ export function AuthDialog({
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@example.com"
                   className="pl-10"
+                  disabled={isLoading}
                   required
                 />
               </div>
@@ -145,6 +208,7 @@ export function AuthDialog({
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="pl-10"
+                  disabled={isLoading}
                   required
                 />
                 <button
@@ -164,17 +228,19 @@ export function AuthDialog({
             <Button
               type="submit"
               className="w-full"
-              disabled={isLoading || !email || !password}
+              disabled={
+                isLoading || !email || !password || (view === "signup" && !name)
+              }
             >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {view === "signin" ? "Signing in..." : "Signing up..."}
+                  {view === "signin" ? "Signing in..." : "Creating account..."}
                 </>
               ) : view === "signin" ? (
                 "Sign in"
               ) : (
-                "Sign up"
+                "Create account"
               )}
             </Button>
           </form>
@@ -221,18 +287,15 @@ export function AuthDialog({
                 : "Already have an account? "}
               <button
                 type="button"
-                onClick={() => setView(view === "signin" ? "signup" : "signin")}
+                onClick={() =>
+                  handleViewChange(view === "signin" ? "signup" : "signin")
+                }
                 className="font-medium text-primary hover:underline"
               >
                 {view === "signin" ? "Create an account" : "Sign in"}
               </button>
             </p>
           </div>
-        </div>
-
-        <div className="mt-2 text-center text-xs text-gray-500">
-          By continuing, you agree to Arture&apos;s Terms of Use and Privacy
-          Policy.
         </div>
       </DialogContent>
     </Dialog>

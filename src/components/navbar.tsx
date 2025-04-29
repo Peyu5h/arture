@@ -57,12 +57,6 @@ export function Navbar({ onAuthDialogOpen }: { onAuthDialogOpen: () => void }) {
           >
             Templates
           </Link>
-          <Link
-            href="/canvas"
-            className="text-sm font-medium hover:text-primary"
-          >
-            Create
-          </Link>
         </nav>
 
         <div className="flex items-center gap-4">

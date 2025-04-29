@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useState } from "react";
-import { ArrowRight, ArrowRightIcon, Play } from "lucide-react";
+import { ArrowRight, ArrowRightIcon, Play, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -14,10 +14,14 @@ import { Navbar } from "./navbar";
 import { authClient } from "~/lib/auth-client";
 import { toast } from "sonner";
 import { AuthDialog } from "./auth-dialog";
+import { useCreateProject } from "~/hooks/useCreateProject";
+import { DEFAULT_CANVAS_HEIGHT, DEFAULT_CANVAS_WIDTH } from "~/lib/constants";
 
 export function Hero() {
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const router = useRouter();
+  const { data: session } = authClient.useSession();
+  const createProjectMutation = useCreateProject();
 
   const FEATURES = [
     "Professional templates",
@@ -26,13 +30,21 @@ export function Hero() {
     "Cloud storage",
   ];
 
-  const { data: session, isPending } = authClient.useSession();
-
-  const handleStartCreateClick = () => {
+  const handleStartCreateClick = async () => {
     if (!session) {
       setAuthDialogOpen(true);
     } else {
-      router.push("/templates");
+      try {
+        const newProject = await createProjectMutation.mutateAsync({
+          name: "Untitled Project",
+          json: {},
+          width: DEFAULT_CANVAS_WIDTH,
+          height: DEFAULT_CANVAS_HEIGHT,
+        });
+        router.push(`/editor/${newProject.id}`);
+      } catch (error) {
+        console.error("Failed to create project from Hero:", error);
+      }
     }
   };
 
@@ -95,10 +107,20 @@ export function Hero() {
             >
               <Button
                 onClick={handleStartCreateClick}
+                disabled={createProjectMutation.isPending}
                 className="group relative inline-flex items-center gap-x-2 rounded-full bg-purple-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-purple-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-600"
               >
-                Start creating
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                {createProjectMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    Start creating
+                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </>
+                )}
               </Button>
             </motion.div>
 
