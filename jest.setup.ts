@@ -1,9 +1,7 @@
 import "@testing-library/jest-dom";
 
-// Mock fetch globally for tests
 global.fetch = jest.fn();
 
-// Mock Next.js router
 jest.mock("next/navigation", () => ({
   useRouter: () => ({
     push: jest.fn(),
@@ -17,8 +15,7 @@ jest.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-// Mock fabric.js globally
-global.fabric = {
+(global as any).fabric = {
   Canvas: jest.fn(() => ({
     setDimensions: jest.fn(),
     renderAll: jest.fn(),
@@ -46,32 +43,31 @@ global.fabric = {
     text: "Hello World",
     fontSize: 16,
   })),
-  Shadow: jest.fn(() => ({})),
+  Shadow: jest.fn(() => ({
+    reOffsetsAndBlur: jest.fn(),
+  })),
 };
 
-// Mock window.matchMedia
 Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: jest.fn().mockImplementation((query) => ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: jest.fn(), // deprecated
-    removeListener: jest.fn(), // deprecated
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
     addEventListener: jest.fn(),
     removeEventListener: jest.fn(),
     dispatchEvent: jest.fn(),
   })),
 });
 
-// Mock ResizeObserver
 global.ResizeObserver = jest.fn().mockImplementation(() => ({
   observe: jest.fn(),
   unobserve: jest.fn(),
   disconnect: jest.fn(),
 }));
 
-// Mock IntersectionObserver
 global.IntersectionObserver = jest.fn().mockImplementation(() => ({
   observe: jest.fn(),
   unobserve: jest.fn(),
