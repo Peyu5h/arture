@@ -14,12 +14,14 @@ const config = {
   ],
   moduleNameMapper: {
     "^~/(.*)$": "<rootDir>/src/$1",
+    "^canvas$": "<rootDir>/jest.setup.ts",
   },
   moduleDirectories: ["node_modules", "src"],
   transformIgnorePatterns: ["node_modules/(?!(ky)/)"],
   testEnvironmentOptions: {
     customExportConditions: [""],
   },
+  // Override canvas dependency for tests
 };
 
 export default createJestConfig(config);
