@@ -81,6 +81,7 @@ export const Toolbar = ({
 
   const selectedObject = editor?.canvas?.getActiveObject();
   const isTextObject = selectedObject?.type === "textbox";
+  const hasSelection = !!selectedObject;
 
   const onChangeFontSize = (value: number) => {
     if (!selectedObject) {
@@ -190,25 +191,29 @@ export const Toolbar = ({
     activeTool === "ai" ||
     activeTool === "templates";
 
+  if (!hasSelection) {
+    return (
+      <div className="absolute top-2 left-1/2 z-[15] flex -translate-x-1/2 items-center justify-center">
+        {/* Empty when nothing is selected */}
+      </div>
+    );
+  }
+
   return (
-    <div
-      className={`z-[15] flex h-[56px] w-full shrink-0 items-center gap-x-2 overflow-hidden overflow-x-auto border-b bg-white p-2 transition-[padding] duration-300 ease-in-out ${
-        isSidebarActive ? "pl-[272px]" : "pl-2"
-      }`}
-    >
-      <div
-        className={`z-[15] flex h-[56px] w-full shrink-0 items-center gap-x-2 overflow-x-auto border-b bg-white p-2 transition-[padding] duration-300 ease-in-out ${isToolbarActive ? "pl-[368px]" : "pl-2"}`}
-      >
+    <div className="absolute top-2 left-1/2 z-[15] flex -translate-x-1/2 items-center justify-center">
+      <div className="animate-in slide-in-from-bottom-2 flex items-center gap-x-2 rounded-lg border-0 bg-white px-4 py-2 shadow-sm transition-all duration-300">
         <div className="flex h-full items-center justify-between">
           <Hint label="Color" side="bottom">
             <Button
               size="icon"
-              className={ny(activeTool == "fill" && "bg-gray-100")}
+              className={ny(
+                activeTool == "fill" && "bg-accent/30 ring-accent ring-1",
+              )}
               variant="ghost"
               onClick={() => onChangeActiveTool("fill")}
             >
               <div
-                className="size-4 rounded-sm border border-gray-200"
+                className="border-border size-4 rounded-sm border"
                 style={{ backgroundColor: cssFillColor }}
               ></div>
             </Button>
@@ -219,7 +224,10 @@ export const Toolbar = ({
             <Hint label="Stroke" side="bottom">
               <Button
                 size="icon"
-                className={ny(activeTool == "strokeColor" && "bg-gray-100")}
+                className={ny(
+                  activeTool == "strokeColor" &&
+                    "bg-accent/30 ring-accent ring-1",
+                )}
                 variant="ghost"
                 onClick={() => onChangeActiveTool("strokeColor")}
               >
@@ -237,7 +245,7 @@ export const Toolbar = ({
                 variant="ghost"
                 className={ny(
                   "w-auto px-2 text-sm",
-                  activeTool === "font" && "bg-gray-100",
+                  activeTool === "font" && "bg-accent/30 ring-accent ring-1",
                 )}
               >
                 <div className="max-w-[100px] truncate">
@@ -255,7 +263,10 @@ export const Toolbar = ({
                 onClick={toggleBold}
                 size="icon"
                 variant="ghost"
-                className={ny(properties.fontWeight > 500 && "bg-gray-100")}
+                className={ny(
+                  properties.fontWeight > 500 &&
+                    "bg-accent/30 ring-accent ring-1",
+                )}
               >
                 <FaBold className="size-4" />
               </Button>
@@ -270,7 +281,8 @@ export const Toolbar = ({
                 size="icon"
                 variant="ghost"
                 className={ny(
-                  properties.fontStyle === "italic" && "bg-gray-100",
+                  properties.fontStyle === "italic" &&
+                    "bg-accent/30 ring-accent ring-1",
                 )}
               >
                 <FaItalic className="size-4" />
@@ -285,7 +297,9 @@ export const Toolbar = ({
                 onClick={toggleUnderline}
                 size="icon"
                 variant="ghost"
-                className={ny(properties.fontUnderline && "bg-gray-100")}
+                className={ny(
+                  properties.fontUnderline && "bg-accent/30 ring-accent ring-1",
+                )}
               >
                 <FaUnderline className="size-4" />
               </Button>
@@ -299,7 +313,10 @@ export const Toolbar = ({
                 onClick={toggleLinethrough}
                 size="icon"
                 variant="ghost"
-                className={ny(properties.fontLinethrough && "bg-gray-100")}
+                className={ny(
+                  properties.fontLinethrough &&
+                    "bg-accent/30 ring-accent ring-1",
+                )}
               >
                 <FaStrikethrough className="size-4" />
               </Button>
@@ -313,7 +330,10 @@ export const Toolbar = ({
                 onClick={() => onChangeTextAlign("left")}
                 size="icon"
                 variant="ghost"
-                className={ny(properties.textAlign === "left" && "bg-gray-100")}
+                className={ny(
+                  properties.textAlign === "left" &&
+                    "bg-accent/30 ring-accent ring-1",
+                )}
               >
                 <AlignLeft className="size-4" />
               </Button>
@@ -328,7 +348,8 @@ export const Toolbar = ({
                 size="icon"
                 variant="ghost"
                 className={ny(
-                  properties.textAlign === "center" && "bg-gray-100",
+                  properties.textAlign === "center" &&
+                    "bg-accent/30 ring-accent ring-1",
                 )}
               >
                 <AlignCenter className="size-4" />
@@ -344,7 +365,8 @@ export const Toolbar = ({
                 size="icon"
                 variant="ghost"
                 className={ny(
-                  properties.textAlign === "right" && "bg-gray-100",
+                  properties.textAlign === "right" &&
+                    "bg-accent/30 ring-accent ring-1",
                 )}
               >
                 <AlignRight className="size-4" />
@@ -416,7 +438,7 @@ export const Toolbar = ({
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Opacity</span>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-muted-foreground text-sm">
                     {Math.round(opacity * 100)}%
                   </span>
                 </div>

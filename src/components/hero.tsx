@@ -57,7 +57,7 @@ export function Hero() {
           aria-hidden="true"
         >
           <div
-            className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-purple-500 to-indigo-500 opacity-20 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]"
+            className="from-primary relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr to-indigo-500 opacity-20 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]"
             style={{
               clipPath:
                 "polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)",
@@ -66,7 +66,7 @@ export function Hero() {
         </div>
 
         <div className="mx-auto h-full max-w-7xl px-6 py-4 lg:flex lg:px-8">
-          <div className="mx-auto flex max-w-2xl flex-shrink-0 flex-col justify-center bg-gridBg lg:mx-0 lg:max-w-xl lg:pt-4">
+          <div className="bg-gridBg mx-auto flex max-w-2xl flex-shrink-0 flex-col justify-center lg:mx-0 lg:max-w-xl lg:pt-4">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -74,12 +74,12 @@ export function Hero() {
             >
               <div
                 className={ny(
-                  "group w-56 rounded-full border border-black/5 bg-purple-50 text-base transition-all ease-in hover:cursor-pointer hover:bg-purple-50/50",
+                  "group w-56 rounded-full border border-black/5 bg-blue-50 text-base transition-all ease-in hover:cursor-pointer hover:bg-purple-50/50",
                 )}
               >
                 <AnimatedShinyText className="inline-flex items-center justify-center px-4 py-1 transition ease-out hover:duration-300">
-                  <span className="text-purple-400">✨ Introducing Arture</span>
-                  <ArrowRightIcon className="ml-1 size-3 text-purple-400 transition-transform duration-300 ease-in-out group-hover:translate-x-0.5" />
+                  <span className="text-primary">✨ Introducing Arture</span>
+                  <ArrowRightIcon className="text-primary ml-1 size-3 transition-transform duration-300 ease-in-out group-hover:translate-x-0.5" />
                 </AnimatedShinyText>
               </div>
             </motion.div>
@@ -89,7 +89,7 @@ export function Hero() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
-              <h1 className="mt-10 text-4xl font-bold tracking-tight text-foreground/90 sm:text-6xl">
+              <h1 className="text-foreground/90 mt-10 text-4xl font-bold tracking-tight sm:text-6xl">
                 Create stunning designs with ease
               </h1>
               <p className="mt-6 text-lg leading-8 text-gray-600">
@@ -105,23 +105,32 @@ export function Hero() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
             >
-              <Button
-                onClick={handleStartCreateClick}
-                disabled={createProjectMutation.isPending}
-                className="group relative inline-flex items-center gap-x-2 rounded-full bg-purple-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-purple-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-600"
-              >
-                {createProjectMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    Start creating
-                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </>
-                )}
-              </Button>
+              <div className="flex items-center gap-4">
+                <Button
+                  onClick={handleStartCreateClick}
+                  disabled={createProjectMutation.isPending}
+                  size={"lg"}
+                  effect="shineHover"
+                >
+                  {createProjectMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>Create a project</>
+                  )}
+                </Button>
+                <Button
+                  size={"lg"}
+                  effect="expandIcon"
+                  icon={ArrowRightIcon}
+                  iconPlacement="right"
+                  variant={"outline"}
+                >
+                  Inspire me
+                </Button>
+              </div>
             </motion.div>
 
             <motion.div
@@ -138,9 +147,9 @@ export function Hero() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
                 >
-                  <div className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-purple-100">
+                  <div className="bg-primary/20 flex h-6 w-6 flex-none items-center justify-center rounded-full">
                     <svg
-                      className="h-4 w-4 text-purple-600"
+                      className="text-primary h-4 w-4"
                       fill="none"
                       viewBox="0 0 24 24"
                       strokeWidth="1.5"
@@ -162,7 +171,7 @@ export function Hero() {
           </div>
 
           <motion.div
-            className="group relative mx-auto flex max-w-2xl items-center justify-center lg:ml-10 lg:mr-0 lg:mt-0 lg:max-w-none lg:flex-none xl:ml-24"
+            className="group relative mx-auto flex max-w-2xl items-center justify-center lg:mt-0 lg:mr-0 lg:ml-10 lg:max-w-none lg:flex-none xl:ml-24"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
@@ -179,7 +188,7 @@ export function Hero() {
               ></div>
             </div>
 
-            <div className="relative rounded-xl border border-purple-500/20 bg-background/5 p-1 shadow-md backdrop-blur-sm transition-all duration-300 group-hover:border-orange-400/30">
+            <div className="bg-background/5 border-primary/20 relative rounded-xl border p-1 shadow-md backdrop-blur-sm transition-all duration-300 group-hover:border-orange-400/30">
               <div className="relative">
                 <Safari
                   src="https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg"

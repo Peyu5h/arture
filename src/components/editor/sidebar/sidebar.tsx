@@ -1,13 +1,13 @@
 "use client";
 
 import {
-  LayoutTemplate,
-  ImageIcon,
-  Pencil,
-  Settings,
-  Shapes,
+  Layers3,
+  ImagePlus,
+  PenTool,
+  SlidersHorizontal,
+  Hexagon,
   Sparkles,
-  Type,
+  TypeOutline,
 } from "lucide-react";
 
 import { SidebarItem } from "./sidebar-item";
@@ -20,34 +20,34 @@ interface SidebarProps {
 
 export const Sidebar = ({ activeTool, onChangeActiveTool }: SidebarProps) => {
   return (
-    <aside className="z-45 z-[45] flex min-w-[100px] max-w-[100px] flex-shrink-0 flex-col overflow-y-auto border-r bg-white">
-      <ul className="flex flex-col">
+    <aside className="bg-background z-45 flex max-w-[100px] min-w-[100px] flex-shrink-0 flex-col overflow-y-auto border-r shadow-lg">
+      <ul className="flex w-full flex-col gap-2 p-2">
         <SidebarItem
-          icon={LayoutTemplate}
+          icon={Layers3}
           label="Design"
           isActive={activeTool === "templates"}
           onClick={() => onChangeActiveTool("templates")}
         />
         <SidebarItem
-          icon={ImageIcon}
+          icon={ImagePlus}
           label="Image"
           isActive={activeTool === "images"}
           onClick={() => onChangeActiveTool("images")}
         />
         <SidebarItem
-          icon={Type}
+          icon={TypeOutline}
           label="Text"
           isActive={activeTool === "text"}
           onClick={() => onChangeActiveTool("text")}
         />
         <SidebarItem
-          icon={Shapes}
+          icon={Hexagon}
           label="Shapes"
           isActive={activeTool === "shapes"}
           onClick={() => onChangeActiveTool("shapes")}
         />
         <SidebarItem
-          icon={Pencil}
+          icon={PenTool}
           label="Draw"
           isActive={activeTool === "draw"}
           onClick={() => onChangeActiveTool("draw")}
@@ -60,7 +60,7 @@ export const Sidebar = ({ activeTool, onChangeActiveTool }: SidebarProps) => {
           onClick={() => onChangeActiveTool("ai")}
         />
         <SidebarItem
-          icon={Settings}
+          icon={SlidersHorizontal}
           label="Settings"
           isActive={activeTool === "settings"}
           onClick={() => onChangeActiveTool("settings")}

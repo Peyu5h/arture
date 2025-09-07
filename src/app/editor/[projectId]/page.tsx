@@ -18,11 +18,13 @@ import { SettingsSidebar } from "~/components/editor/sidebar/settings/settings-s
 import { TextSidebar } from "~/components/editor/sidebar/text/text-sidebar";
 import { FontSidebar } from "~/components/editor/sidebar/text/font-sidebar";
 import { DesignSidebar } from "~/components/editor/sidebar/design/design-sidebar";
+import { ZoomControls } from "~/components/editor/zoom-controls";
 import { useParams } from "next/navigation";
 import { useProject } from "~/hooks/projects.hooks";
 import { LucideLoader2 } from "lucide-react";
 import { useAutoSave } from "~/hooks/useAutoSave";
 import { useCanvasEvents } from "~/hooks/useCanvasEvents";
+import { AuthGuard } from "~/components/auth-guard";
 
 export default function Editor() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -84,7 +86,6 @@ export default function Editor() {
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
 
-    // Set initial canvas element dimensions
     canvasRef.current.width = project?.width || 500;
     canvasRef.current.height = project?.height || 500;
 
@@ -101,7 +102,6 @@ export default function Editor() {
       initialContainer: containerRef.current,
     });
 
-    // Load project data after initialization
     if (project?.json) {
       try {
         const jsonData =
@@ -114,7 +114,6 @@ export default function Editor() {
             .getObjects()
             .find((obj) => obj.name === "clip");
           if (!workspace) {
-            // Create default workspace if none exists
             const workspaceObj = new fabric.Rect({
               width: project?.width || 500,
               height: project?.height || 500,
@@ -132,6 +131,28 @@ export default function Editor() {
             canvas.add(workspaceObj);
             canvas.centerObject(workspaceObj);
             canvas.clipPath = workspaceObj;
+
+            if (containerRef.current) {
+              const containerRect =
+                containerRef.current.getBoundingClientRect();
+              const workspaceCenter = workspaceObj.getCenterPoint();
+              const containerCenter = new fabric.Point(
+                containerRect.width / 2,
+                containerRect.height / 2,
+              );
+
+              const vpt = [
+                1,
+                0,
+                0,
+                1,
+                containerCenter.x - workspaceCenter.x,
+                containerCenter.y - workspaceCenter.y,
+              ];
+
+              canvas.setViewportTransform(vpt);
+              canvas.requestRenderAll();
+            }
           }
           canvas.renderAll();
         });
@@ -140,26 +161,34 @@ export default function Editor() {
       }
     }
 
-    // Handle window resize
+    let resizeTimeout: NodeJS.Timeout;
     const handleResize = () => {
       if (!containerRef.current) return;
 
-      const containerWidth = containerRef.current.offsetWidth;
-      const containerHeight = containerRef.current.offsetHeight;
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        const containerWidth = containerRef.current!.offsetWidth;
+        const containerHeight = containerRef.current!.offsetHeight;
 
-      canvas.setDimensions({
-        width: containerWidth,
-        height: containerHeight,
-      });
+        canvas.setDimensions({
+          width: containerWidth,
+          height: containerHeight,
+        });
 
-      canvas.renderAll();
+        canvas.renderAll();
+      }, 100);
     };
 
-    window.addEventListener("resize", handleResize);
-    handleResize(); // Initial resize
+    if (typeof window !== "undefined") {
+      window.addEventListener("resize", handleResize);
+      handleResize();
+    }
 
     return () => {
-      window.removeEventListener("resize", handleResize);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("resize", handleResize);
+      }
+      clearTimeout(resizeTimeout);
       canvas.dispose();
     };
   }, [init, project]);
@@ -181,79 +210,115 @@ export default function Editor() {
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col">
-      <Navbar
-        editor={editor}
-        activeTool={activeTool}
-        onChangeActiveTool={onChangeActiveTool}
-        saveState={saveState}
-      />
-      <div className="relative flex h-full w-full overflow-hidden">
-        <Sidebar
+    <AuthGuard>
+      <div className="flex h-screen w-screen flex-col overflow-hidden">
+        <Navbar
+          editor={editor}
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
+          saveState={saveState}
         />
-        <main className="flex w-full flex-1 flex-col overflow-hidden bg-secondary">
-          <Toolbar
+        <div className="relative flex w-full flex-1 overflow-hidden">
+          <Sidebar
+            activeTool={activeTool}
+            onChangeActiveTool={onChangeActiveTool}
+          />
+          <main className="relative flex w-full flex-1 flex-col overflow-hidden">
+            <div
+              className="canvas-container absolute inset-0"
+              ref={containerRef}
+              style={{
+                scrollBehavior: "smooth",
+                overscrollBehavior: "contain",
+                WebkitOverflowScrolling: "touch",
+                position: "relative",
+                width: "100%",
+                height: "100%",
+                maxHeight: "100%",
+                minHeight: "0",
+                overflow: "visible",
+                overscrollBehaviorX: "contain",
+                overscrollBehaviorY: "contain",
+              }}
+            >
+              <div
+                className="canvas-scroll-wrapper absolute inset-0"
+                style={{
+                  overflowX: "auto",
+                  overflowY: "auto",
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "rgba(0, 0, 0, 0.3) transparent",
+                }}
+              >
+                <canvas
+                  ref={canvasRef}
+                  style={{
+                    margin: "0",
+                  }}
+                />
+              </div>
+              <div className="absolute right-4 bottom-4 z-10">
+                <ZoomControls editor={editor} />
+              </div>
+            </div>
+            <Toolbar
+              editor={editor}
+              activeTool={activeTool}
+              onChangeActiveTool={onChangeActiveTool}
+            />
+            {/* <Footer editor={editor} /> */}
+          </main>
+          <DesignSidebar
             editor={editor}
             activeTool={activeTool}
             onChangeActiveTool={onChangeActiveTool}
           />
-          <div className="canvas-container" ref={containerRef}>
-            <canvas ref={canvasRef} />
-          </div>
-          <Footer editor={editor} />
-        </main>
-        <DesignSidebar
-          editor={editor}
-          activeTool={activeTool}
-          onChangeActiveTool={onChangeActiveTool}
-        />
-        <ShapeSidebar
-          editor={editor}
-          activeTool={activeTool}
-          onChangeActiveTool={onChangeActiveTool}
-        />
-        <FillColorSidebar
-          editor={editor}
-          activeTool={activeTool}
-          onChangeActiveTool={onChangeActiveTool}
-        />
-        <StrokeColorSidebar
-          editor={editor}
-          activeTool={activeTool}
-          onChangeActiveTool={onChangeActiveTool}
-        />
-        <AISidebar
-          activeTool={activeTool}
-          onChangeActiveTool={onChangeActiveTool}
-        />
-        <DrawSidebar
-          editor={editor}
-          activeTool={activeTool}
-          onChangeActiveTool={onChangeActiveTool}
-        />
-        <ImageSidebar
-          editor={editor}
-          activeTool={activeTool}
-          onChangeActiveTool={onChangeActiveTool}
-        />
-        <SettingsSidebar
-          editor={editor}
-          activeTool={activeTool}
-          onChangeActiveTool={onChangeActiveTool}
-        />
-        <TextSidebar
-          editor={editor}
-          activeTool={activeTool}
-          onChangeActiveTool={onChangeActiveTool}
-        />
-        <FontSidebar
-          editor={editor}
-          activeTool={activeTool}
-          onChangeActiveTool={onChangeActiveTool}
-        />
+          <ShapeSidebar
+            editor={editor}
+            activeTool={activeTool}
+            onChangeActiveTool={onChangeActiveTool}
+          />
+          <FillColorSidebar
+            editor={editor}
+            activeTool={activeTool}
+            onChangeActiveTool={onChangeActiveTool}
+          />
+          <StrokeColorSidebar
+            editor={editor}
+            activeTool={activeTool}
+            onChangeActiveTool={onChangeActiveTool}
+          />
+          <AISidebar
+            activeTool={activeTool}
+            onChangeActiveTool={onChangeActiveTool}
+          />
+          <DrawSidebar
+            editor={editor}
+            activeTool={activeTool}
+            onChangeActiveTool={onChangeActiveTool}
+          />
+          <ImageSidebar
+            editor={editor}
+            activeTool={activeTool}
+            onChangeActiveTool={onChangeActiveTool}
+          />
+          <SettingsSidebar
+            editor={editor}
+            activeTool={activeTool}
+            onChangeActiveTool={onChangeActiveTool}
+          />
+          <TextSidebar
+            editor={editor}
+            activeTool={activeTool}
+            onChangeActiveTool={onChangeActiveTool}
+          />
+          <FontSidebar
+            editor={editor}
+            activeTool={activeTool}
+            onChangeActiveTool={onChangeActiveTool}
+          />
+        </div>
       </div>
-    </div>
+    </AuthGuard>
   );
 }

@@ -32,18 +32,19 @@ model User {
 }
 
 model Project {
-  id           String   @id @default(cuid()) @map("_id")
-  name         String
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  json         Json
-  height       Int
-  width        Int
-  thumbnailUrl String?
-  isTemplate   Boolean  @default(false)
-  isPro        Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @default(now())
+  id            String         @id @default(cuid()) @map("_id")
+  name          String
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  json          Json
+  height        Int
+  width         Int
+  thumbnailUrl  String?
+  isTemplate    Boolean        @default(false)
+  isPro         Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @default(now())
+  projectAssets ProjectAsset[] // Track assets used in this project
 
   @@map("project")
 }
@@ -125,12 +126,12 @@ model Invitation {
   id             String       @id @map("_id")
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inviterId      String
+  user           User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
   email          String
   role           String?
   status         String
   expiresAt      DateTime
-  inviterId      String
-  user           User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
 
   @@map("invitation")
 }
@@ -143,4 +144,50 @@ model TwoFactor {
   user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("twoFactor")
+}
+
+// Global Asset model - accessible to all users
+model Asset {
+  id            String         @id @default(cuid()) @map("_id")
+  name          String
+  type          AssetType
+  category      String // e.g., "shapes", "icons", "frames", "placeholders"
+  tags          String[] // ["business", "minimal", "modern", "arrow"]
+  theme         String[] // ["corporate", "creative", "minimal"]
+  color         String? // dominant color
+  size          Json // { width: number, height: number, aspectRatio: number }
+  url           String // Cloudinary URL
+  thumbnail     String // Cloudinary thumbnail URL
+  metadata      Json // additional properties for Fabric.js compatibility
+  usageCount    Int            @default(0)
+  isPublic      Boolean        @default(true) // Whether asset is available to all users
+  uploadedBy    String? // Optional: track who uploaded (for admin purposes)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  projectAssets ProjectAsset[] // Track usage in projects
+
+  @@map("asset")
+}
+
+model ProjectAsset {
+  id        String   @id @default(cuid()) @map("_id")
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assetId   String
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  usageData Json // Store how the asset is used in this project
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, assetId])
+  @@map("projectAsset")
+}
+
+enum AssetType {
+  SHAPE
+  ICON
+  FRAME
+  PLACEHOLDER
+  BACKGROUND
+  TEXT_STYLE
+  DECORATION
 }

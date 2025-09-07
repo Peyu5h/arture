@@ -1,6 +1,6 @@
 // src/app/api/[[...route]]/middleware/auth.ts
 import { createMiddleware } from "hono/factory";
-import { auth } from "~/lib/auth";
+import { authServer } from "~/lib/auth-server";
 import { err } from "../utils/response";
 import { verify } from "jsonwebtoken";
 
@@ -35,7 +35,9 @@ export const authMiddleware = createMiddleware(async (c, next) => {
 
     // Try to get session from cookie-based auth
     try {
-      const session = await auth.api.getSession({ headers: c.req.raw.headers });
+      const session = await authServer.api.getSession({
+        headers: c.req.raw.headers,
+      });
 
       if (session) {
         c.set("user", session.user);

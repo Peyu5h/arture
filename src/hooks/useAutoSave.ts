@@ -26,7 +26,7 @@ export const useAutoSave = (editor: Editor | undefined) => {
   const { projectId } = useParams();
   const updateProject = useUpdateProject();
   const { toast } = useToast();
-  const saveTimeoutRef = useRef<NodeJS.Timeout>();
+  const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const lastSaveRef = useRef<string>("");
   const savingRef = useRef(false);
   const [saveState, setSaveState] = useState<SaveState>("Idle");
@@ -99,7 +99,7 @@ export const useAutoSave = (editor: Editor | undefined) => {
       await updateProject.mutateAsync({
         id: projectId as string,
         data: {
-          json: canvasState,
+          json: JSON.stringify(canvasState),
           width: editor.canvas.getWidth(),
           height: editor.canvas.getHeight(),
         },

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useDebounce } from "use-debounce";
-import { ChevronLeft, ChevronRight, LucideLoader2, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, LucideLoader2, Search, Upload, Sparkles } from "lucide-react";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Button } from "~/components/ui/button";
 import { ny } from "~/lib/utils";
@@ -12,6 +12,7 @@ import { Input } from "~/components/ui/input";
 import Image from "next/image";
 import { AiOutlineCloudUpload } from "react-icons/ai";
 import { ActiveTool, Editor } from "~/lib/types";
+import { ClientOnly } from "~/components/client-only";
 
 const imageTags = [
   "Background",
@@ -31,7 +32,7 @@ const LoadingSkeleton = () => {
         <div
           key={index}
           className={ny(
-            "overflow-hidden rounded-lg bg-gray-200",
+            "overflow-hidden rounded-lg bg-muted",
             index % 3 === 0 ? "row-span-2 h-80" : "aspect-square",
             "animate-pulse",
           )}
@@ -76,14 +77,22 @@ export const ImageSidebar = ({
     }
   }, [handleScroll]);
 
-  const { data: randomPhotos, isLoading: isLoadingRandom } = useGetRandomPhotos(
+  const { data: randomPhotos, isLoading: isLoadingRandom, error: randomError } = useGetRandomPhotos(
     { count: 20 },
   );
 
-  const { data: searchedPhotos, isLoading: isLoadingSearch } =
+  const { data: searchedPhotos, isLoading: isLoadingSearch, error: searchError } =
     useGetPhotosByQuery({
       query: debouncedSearch || selectedTag,
     });
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log("Random photos:", randomPhotos);
+    console.log("Random error:", randomError);
+    console.log("Search photos:", searchedPhotos);
+    console.log("Search error:", searchError);
+  }, [randomPhotos, randomError, searchedPhotos, searchError]);
 
   const onClose = () => {
     onChangeActiveTool("select");
@@ -173,18 +182,21 @@ export const ImageSidebar = ({
         <Button
           onClick={() => handleImageClick()}
           className="gap-3"
-          variant={"outline"}
         >
           {!uploading ? (
-            <h1>Upload from device</h1>
+            <>
+              <Upload className="h-4 w-4" />
+              <span>Upload from device</span>
+            </>
           ) : (
-            <h1>
-              <LucideLoader2 className="h-5 w-5 animate-spin text-stone-800" />
-            </h1>
+            <>
+              <LucideLoader2 className="h-4 w-4 animate-spin" />
+              <span>Uploading...</span>
+            </>
           )}
         </Button>
         <div className="relative">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+          <Search className="absolute top-2.5 left-2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search for images"
             value={searchQuery}
@@ -198,7 +210,7 @@ export const ImageSidebar = ({
 
         <div className="relative flex items-center">
           {canScrollLeft && (
-            <div className="absolute left-0 z-10 h-full w-12 bg-gradient-to-r from-white via-white to-transparent" />
+            <div className="absolute left-0 z-10 h-full w-12 bg-gradient-to-r from-background via-background to-transparent" />
           )}
 
           {canScrollLeft && (
@@ -208,10 +220,9 @@ export const ImageSidebar = ({
               onClick={() =>
                 tagsRef.current?.scrollBy({ left: -200, behavior: "smooth" })
               }
-              className="absolute left-0 z-20 h-8 w-8 hover:bg-transparent"
-              style={{ color: "black" }}
+              className="absolute left-0 z-20 h-8 w-8"
             >
-              <ChevronLeft className="h-4 w-4" style={{ color: "black" }} />
+              <ChevronLeft className="h-4 w-4" />
             </Button>
           )}
 
@@ -229,7 +240,7 @@ export const ImageSidebar = ({
                 variant={selectedTag === tag ? "default" : "secondary"}
                 size="sm"
                 onClick={() => handleTagClick(tag)}
-                className="flex-shrink-0 whitespace-nowrap rounded-md"
+                className="flex-shrink-0 rounded-md whitespace-nowrap"
               >
                 {tag}
               </Button>
@@ -237,7 +248,7 @@ export const ImageSidebar = ({
           </div>
 
           {canScrollRight && (
-            <div className="absolute right-0 z-10 h-full w-12 bg-gradient-to-l from-white via-white to-transparent" />
+            <div className="absolute right-0 z-10 h-full w-12 bg-gradient-to-l from-background via-background to-transparent" />
           )}
 
           {canScrollRight && (
@@ -247,39 +258,56 @@ export const ImageSidebar = ({
               onClick={() =>
                 tagsRef.current?.scrollBy({ left: 200, behavior: "smooth" })
               }
-              className="absolute right-0 z-20 h-8 w-8 hover:bg-transparent"
-              style={{ color: "black" }}
+              className="absolute right-0 z-20 h-8 w-8"
             >
-              <ChevronRight className="h-4 w-4" style={{ color: "black" }} />
+              <ChevronRight className="h-4 w-4" />
             </Button>
           )}
         </div>
 
-        <ScrollArea className="pb-4 pr-2" style={{ maxHeight: "70vh" }}>
+        <ScrollArea className="pr-2 pb-4" style={{ maxHeight: "70vh" }}>
           {isLoadingSearch || isLoadingRandom ? (
             <LoadingSkeleton />
           ) : (
-            <div className="grid grid-cols-2 gap-2 p-2 pb-24">
-              {displayPhotos?.map((photo, index) => (
-                <div
-                  onClick={() => editor?.addImage(photo.urls.small)}
-                  key={photo.id}
-                  className={ny(
-                    "group relative cursor-pointer overflow-hidden rounded-lg",
-                    index % 3 === 0 ? "row-span-2" : "aspect-square",
-                  )}
-                >
-                  <Image
-                    src={photo.urls.small}
-                    width={800}
-                    height={800}
-                    alt={photo.alt_description || " photo"}
-                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-0 transition-opacity group-hover:bg-opacity-20" />
-                </div>
-              ))}
-            </div>
+            <ClientOnly>
+              <div className="grid grid-cols-2 gap-2 p-2 pb-24">
+                {displayPhotos?.map((photo, index) => (
+                  <div
+                    onClick={() => editor?.addImage(photo.urls.small)}
+                    key={photo.id}
+                    className={ny(
+                      "group relative cursor-pointer overflow-hidden rounded-lg",
+                      index % 3 === 0 ? "row-span-2" : "aspect-square",
+                    )}
+                  >
+                    <Image
+                      src={photo.urls.small}
+                      width={800}
+                      height={800}
+                      alt={photo.alt_description || "Unsplash photo"}
+                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                      unoptimized
+                      onError={(e) => {
+                        console.error("Image failed to load:", photo.urls.small);
+                        // Show a placeholder instead of hiding
+                        e.currentTarget.src = `data:image/svg+xml;base64,${btoa(`
+                          <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="100%" height="100%" fill="#f3f4f6"/>
+                            <text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="#9ca3af" font-family="Arial, sans-serif" font-size="16">
+                              Image not available
+                            </text>
+                          </svg>
+                        `)}`;
+                      }}
+                      onLoad={() => {
+                        console.log("Image loaded successfully:", photo.urls.small);
+                      }}
+                    />
+                    <div className="bg-opacity-0 group-hover:bg-opacity-20 absolute inset-0 bg-black transition-opacity" />
+                  </div>
+                ))}
+              </div>
+            </ClientOnly>
           )}
         </ScrollArea>
       </div>

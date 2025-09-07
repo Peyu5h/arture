@@ -47,27 +47,31 @@ export function SignInForm() {
           },
           onError: (ctx) => {
             setError(ctx.error.message || "Failed to sign in");
+            setIsLoading(false);
+            setPassword(""); // Clear password on error
           },
         },
       );
 
       if (result && result.error) {
         setError(result.error.message || "Failed to sign in");
+        setPassword(""); // Clear password on error
         return;
       }
     } catch (err) {
       console.error("Sign-in error:", err);
       setError(err instanceof Error ? err.message : "Failed to sign in");
+      setPassword(""); // Clear password on error
     } finally {
       setIsLoading(false);
     }
   }
 
   return (
-    <div className="w-full max-w-md space-y-6 rounded-lg border bg-card p-8 shadow-sm">
+    <div className="bg-card w-full max-w-md space-y-6 rounded-lg border p-8 shadow-sm">
       <div className="space-y-2 text-center">
         <h1 className="text-3xl font-bold">Welcome back</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Enter your credentials to access account
         </p>
       </div>
@@ -83,7 +87,7 @@ export function SignInForm() {
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <div className="relative">
-            <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Mail className="text-muted-foreground absolute top-3 left-3 h-4 w-4" />
             <Input
               id="email"
               type="email"
@@ -101,7 +105,7 @@ export function SignInForm() {
             <Label htmlFor="password">Password</Label>
           </div>
           <div className="relative flex items-center">
-            <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Lock className="text-muted-foreground absolute top-3 left-3 h-4 w-4" />
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
@@ -114,7 +118,7 @@ export function SignInForm() {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 transform text-xs text-primary hover:underline"
+              className="text-primary absolute top-1/2 right-3 -translate-y-1/2 transform text-xs hover:underline"
             >
               {showPassword ? (
                 <EyeOff className="h-4 w-4" />
@@ -148,7 +152,7 @@ export function SignInForm() {
           Don&apos;t have an account?{" "}
           <Link
             href="/sign-up"
-            className="font-medium text-primary hover:underline"
+            className="text-primary font-medium hover:underline"
           >
             Create an account
           </Link>

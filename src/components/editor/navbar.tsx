@@ -9,6 +9,7 @@ import { Button } from "../ui/button";
 import {
   ChevronDown,
   Download,
+  EyeIcon,
   LucideLoader2,
   MousePointerClick,
   Redo2,
@@ -195,7 +196,7 @@ export const Navbar = ({
       <div className="flex h-full w-full items-center gap-x-1">
         <Menubar className="border-none">
           <MenubarMenu>
-            <MenubarTrigger className="cursor-pointer hover:bg-secondary/60">
+            <MenubarTrigger className="hover:bg-secondary/60 cursor-pointer">
               File
             </MenubarTrigger>
             <MenubarContent>
@@ -231,7 +232,7 @@ export const Navbar = ({
             </MenubarContent>
           </MenubarMenu>
           <MenubarMenu>
-            <MenubarTrigger className="cursor-pointer hover:bg-secondary/60">
+            <MenubarTrigger className="hover:bg-secondary/60 cursor-pointer">
               Edit
             </MenubarTrigger>
             <MenubarContent>
@@ -248,7 +249,7 @@ export const Navbar = ({
             </MenubarContent>
           </MenubarMenu>
           <MenubarMenu>
-            <MenubarTrigger className="cursor-pointer hover:bg-secondary/60">
+            <MenubarTrigger className="hover:bg-secondary/60 cursor-pointer">
               View
             </MenubarTrigger>
             <MenubarContent>
@@ -342,16 +343,16 @@ export const Navbar = ({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-60">
             <div className="mx-2">
-              <p className="text- mt-2 text-lg text-foreground">
+              <p className="text- text-foreground mt-2 text-lg">
                 Share this project
               </p>
 
-              <div className="mb-4 mt-4">
+              <div className="mt-4 mb-4">
                 <p className="mb-2 text-sm font-medium">
                   Create collaboration link
                 </p>
                 <div className="gap- flex items-center">
-                  <p className="cursor-default select-none rounded-l-md border border-r-0 p-[9px] pr-3 text-sm">
+                  <p className="cursor-default rounded-l-md border border-r-0 p-[9px] pr-3 text-sm select-none">
                     Anyone with this link
                   </p>
                   <Select>
@@ -372,7 +373,7 @@ export const Navbar = ({
               </div>
             </div>
             <Separator />
-            <p className="text mx-2 my-2 mb-2 flex cursor-default select-none items-center gap-x-2 font-medium">
+            <p className="text mx-2 my-2 mb-2 flex cursor-default items-center gap-x-2 font-medium select-none">
               Download your project
             </p>
             <DropdownMenuItem
@@ -382,7 +383,7 @@ export const Navbar = ({
               <CiFileOn className="size-6" />
               <div className="">
                 <p>JSON</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-xs">
                   Save for editing later
                 </p>
               </div>
@@ -394,17 +395,17 @@ export const Navbar = ({
               <CiImageOn className="size-6" />
               <div className="">
                 <p>PNG</p>
-                <p className="text-xs text-muted-foreground">Save as image</p>
+                <p className="text-muted-foreground text-xs">Save as image</p>
               </div>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => editor?.savePdf()}
               className="flex cursor-pointer items-center gap-x-2"
             >
-              <BsFileEarmarkPdf className="size-6 bg-opacity-85 text-zinc-700" />
+              <BsFileEarmarkPdf className="bg-opacity-85 size-6 text-zinc-700" />
               <div className="">
                 <p>PDF</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-xs">
                   Save as document
                 </p>
               </div>
@@ -414,17 +415,22 @@ export const Navbar = ({
               onClick={() => editor?.saveSvg()}
               className="flex cursor-pointer items-center gap-x-2"
             >
-              <BsFiletypeSvg className="size-6 bg-opacity-85 text-zinc-700" />
+              <BsFiletypeSvg className="bg-opacity-85 size-6 text-zinc-700" />
 
               <div className="">
                 <p>SVG</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-xs">
                   Save as vector file
                 </p>
               </div>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <Button variant="outline" size="sm">
+          <EyeIcon className="size-4" />
+          <span className="text-xs">Preview</span>
+        </Button>
       </div>
     </nav>
   );

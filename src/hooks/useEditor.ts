@@ -23,6 +23,7 @@ import { ITextboxOptions } from "fabric/fabric-impl";
 import { useClipboard } from "./useClipboard";
 import { useHistory } from "./useHistory";
 import { useShortcuts } from "./useShortcuts";
+import { useAdvancedZoom } from "./useAdvancedZoom";
 
 const WORKSPACE_WIDTH = 900;
 const WORKSPACE_HEIGHT = 1200;
@@ -135,6 +136,19 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
   const { save, canRedo, canUndo, undo, redo, canvasHistory, setHistoryIndex } =
     useHistory({ canvas });
 
+  const {
+    zoomIn,
+    zoomOut,
+    resetZoom,
+    fitToScreen,
+    centerWorkspace,
+    getCurrentZoom,
+    isWorkspaceVisible,
+  } = useAdvancedZoom({
+    canvas,
+    container,
+  });
+
   useCanvasEvents({
     canvas,
     setSelectedObjects,
@@ -149,6 +163,9 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
     paste,
     undo,
     redo,
+    zoomIn,
+    zoomOut,
+    resetZoom,
   });
 
   const editor = useMemo(() => {
@@ -224,26 +241,33 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
       canRedo: () => canRedo(),
 
       zoomIn: () => {
-        let zoomRatio = canvas?.getZoom() || 1;
-        zoomRatio += 0.05;
-        const center = canvas.getCenter();
-        canvas.zoomToPoint(
-          new fabric.Point(center.left, center.top),
-          zoomRatio > 1 ? 1 : zoomRatio,
-        );
+        zoomIn();
         save();
       },
 
       zoomOut: () => {
-        let zoomRatio = canvas?.getZoom() || 1;
-        zoomRatio -= 0.05;
-        const center = canvas.getCenter();
-        canvas.zoomToPoint(
-          new fabric.Point(center.left, center.top),
-          zoomRatio < 0.2 ? 0.2 : zoomRatio,
-        );
+        zoomOut();
         save();
       },
+
+      resetZoom: () => {
+        resetZoom();
+        save();
+      },
+
+      fitToScreen: () => {
+        fitToScreen();
+        save();
+      },
+
+      centerWorkspace: () => {
+        centerWorkspace();
+        save();
+      },
+
+      getCurrentZoom: () => getCurrentZoom(),
+
+      isWorkspaceVisible: () => isWorkspaceVisible(),
 
       changeSize: (value: { width: number; height: number }) => {
         const workspace = getWorkspace();
@@ -326,7 +350,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
       getActiveStrokeColor: () => {
         const activeObject = canvas.getActiveObject();
         return activeObject
-          ? isText(activeObject.type)
+          ? isText(activeObject.type || "")
             ? activeObject.get("fill")
             : activeObject.get("stroke")
           : strokeColor;
@@ -373,7 +397,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
       changeStrokeColor: (value: string) => {
         setStrokeColor(value);
         canvas.getActiveObjects().forEach((object) => {
-          if (isText(object.type)) {
+          if (isText(object.type || "")) {
             object.set({ fill: value });
           } else {
             object.set({ stroke: value });
@@ -416,7 +440,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
       changeFontFamily: (value: string) => {
         setFontFamily(value);
         canvas.getActiveObjects().forEach((object) => {
-          if (isText(object.type)) {
+          if (isText(object.type || "")) {
             // @ts-ignore
             object.set({ fontFamily: value });
           }
@@ -428,7 +452,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
       //text tools
       changeFontSize: (value: number) => {
         canvas.getActiveObjects().forEach((object) => {
-          if (isText(object.type)) {
+          if (isText(object.type || "")) {
             // @ts-ignore
             object.set({ fontSize: value });
           }
@@ -450,7 +474,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
       },
       changeTextAlign: (value: string) => {
         canvas.getActiveObjects().forEach((object) => {
-          if (isText(object.type)) {
+          if (isText(object.type || "")) {
             // @ts-ignore
             object.set({ textAlign: value });
           }
@@ -472,7 +496,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
       },
       changeFontUnderline: (value: boolean) => {
         canvas.getActiveObjects().forEach((object) => {
-          if (isText(object.type)) {
+          if (isText(object.type || "")) {
             // @ts-ignore
             // Faulty TS library, underline exists.
             object.set({ underline: value });
@@ -495,7 +519,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
       },
       changeFontLinethrough: (value: boolean) => {
         canvas.getActiveObjects().forEach((object) => {
-          if (isText(object.type)) {
+          if (isText(object.type || "")) {
             // @ts-ignore
             object.set({ linethrough: value });
           }
@@ -517,7 +541,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
       },
       changeFontStyle: (value: string) => {
         canvas.getActiveObjects().forEach((object) => {
-          if (isText(object.type)) {
+          if (isText(object.type || "")) {
             // @ts-ignore
             object.set({ fontStyle: value });
           }
@@ -555,7 +579,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
       },
       changeFontWeight: (value: number) => {
         canvas.getActiveObjects().forEach((object) => {
-          if (isText(object.type)) {
+          if (isText(object.type || "")) {
             // @ts-ignore
             object.set({ fontWeight: value });
           }
@@ -592,6 +616,13 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
     redo,
     autoZoom,
     getWorkspace,
+    zoomIn,
+    zoomOut,
+    resetZoom,
+    fitToScreen,
+    centerWorkspace,
+    getCurrentZoom,
+    isWorkspaceVisible,
   ]);
 
   const init = useCallback(

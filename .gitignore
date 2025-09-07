@@ -42,3 +42,7 @@ next-env.d.ts
 .vercel
 .swc
 .swc/plugins
+
+tempjson.json
+TODO.md
+ASSET_MANAGEMENT.md

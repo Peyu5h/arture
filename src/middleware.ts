@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { auth } from "~/lib/auth";
 
 export default async function authMiddleware(request: NextRequest) {
   // Skip middleware for API routes completely
@@ -18,27 +17,25 @@ export default async function authMiddleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  try {
-    // Check if user is authenticated
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+  // Check for auth cookie to determine if user is authenticated
+  // Better Auth uses different cookie names, let's check for any auth-related cookie
+  const hasAuthCookie = request.cookies
+    .getAll()
+    .some(
+      (cookie) =>
+        cookie.name.includes("better-auth") ||
+        cookie.name.includes("session") ||
+        cookie.name.includes("auth"),
+    );
 
-    // Redirect to onboarding if not authenticated
-    if (!session) {
-      const onboardingUrl = new URL("/onboarding", request.url);
-      // Add the return URL as a query parameter
-      onboardingUrl.searchParams.set("callbackUrl", request.nextUrl.pathname);
-      return NextResponse.redirect(onboardingUrl);
-    }
-
-    return NextResponse.next();
-  } catch (error) {
-    console.error("Auth middleware error:", error);
-
-    // In case of error, allow the request to proceed
-    return NextResponse.next();
+  if (!hasAuthCookie) {
+    // Redirect to onboarding if no auth cookie found
+    const onboardingUrl = new URL("/onboarding", request.url);
+    onboardingUrl.searchParams.set("callbackUrl", request.nextUrl.pathname);
+    return NextResponse.redirect(onboardingUrl);
   }
+
+  return NextResponse.next();
 }
 
 export const config = {

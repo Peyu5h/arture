@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useState } from "react";
+import { ClientOnly } from "~/components/client-only";
 
 export default function ReactQueryProvider({
   children,
@@ -14,7 +15,9 @@ export default function ReactQueryProvider({
   return (
     <QueryClientProvider client={client}>
       {children}
-      <ReactQueryDevtools initialIsOpen={false} />
+      <ClientOnly>
+        <ReactQueryDevtools initialIsOpen={false} />
+      </ClientOnly>
     </QueryClientProvider>
   );
 }

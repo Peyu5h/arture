@@ -49,8 +49,8 @@ export const DesignSidebar = ({
       />
 
       <div className="flex h-[80vh] flex-col gap-4 p-4">
-        <ScrollArea className="h-full pb-4 pr-2">
-          <div className="space-y-2 pb-6 pt-4">
+        <ScrollArea className="h-full pr-2 pb-4">
+          <div className="space-y-2 pt-4 pb-6">
             <Label className="text-sm">Brush width</Label>
             <Slider
               value={[widthValue]}

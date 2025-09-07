@@ -1,12 +1,13 @@
 import { Hono } from "hono";
-import { auth } from "~/lib/auth";
+import { authServer } from "~/lib/auth-server";
 import { err } from "../utils/response";
 
 const authRoutes = new Hono();
 
-authRoutes.on(["GET", "POST", "DELETE", "OPTIONS"], "/**", async (c) => {
+// Handle all auth routes with Better Auth handler
+authRoutes.all("*", async (c) => {
   try {
-    return await auth.handler(c.req.raw);
+    return await authServer.handler(c.req.raw);
   } catch (error) {
     console.error("Auth handler error:", error);
     return c.json(err("Authentication error"), 500);

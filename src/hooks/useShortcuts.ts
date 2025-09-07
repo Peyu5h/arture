@@ -8,6 +8,9 @@ interface useShortcutsProps {
   save: (skip?: boolean) => void;
   copy: () => void;
   paste: () => void;
+  zoomIn?: () => void;
+  zoomOut?: () => void;
+  resetZoom?: () => void;
 }
 
 export const useShortcuts = ({
@@ -17,6 +20,9 @@ export const useShortcuts = ({
   save,
   copy,
   paste,
+  zoomIn,
+  zoomOut,
+  resetZoom,
 }: useShortcutsProps) => {
   useEvent("keydown", (event) => {
     const isCtrlKey = event.ctrlKey || event.metaKey;
@@ -73,28 +79,17 @@ export const useShortcuts = ({
 
     if (event.key === "[") {
       event.preventDefault();
-      let zoomRatio = canvas?.getZoom() || 1;
-      zoomRatio -= 0.05;
-      const center = canvas?.getCenter();
-      if (center) {
-        canvas?.zoomToPoint(
-          new fabric.Point(center.left, center.top),
-          zoomRatio < 0.2 ? 0.2 : zoomRatio,
-        );
-      }
+      zoomOut?.();
     }
 
     if (event.key === "]") {
       event.preventDefault();
-      let zoomRatio = canvas?.getZoom() || 1;
-      zoomRatio += 0.05;
-      const center = canvas?.getCenter();
-      if (center) {
-        canvas?.zoomToPoint(
-          new fabric.Point(center.left, center.top),
-          zoomRatio > 1 ? 1 : zoomRatio,
-        );
-      }
+      zoomIn?.();
+    }
+
+    if (event.key === "0") {
+      event.preventDefault();
+      resetZoom?.();
     }
 
     if (event.key === "ArrowUp") {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import { LogOut, User } from "lucide-react";
+import { ClientOnly } from "~/components/client-only";
 
 export function Navbar({ onAuthDialogOpen }: { onAuthDialogOpen: () => void }) {
   const router = useRouter();
@@ -50,78 +51,89 @@ export function Navbar({ onAuthDialogOpen }: { onAuthDialogOpen: () => void }) {
           <span className="text-xl font-bold">Arture</span>
         </Link>
 
-        <nav className="hidden items-center space-x-6 md:flex">
+        {/* <nav className="hidden items-center space-x-6 md:flex">
           <Link
             href="/templates"
             className="text-sm font-medium hover:text-primary"
           >
             Templates
           </Link>
-        </nav>
+        </nav> */}
 
         <div className="flex items-center gap-4">
-          {isPending ? (
-            <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
-          ) : session ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+          <ClientOnly
+            fallback={
+              <div className="bg-muted h-8 w-8 animate-pulse rounded-full" />
+            }
+          >
+            {isPending ? (
+              <div className="bg-muted h-8 w-8 animate-pulse rounded-full" />
+            ) : session ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="relative items-center justify-between rounded-full p-1 py-2"
+                  >
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage
+                        src={session.user?.image || undefined}
+                        alt={session.user?.name || "User"}
+                      />
+                      <AvatarFallback className="bg-primary/10 text-primary">
+                        {session.user?.name
+                          ? session.user.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .toUpperCase()
+                              .substring(0, 2)
+                          : "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="ml-2 flex flex-col">
+                      <p className="pr-2 text-sm leading-none font-medium">
+                        {session.user?.name || "User"}
+                      </p>
+                    </div>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm leading-none font-medium">
+                        {session.user?.name || "User"}
+                      </p>
+                      <p className="text-muted-foreground text-xs leading-none">
+                        {session.user?.email || ""}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => router.push("/account")}>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Account</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
                 <Button
                   variant="ghost"
-                  className="relative h-8 w-8 rounded-full"
+                  onClick={onAuthDialogOpen}
+                  className="hidden sm:flex"
                 >
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage
-                      src={session.user?.image || undefined}
-                      alt={session.user?.name || "User"}
-                    />
-                    <AvatarFallback className="bg-primary/10 text-primary">
-                      {session.user?.name
-                        ? session.user.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .toUpperCase()
-                            .substring(0, 2)
-                        : "U"}
-                    </AvatarFallback>
-                  </Avatar>
+                  Sign in
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      {session.user?.name || "User"}
-                    </p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {session.user?.email || ""}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => router.push("/account")}>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Account</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <>
-              <Button
-                variant="ghost"
-                onClick={onAuthDialogOpen}
-                className="hidden sm:flex"
-              >
-                Log in
-              </Button>
-              <Button onClick={onAuthDialogOpen}>Sign up</Button>
-            </>
-          )}
+                <Button onClick={onAuthDialogOpen}>Get started</Button>
+              </>
+            )}
+          </ClientOnly>
         </div>
       </div>
     </header>

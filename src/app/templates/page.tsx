@@ -284,8 +284,10 @@ function TemplatesContent() {
       params.delete("q");
     }
 
-    const newUrl = `${window.location.pathname}?${params.toString()}`;
-    window.history.replaceState(null, "", newUrl);
+    if (typeof window !== "undefined") {
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState(null, "", newUrl);
+    }
   }, [searchQuery, searchParams]);
 
   // Set initial active category from URL

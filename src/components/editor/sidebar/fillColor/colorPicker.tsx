@@ -21,6 +21,25 @@ export const ColorPicker = ({ value, onChange, canvas }: ColorPickerProps) => {
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const colorPickerRef = useRef<HTMLDivElement>(null);
 
+  const customStyles = {
+    default: {
+      card: {
+        width: "100%",
+        maxWidth: "320px",
+        borderRadius: "8px",
+        hover: {
+          scale: 1.01,
+        },
+      },
+      circle: {
+        borderRadius: "8px",
+        width: "44px",
+        height: "44px",
+        margin: "2px",
+      },
+    },
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -83,7 +102,7 @@ export const ColorPicker = ({ value, onChange, canvas }: ColorPickerProps) => {
           {documentColors.map(({ color }) => (
             <div
               key={color}
-              className="size-12 cursor-pointer rounded-full border border-gray-200 transition-transform hover:scale-105"
+              className="max-w-auto size-12 cursor-pointer rounded-lg border border-gray-200 transition-transform hover:scale-105"
               style={{ backgroundColor: color }}
               onClick={() => onChange(color)}
             />
@@ -93,13 +112,16 @@ export const ColorPicker = ({ value, onChange, canvas }: ColorPickerProps) => {
 
       <div className="space-y-2">
         <h3 className="text-sm font-medium">Default Colors</h3>
-        <CirclePicker
-          color={value}
-          colors={colors}
-          circleSize={48}
-          className="size-12"
-          onChangeComplete={handleColorChange}
-        />
+        <div className="w-full max-w-full overflow-hidden p-1">
+          <CirclePicker
+            color={value}
+            colors={colors}
+            circleSize={44}
+            width="320px"
+            styles={customStyles}
+            onChangeComplete={handleColorChange}
+          />
+        </div>
       </div>
 
       <AnimatePresence>
@@ -110,7 +132,7 @@ export const ColorPicker = ({ value, onChange, canvas }: ColorPickerProps) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 1, y: -5 }}
             transition={{ duration: 0.1 }}
-            className="absolute left-0 top-8 z-50"
+            className="absolute top-8 left-0 z-50"
           >
             <Card className="p-2">
               <ChromePicker

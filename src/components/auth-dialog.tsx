@@ -63,6 +63,8 @@ export function AuthDialog({
             },
             onError: (ctx) => {
               setError(ctx.error.message || "Failed to sign in");
+              setIsLoading(false);
+              setPassword("");
             },
             onSettled: () => setIsLoading(false),
           },
@@ -70,6 +72,7 @@ export function AuthDialog({
 
         if (result?.error) {
           setError(result.error.message || "Failed to sign in");
+          setPassword("");
         }
       } else {
         const result = await authClient.signUp.email(
@@ -89,6 +92,8 @@ export function AuthDialog({
             },
             onError: (ctx) => {
               setError(ctx.error.message || "Failed to sign up");
+              setIsLoading(false);
+              setPassword("");
             },
             onSettled: () => setIsLoading(false),
           },
@@ -96,11 +101,14 @@ export function AuthDialog({
 
         if (result?.error) {
           setError(result.error.message || "Failed to sign up");
+          setPassword("");
         }
+        setIsLoading(false);
       }
     } catch (err) {
       console.error(`${view} error:`, err);
       setError(err instanceof Error ? err.message : `Failed to ${view}`);
+      setPassword("");
       setIsLoading(false);
     }
   }
@@ -144,7 +152,7 @@ export function AuthDialog({
               {view === "signin" ? "Welcome back" : "Create an account"}
             </DialogTitle>
           </div>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {view === "signin"
               ? "Enter your credentials to access account"
               : "Enter your information to get started"}
@@ -164,7 +172,7 @@ export function AuthDialog({
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <User className="text-muted-foreground absolute top-3 left-3 h-4 w-4" />
                   <Input
                     id="name"
                     placeholder="Enter your name"
@@ -181,7 +189,7 @@ export function AuthDialog({
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Mail className="text-muted-foreground absolute top-3 left-3 h-4 w-4" />
                 <Input
                   id="email"
                   type="email"
@@ -200,7 +208,7 @@ export function AuthDialog({
                 <Label htmlFor="password">Password</Label>
               </div>
               <div className="relative flex items-center">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Lock className="text-muted-foreground absolute top-3 left-3 h-4 w-4" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -214,7 +222,7 @@ export function AuthDialog({
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 transform text-xs text-primary hover:underline"
+                  className="text-primary absolute top-1/2 right-3 -translate-y-1/2 transform text-xs hover:underline"
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -251,7 +259,7 @@ export function AuthDialog({
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
+                <span className="bg-background text-muted-foreground px-2">
                   Or continue with
                 </span>
               </div>
@@ -290,7 +298,7 @@ export function AuthDialog({
                 onClick={() =>
                   handleViewChange(view === "signin" ? "signup" : "signin")
                 }
-                className="font-medium text-primary hover:underline"
+                className="text-primary font-medium hover:underline"
               >
                 {view === "signin" ? "Create an account" : "Sign in"}
               </button>

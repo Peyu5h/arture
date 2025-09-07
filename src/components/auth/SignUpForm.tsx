@@ -20,7 +20,6 @@ import { toast } from "sonner";
 import { SocialSignIn } from "./SocialSignIn";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 
-
 export function SignUpForm() {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -55,17 +54,21 @@ export function SignUpForm() {
           },
           onError: (ctx) => {
             setError(ctx.error.message || "Failed to sign up");
+            setIsLoading(false);
+            setPassword(""); // Clear password on error
           },
         },
       );
 
       if (result && result.error) {
         setError(result.error.message || "Failed to sign up");
+        setPassword(""); // Clear password on error
         return;
       }
     } catch (err) {
       console.error("Sign-up error:", err);
       setError(err instanceof Error ? err.message : "Failed to sign up");
+      setPassword(""); // Clear password on error
     } finally {
       setIsLoading(false);
     }
@@ -141,7 +144,7 @@ export function SignUpForm() {
             >
               {showPassword ? (
                 <EyeOff className="h-4 w-4" />
-                            ) : (
+              ) : (
                 <Eye className="h-4 w-4" />
               )}
             </button>

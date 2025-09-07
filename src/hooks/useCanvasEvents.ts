@@ -1,5 +1,5 @@
 import { fabric } from "fabric";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 interface CanvasEvents {
   canvas: fabric.Canvas | null;
@@ -18,26 +18,50 @@ export const useCanvasEvents = ({
   clearSelection,
   onModified,
 }: CanvasEvents) => {
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isZoomingRef = useRef(false);
+
+  const debouncedSave = () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      if (!isZoomingRef.current) {
+        save();
+      }
+    }, 100); // Debounce saves by 100ms
+  };
+
   useEffect(() => {
     if (canvas) {
+      // Track zoom state
+      const originalZoomToPoint = canvas.zoomToPoint;
+      canvas.zoomToPoint = function (point: fabric.Point, zoom: number) {
+        isZoomingRef.current = true;
+        originalZoomToPoint.call(this, point, zoom);
+        setTimeout(() => {
+          isZoomingRef.current = false;
+        }, 50);
+      };
+
       canvas.on("selection:created", (e) => {
         setSelectedObjects(e.selected || null);
-        save();
+        debouncedSave();
       });
 
       canvas.on("selection:updated", (e) => {
         setSelectedObjects(e.selected || null);
-        save();
+        debouncedSave();
       });
 
       canvas.on("selection:cleared", () => {
         setSelectedObjects(null);
         clearSelection?.();
-        save();
+        debouncedSave();
       });
 
       const handleModification = () => {
-        save();
+        debouncedSave();
         onModified?.();
       };
 
@@ -51,6 +75,9 @@ export const useCanvasEvents = ({
     }
 
     return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
       if (canvas) {
         canvas.off("selection:created");
         canvas.off("selection:updated");

@@ -22,7 +22,7 @@ export function createGlobalState<T extends object>(
     const { data = initialData } = useQuery({
       queryKey: queryKeyArray,
       queryFn: () => {
-        if (options.persist) {
+        if (options.persist && typeof window !== "undefined") {
           const stored = localStorage.getItem(storageKey);
           return stored ? (JSON.parse(stored) as T) : initialData;
         }
@@ -39,7 +39,7 @@ export function createGlobalState<T extends object>(
 
       queryClient.setQueryData(queryKeyArray, newState);
 
-      if (options.persist) {
+      if (options.persist && typeof window !== "undefined") {
         localStorage.setItem(storageKey, JSON.stringify(newState));
       }
     };

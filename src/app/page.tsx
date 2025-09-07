@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
 
 import {
   ChevronRight,
@@ -215,7 +214,7 @@ export default function Home() {
           <div className="my-20">
             <div className="mb-8 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h2 className="text-2xl font-bold tracking-tight text-foreground">
+                <h2 className="text-foreground text-2xl font-bold tracking-tight">
                   Recent designs
                 </h2>
               </div>
@@ -233,15 +232,15 @@ export default function Home() {
             </div>
 
             {isProjectsLoading ? (
-              <div className="flex h-40 items-center justify-center rounded-xl border bg-card/50">
-                <LucideLoader2 className="h-6 w-6 animate-spin text-primary" />
+              <div className="bg-card/50 flex h-40 items-center justify-center rounded-xl border">
+                <LucideLoader2 className="text-primary h-6 w-6 animate-spin" />
               </div>
             ) : projectsError ? (
-              <div className="flex h-40 items-center justify-center rounded-xl border bg-destructive/10 text-destructive">
+              <div className="bg-destructive/10 text-destructive flex h-40 items-center justify-center rounded-xl border">
                 <p>Error loading recent designs</p>
               </div>
             ) : recentDesigns?.length === 0 ? (
-              <div className="flex h-40 flex-col items-center justify-center rounded-xl border bg-card/50">
+              <div className="bg-card/50 flex h-40 flex-col items-center justify-center rounded-xl border">
                 <p className="text-muted-foreground">No recent designs</p>
                 <Button
                   variant="outline"
@@ -270,7 +269,7 @@ export default function Home() {
                         href={`/editor/${design.id}`}
                         className="block h-full"
                       >
-                        <div className="group relative aspect-[4/3] overflow-hidden rounded-xl border bg-card shadow-sm transition-all hover:shadow-md">
+                        <div className="group bg-card relative aspect-[4/3] overflow-hidden rounded-xl border shadow-sm transition-all hover:shadow-md">
                           {design.thumbnailUrl ? (
                             <Image
                               width={640}
@@ -280,12 +279,12 @@ export default function Home() {
                               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                             />
                           ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-muted">
-                              <ImageIcon className="h-10 w-10 text-muted-foreground/50" />
+                            <div className="bg-muted flex h-full w-full items-center justify-center">
+                              <ImageIcon className="text-muted-foreground/50 h-10 w-10" />
                             </div>
                           )}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                          <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+                          <div className="absolute right-0 bottom-0 left-0 p-4 text-white">
                             <p className="font-medium opacity-0 transition-opacity group-hover:opacity-100">
                               {design.name || "Untitled design"}
                             </p>
@@ -314,7 +313,7 @@ export default function Home() {
                     href={`/editor/cm8d40lf80001wu38m5oyp8qj`}
                     className="block"
                   >
-                    <div className="group relative aspect-[4/3] overflow-hidden rounded-xl border bg-card shadow-sm transition-all hover:shadow-md">
+                    <div className="group bg-card relative aspect-[4/3] overflow-hidden rounded-xl border shadow-sm transition-all hover:shadow-md">
                       {design.thumbnailUrl ? (
                         <Image
                           src={design.thumbnailUrl}
@@ -322,12 +321,12 @@ export default function Home() {
                           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                         />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-muted">
-                          <ImageIcon className="h-10 w-10 text-muted-foreground/50" />
+                        <div className="bg-muted flex h-full w-full items-center justify-center">
+                          <ImageIcon className="text-muted-foreground/50 h-10 w-10" />
                         </div>
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                      <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+                      <div className="absolute right-0 bottom-0 left-0 p-4 text-white">
                         <p className="font-medium opacity-0 transition-opacity group-hover:opacity-100">
                           {design.name || "Untitled design"}
                         </p>
@@ -347,7 +346,7 @@ export default function Home() {
         <div className="mb-10">
           <div className="mb-8 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-bold tracking-tight text-foreground">
+              <h2 className="text-foreground text-2xl font-bold tracking-tight">
                 What&apos;s trending
               </h2>
             </div>
@@ -378,17 +377,17 @@ export default function Home() {
                     className="pl-4 md:basis-1/2 lg:basis-1/3"
                   >
                     <div
-                      className="group relative aspect-video cursor-pointer overflow-hidden rounded-xl border bg-card shadow-sm transition-all hover:shadow-md"
+                      className="group bg-card relative aspect-video cursor-pointer overflow-hidden rounded-xl border shadow-sm transition-all hover:shadow-md"
                       onClick={() => handleExploreMore()}
                     >
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 hover:from-black/60" />
-                      <Image
+                      {/* <Image
                         width={640}
                         height={360}
                         src={design.image}
                         alt={design.name}
                         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
+                      /> */}
                       <div className="absolute inset-0 flex flex-col justify-end p-6 text-white">
                         <p className="text-lg font-bold">{design.name}</p>
                         <p className="mt-1 text-sm text-gray-200">
@@ -411,7 +410,7 @@ export default function Home() {
               {TRENDING_DESIGNS.map((design, idx) => (
                 <div
                   key={design.id || idx}
-                  className="group relative aspect-video cursor-pointer overflow-hidden rounded-xl border bg-card shadow-sm transition-all hover:shadow-md"
+                  className="group bg-card relative aspect-video cursor-pointer overflow-hidden rounded-xl border shadow-sm transition-all hover:shadow-md"
                   onClick={() => handleTrendingDesignClick(design)}
                 >
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80" />
