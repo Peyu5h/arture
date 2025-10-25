@@ -93,8 +93,8 @@ export default function Editor() {
       backgroundColor: "#ffffff",
       preserveObjectStacking: true,
       selection: true,
-      width: containerRef.current.offsetWidth,
-      height: containerRef.current.offsetHeight,
+      width: containerRef.current.offsetWidth - 40,
+      height: containerRef.current.offsetHeight - 40,
     });
 
     init({
@@ -171,8 +171,8 @@ export default function Editor() {
         const containerHeight = containerRef.current!.offsetHeight;
 
         canvas.setDimensions({
-          width: containerWidth,
-          height: containerHeight,
+          width: containerWidth - 40,
+          height: containerHeight - 40,
         });
 
         canvas.renderAll();
@@ -253,7 +253,7 @@ export default function Editor() {
                 <canvas
                   ref={canvasRef}
                   style={{
-                    margin: "0",
+                    margin: "20px",
                   }}
                 />
               </div>

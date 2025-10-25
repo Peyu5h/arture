@@ -24,7 +24,7 @@ const OnBoardText = () => {
           >
             <div
               style={{ zIndex: 99 }}
-              className="box-shadow shadow-xl-black relative flex h-20 w-20 cursor-pointer select-none items-center justify-center rounded-full border-[1px] border-[#CDEA67] bg-[#222222] text-black md:h-[10.5rem] md:w-[10.5rem]"
+              className="box-shadow shadow-xl-black relative flex h-20 w-20 cursor-pointer items-center justify-center rounded-full border-[1px] border-[#CDEA67] bg-[#222222] text-black select-none md:h-[10.5rem] md:w-[10.5rem]"
             >
               <div
                 cursor-pointer
@@ -36,7 +36,7 @@ const OnBoardText = () => {
             </div>
             <div
               style={{ zIndex: 100 }}
-              className="absolute inset-0 flex cursor-pointer select-none items-center justify-center text-[#CDEA67]"
+              className="absolute inset-0 flex cursor-pointer items-center justify-center text-[#CDEA67] select-none"
             >
               <TextRing
                 text="CREATE ACCOUNT NOW CREATE ACCOUNT NOW "
@@ -44,7 +44,7 @@ const OnBoardText = () => {
               />
             </div>
           </div>
-          <div className="text-outline mb-8 ml-[-8px] mt-5 text-4xl text-transparent md:text-9xl">
+          <div className="text-outline mt-5 mb-8 ml-[-8px] text-4xl text-transparent md:text-9xl">
             WAYS OF
           </div>
         </div>

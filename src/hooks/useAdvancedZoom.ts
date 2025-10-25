@@ -70,7 +70,7 @@ export const useAdvancedZoom = ({
   // Simple function to ensure canvas dimensions are appropriate
   const updateCanvasDimensions = useCallback(() => {
     if (!canvas || !container) return;
-    
+
     // Set canvas to container size for simplicity
     const containerRect = container.getBoundingClientRect();
     canvas.setDimensions({
@@ -82,45 +82,15 @@ export const useAdvancedZoom = ({
   // Simplified: No need for complex adjustment logic
 
   const smoothZoomTo = useCallback(
-    (targetZoom: number, center: fabric.Point, duration: number = 300) => {
+    (targetZoom: number, center: fabric.Point) => {
       if (!canvas) return;
 
       // Clamp zoom between 30% and 120%
       const clampedZoom = Math.max(0.3, Math.min(1.2, targetZoom));
-      
-      // Get the current zoom
-      const startZoom = canvas.getZoom();
-      const startTime = Date.now();
-      
-      // Create animation function
-      const animate = () => {
-        const currentTime = Date.now();
-        const elapsedTime = currentTime - startTime;
-        
-        if (elapsedTime >= duration) {
-          // Animation complete, set final zoom
-          canvas.zoomToPoint(center, clampedZoom);
-          canvas.requestRenderAll();
-          return;
-        }
-        
-        // Calculate progress (0 to 1) with easing
-        const progress = elapsedTime / duration;
-        const easedProgress = 1 - Math.pow(1 - progress, 3); // Cubic ease out for smooth deceleration
-        
-        // Interpolate between start and target zoom
-        const currentZoom = startZoom + (clampedZoom - startZoom) * easedProgress;
-        
-        // Apply the current zoom
-        canvas.zoomToPoint(center, currentZoom);
-        canvas.requestRenderAll();
-        
-        // Continue animation
-        requestAnimationFrame(animate);
-      };
-      
-      // Start animation
-      animate();
+
+      // Apply zoom directly
+      canvas.zoomToPoint(center, clampedZoom);
+      canvas.requestRenderAll();
     },
     [canvas],
   );
@@ -185,7 +155,7 @@ export const useAdvancedZoom = ({
     // Increase by 10% each time, up to max 120%
     const newZoom = Math.min(1.2, currentZoom * 1.1);
     const center = getWorkspaceCenter();
-    smoothZoomTo(newZoom, center, 300);
+    smoothZoomTo(newZoom, center);
   }, [canvas, smoothZoomTo, getWorkspaceCenter]);
 
   const zoomOut = useCallback(() => {
@@ -200,15 +170,15 @@ export const useAdvancedZoom = ({
     // Decrease by 10% each time
     const newZoom = Math.max(0.3, currentZoom * 0.9);
     const center = getWorkspaceCenter();
-    smoothZoomTo(newZoom, center, 300);
+    smoothZoomTo(newZoom, center);
   }, [canvas, smoothZoomTo, getWorkspaceCenter]);
 
   const resetZoom = useCallback(() => {
     if (!canvas) return;
-    
+
     // Always reset to zoom level 1 (100%)
     const center = getWorkspaceCenter();
-    smoothZoomTo(1, center, 400);
+    smoothZoomTo(1, center);
   }, [canvas, smoothZoomTo, getWorkspaceCenter]);
 
   const centerWorkspace = useCallback(() => {
@@ -217,7 +187,7 @@ export const useAdvancedZoom = ({
     const workspaceCenter = getWorkspaceCenter();
     const containerRect = container.getBoundingClientRect();
     const currentZoom = canvas.getZoom();
-    
+
     // Simple centering calculation
     const containerCenter = new fabric.Point(
       containerRect.width / 2,
@@ -243,12 +213,12 @@ export const useAdvancedZoom = ({
     // Calculate scale to fit workspace with 10% padding
     const scaleX = (containerRect.width * 0.9) / workspaceBounds.width;
     const scaleY = (containerRect.height * 0.9) / workspaceBounds.height;
-    
+
     // Use the smaller of the two scales, but respect min/max zoom limits
     const scale = Math.max(0.3, Math.min(scaleX, scaleY, 1.2));
-    
+
     const center = getWorkspaceCenter();
-    smoothZoomTo(scale, center, 400);
+    smoothZoomTo(scale, center);
   }, [canvas, container, smoothZoomTo, getWorkspaceBounds, getWorkspaceCenter]);
 
   return {

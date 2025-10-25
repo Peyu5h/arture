@@ -2,33 +2,26 @@
 
 import { motion } from "framer-motion";
 import { useState } from "react";
-import { ArrowRight, ArrowRightIcon, Play, Loader2 } from "lucide-react";
-import Link from "next/link";
+import { ArrowRight, Pen, Loader2, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { ny } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
 import Safari from "./ui/safari";
-import AnimatedShinyText from "./ui/animated-shiny-text";
 import { Navbar } from "./navbar";
 import { authClient } from "~/lib/auth-client";
-import { toast } from "sonner";
 import { AuthDialog } from "./auth-dialog";
 import { useCreateProject } from "~/hooks/useCreateProject";
 import { DEFAULT_CANVAS_HEIGHT, DEFAULT_CANVAS_WIDTH } from "~/lib/constants";
+import { BorderBeam } from "./ui/border-beam";
+import { RainbowButton } from "./ui/rainbow-button";
+import { Particles } from "./ui/particles";
 
 export function Hero() {
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const router = useRouter();
   const { data: session } = authClient.useSession();
   const createProjectMutation = useCreateProject();
-
-  const FEATURES = [
-    "Professional templates",
-    "Real-time collaboration",
-    "Advanced design tools",
-    "Cloud storage",
-  ];
 
   const handleStartCreateClick = async () => {
     if (!session) {
@@ -49,166 +42,211 @@ export function Hero() {
   };
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
+    <div className="bg-background flex min-h-screen flex-col overflow-hidden">
       <Navbar onAuthDialogOpen={() => setAuthDialogOpen(true)} />
-      <div className="relative isolate flex-1 overflow-hidden">
-        <div
-          className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80"
-          aria-hidden="true"
-        >
+
+      {/* Hero Section */}
+      <section className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-6 pt-32 pb-20">
+        {/* Animated background gradient orbs */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div
-            className="from-primary relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr to-indigo-500 opacity-20 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]"
-            style={{
-              clipPath:
-                "polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)",
-            }}
+            className="bg-gradient-radial from-primary/30 via-primary/10 absolute top-0 -left-60 h-[1000px] w-[1000px] animate-pulse rounded-full to-transparent blur-[100px]"
+            style={{ animationDuration: "4s" }}
+          />
+          <div
+            className="bg-gradient-radial from-accent/25 via-accent/8 absolute top-20 -right-40 h-[900px] w-[900px] animate-pulse rounded-full to-transparent blur-[90px]"
+            style={{ animationDelay: "1.5s", animationDuration: "5s" }}
+          />
+          <div
+            className="bg-gradient-radial from-primary/20 absolute top-1/3 left-1/2 h-[800px] w-[800px] -translate-x-1/2 animate-pulse rounded-full via-transparent to-transparent blur-[120px]"
+            style={{ animationDelay: "3s", animationDuration: "6s" }}
           />
         </div>
 
-        <div className="mx-auto h-full max-w-7xl px-6 py-4 lg:flex lg:px-8">
-          <div className="bg-gridBg mx-auto flex max-w-2xl flex-shrink-0 flex-col justify-center lg:mx-0 lg:max-w-xl lg:pt-4">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div
-                className={ny(
-                  "group w-56 rounded-full border border-black/5 bg-blue-50 text-base transition-all ease-in hover:cursor-pointer hover:bg-purple-50/50",
-                )}
-              >
-                <AnimatedShinyText className="inline-flex items-center justify-center px-4 py-1 transition ease-out hover:duration-300">
-                  <span className="text-primary">✨ Introducing Arture</span>
-                  <ArrowRightIcon className="text-primary ml-1 size-3 transition-transform duration-300 ease-in-out group-hover:translate-x-0.5" />
-                </AnimatedShinyText>
-              </div>
-            </motion.div>
+        {/* Noise texture overlay */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.015]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' /%3E%3C/svg%3E")`,
+          }}
+        />
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-            >
-              <h1 className="text-foreground/90 mt-10 text-4xl font-bold tracking-tight sm:text-6xl">
-                Create stunning designs with ease
-              </h1>
-              <p className="mt-6 text-lg leading-8 text-gray-600">
-                Unleash your creativity with our powerful design platform.
-                Create beautiful graphics, illustrations, and layouts for any
-                project - no design experience needed.
-              </p>
-            </motion.div>
-
-            <motion.div
-              className="mt-10 flex items-center gap-x-6"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <div className="flex items-center gap-4">
-                <Button
-                  onClick={handleStartCreateClick}
-                  disabled={createProjectMutation.isPending}
-                  size={"lg"}
-                  effect="shineHover"
-                >
-                  {createProjectMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    <>Create a project</>
-                  )}
-                </Button>
-                <Button
-                  size={"lg"}
-                  effect="expandIcon"
-                  icon={ArrowRightIcon}
-                  iconPlacement="right"
-                  variant={"outline"}
-                >
-                  Inspire me
-                </Button>
-              </div>
-            </motion.div>
-
-            <motion.div
-              className="mt-10 grid grid-cols-2 gap-x-8 gap-y-2"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-            >
-              {FEATURES.map((feature, index) => (
-                <motion.div
-                  key={feature}
-                  className="flex items-center gap-x-3"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
-                >
-                  <div className="bg-primary/20 flex h-6 w-6 flex-none items-center justify-center rounded-full">
-                    <svg
-                      className="text-primary h-4 w-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth="1.5"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M4.5 12.75l6 6 9-13.5"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-sm leading-6 text-gray-600">
-                    {feature}
-                  </span>
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
-
+        <div className="relative z-10 mx-auto max-w-[1000px] space-y-8 text-center">
+          {/* Badge */}
           <motion.div
-            className="group relative mx-auto flex max-w-2xl items-center justify-center lg:mt-0 lg:mr-0 lg:ml-10 lg:max-w-none lg:flex-none xl:ml-24"
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
+            transition={{ duration: 0.5 }}
+            className="inline-flex"
           >
-            <div className="absolute -inset-0.5 overflow-hidden rounded-xl opacity-0 transition duration-300 group-hover:opacity-20">
-              <div
-                className="absolute inset-0 animate-pulse bg-gradient-to-t from-orange-500/30 via-red-500/20 to-transparent"
-                style={{
-                  height: "30%",
-                  bottom: 0,
-                  backgroundSize: "100% 100%",
-                  backgroundPosition: "center bottom",
-                }}
-              ></div>
-            </div>
-
-            <div className="bg-background/5 border-primary/20 relative rounded-xl border p-1 shadow-md backdrop-blur-sm transition-all duration-300 group-hover:border-orange-400/30">
-              <div className="relative">
-                <Safari
-                  src="https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg"
-                  url="https://arture.vercel.app"
-                  className="h-[25rem] w-[40rem] flex-none rounded-lg bg-transparent"
-                />
-
-                <div
-                  className="absolute inset-0 flex cursor-pointer items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                  onClick={() => console.log("hello")}
-                >
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/80 shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:bg-white">
-                    <Play className="ml-1 h-8 w-8 text-purple-600" />
-                  </div>
-                </div>
-              </div>
+            <div className="group border-primary/30 bg-primary/5 hover:bg-primary/10 inline-flex cursor-pointer items-center gap-2 rounded-full border px-4 py-2 backdrop-blur-sm transition-all duration-300">
+              <Sparkles className="text-primary h-4 w-4" />
+              <span className="text-foreground text-xs font-medium">
+                Introducing Arture
+              </span>
+              <ArrowRight className="text-primary h-3 w-3 transition-transform duration-300 group-hover:translate-x-0.5" />
             </div>
           </motion.div>
+
+          {/* Main Heading with Comet Effect */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+          >
+            <h1 className="text-foreground text-6xl leading-[1.05] font-light tracking-tighter md:text-7xl lg:text-[6.5rem]">
+              <span className="inline-block">
+                <span className="relative inline-block">
+                  <span className="relative z-10">Create</span>
+                  <span className="from-primary/20 via-accent/20 absolute inset-0 bg-gradient-to-r to-transparent blur-xl" />
+                </span>
+              </span>{" "}
+              <span className="from-foreground via-foreground/90 to-foreground/70 inline-block bg-gradient-to-br bg-clip-text pb-2 text-transparent">
+                stunning
+              </span>
+              <br />
+              <span className="relative inline-block">
+                <span className="from-foreground to-foreground/80 relative z-10 bg-gradient-to-r bg-clip-text text-transparent">
+                  designs
+                </span>
+                <motion.span
+                  className="from-primary/30 via-accent/30 absolute -inset-1 bg-gradient-to-r to-transparent blur-2xl"
+                  animate={{
+                    opacity: [0.5, 0.8, 0.5],
+                    scale: [1, 1.05, 1],
+                  }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                />
+              </span>{" "}
+              <span className="inline-block">with ease</span>
+            </h1>
+          </motion.div>
+
+          {/* Description */}
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="text-muted-foreground mx-auto max-w-3xl text-lg leading-relaxed md:text-xl"
+          >
+            Unleash your creativity with our powerful AI design platform. Create
+            beautiful graphics, illustrations, and layouts for any project - no
+            design experience.
+          </motion.p>
+
+          {/* CTA Buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="relative z-50 flex flex-col items-center justify-center gap-4 pt-6 sm:flex-row"
+          >
+            <Button
+              onClick={handleStartCreateClick}
+              disabled={createProjectMutation.isPending}
+              size={"lg"}
+              effect="shineHover"
+              className="bg-primary/50 hover:bg-primary/60 relative"
+            >
+              {createProjectMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>Create a project</>
+              )}
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-border/50 hover:border-accent/50 group relative h-12 rounded-lg border bg-slate-900/30 px-8 backdrop-blur-sm hover:bg-slate-900/40"
+            >
+              Inspire me
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Button>
+          </motion.div>
+
+          {/* Trust Badge */}
         </div>
-      </div>
+
+        {/* App Preview Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 1.4 }}
+          className="relative z-0 mx-auto mt-20 w-full max-w-[1400px] px-6"
+        >
+          <div className="group relative">
+            {/* Intense primary glow effect - Only at the top */}
+            <motion.div
+              className="bg-primary pointer-events-none absolute -top-[120px] left-1/2 h-[200px] w-[800px] -translate-x-1/2 rounded-full blur-[120px]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.6 }}
+              transition={{
+                duration: 2,
+                delay: 1,
+                ease: "easeOut",
+              }}
+            />
+
+            {/* Secondary bright glow layer - Top only */}
+            <motion.div
+              className="bg-primary/80 pointer-events-none absolute -top-[100px] left-1/2 h-[180px] w-[700px] -translate-x-1/2 rounded-full blur-[100px]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              transition={{
+                duration: 2.5,
+                delay: 1.2,
+                ease: "easeOut",
+              }}
+            />
+
+            {/* Accent glow for color variation - Top only */}
+            <motion.div
+              className="bg-accent/60 pointer-events-none absolute -top-[80px] left-1/2 h-[160px] w-[600px] -translate-x-1/2 rounded-full blur-[90px]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.35 }}
+              transition={{
+                duration: 3,
+                delay: 1.5,
+                ease: "easeOut",
+              }}
+            />
+            {/* Animated particles */}
+            <div className="relative top-0 mt-[-100px] h-[100px] w-full overflow-hidden">
+              <Particles />
+            </div>
+
+            {/* Glass container */}
+            <div className="relative z-10 overflow-visible rounded-2xl shadow-2xl backdrop-blur-xl">
+              <div className="from-primary/5 to-accent/5 absolute inset-0 bg-gradient-to-br via-transparent" />
+
+              <div className="relative overflow-hidden rounded-2xl">
+                <Safari
+                  src="https://res.cloudinary.com/dkysrpdi6/image/upload/v1761405968/Screenshot_2025-10-25_205039_to7bgk.png"
+                  url="https://arture.vercel.app"
+                  className="h-auto w-full rounded-lg bg-transparent"
+                />
+                <BorderBeam duration={24} size={100} delay={2} />
+
+                {/* Strong bottom fade to background - Creates seamless blend */}
+                <div className="from-background via-background pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t to-transparent" />
+
+                {/* Even stronger fade at the very bottom */}
+                <div className="from-background via-background/95 pointer-events-none absolute inset-x-0 -bottom-1 h-32 bg-gradient-to-t to-transparent" />
+              </div>
+            </div>
+          </div>
+
+          {/* Extended bottom fade outside container */}
+          <div className="from-background via-background/90 pointer-events-none absolute inset-x-0 -bottom-20 h-40 bg-gradient-to-t to-transparent" />
+        </motion.div>
+      </section>
 
       <AuthDialog
         isOpen={authDialogOpen}

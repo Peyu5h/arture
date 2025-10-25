@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { authClient } from "~/lib/auth-client";
 import { Button } from "~/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
@@ -17,10 +17,15 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { LogOut, User } from "lucide-react";
 import { ClientOnly } from "~/components/client-only";
+import { ny } from "~/lib/utils";
 
-export function Navbar({ onAuthDialogOpen }: { onAuthDialogOpen: () => void }) {
+export function Navbar({
+  onAuthDialogOpen,
+}: {
+  onAuthDialogOpen?: () => void;
+}) {
   const router = useRouter();
-  const [isScrolled, setIsScrolled] = useState(false);
+  const pathname = usePathname();
   const { data: session, isPending } = authClient.useSession();
 
   const handleSignOut = async () => {
@@ -32,34 +37,56 @@ export function Navbar({ onAuthDialogOpen }: { onAuthDialogOpen: () => void }) {
     }
   };
 
+  const handleAuthClick = () => {
+    if (onAuthDialogOpen) {
+      onAuthDialogOpen();
+    } else {
+      router.push("/sign-in");
+    }
+  };
+
   return (
-    <header
-      className={`absolute top-0 z-50 w-full transition-all duration-300 ${
-        isScrolled ? "bg-transparent backdrop-blur-md" : "bg-transparent"
-      }`}
-    >
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center">
+    <header className="border-border/40 bg-background/80 fixed top-0 z-50 w-full border-b backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between px-6">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2">
           <Image
             src="https://res.cloudinary.com/dkysrpdi6/image/upload/v1728660806/Arture/arture-logo_oljtzy.png"
-            alt="Arture Logo"
-            width={40}
-            height={40}
-            className="mr-2"
+            alt="Arture"
+            width={36}
+            height={36}
             priority
           />
-          <span className="text-xl font-bold">Arture</span>
+          <span className="text-lg font-semibold">Arture</span>
         </Link>
 
-        {/* <nav className="hidden items-center space-x-6 md:flex">
+        {/* Center Navigation */}
+        <nav className="hidden items-center gap-8 md:flex">
+          <Link
+            href="/"
+            className={ny(
+              "relative text-sm font-medium transition-colors",
+              pathname === "/"
+                ? "text-foreground after:bg-primary after:absolute after:right-0 after:-bottom-[21px] after:left-0 after:h-0.5"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Home
+          </Link>
           <Link
             href="/templates"
-            className="text-sm font-medium hover:text-primary"
+            className={ny(
+              "relative text-sm font-medium transition-colors",
+              pathname === "/templates"
+                ? "text-foreground after:bg-primary after:absolute after:right-0 after:-bottom-[21px] after:left-0 after:h-0.5"
+                : "text-muted-foreground hover:text-foreground",
+            )}
           >
             Templates
           </Link>
-        </nav> */}
+        </nav>
 
+        {/* Right Side - Auth */}
         <div className="flex items-center gap-4">
           <ClientOnly
             fallback={
@@ -122,16 +149,12 @@ export function Navbar({ onAuthDialogOpen }: { onAuthDialogOpen: () => void }) {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <>
-                <Button
-                  variant="ghost"
-                  onClick={onAuthDialogOpen}
-                  className="hidden sm:flex"
-                >
-                  Sign in
-                </Button>
-                <Button onClick={onAuthDialogOpen}>Get started</Button>
-              </>
+              <Button
+                onClick={handleAuthClick}
+                className="bg-primary hover:bg-primary/90 rounded-lg px-6"
+              >
+                Start Creating
+              </Button>
             )}
           </ClientOnly>
         </div>

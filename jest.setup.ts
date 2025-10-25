@@ -32,7 +32,7 @@ const mockCanvas = {
       quadraticCurveTo: jest.fn(),
     })),
     toBuffer: jest.fn(() => Buffer.from([])),
-    toDataURL: jest.fn(() => 'data:image/png;base64,'),
+    toDataURL: jest.fn(() => "data:image/png;base64,"),
   })),
   registerFont: jest.fn(),
   createSyncPNGStream: jest.fn(),
@@ -40,7 +40,7 @@ const mockCanvas = {
   createPNGStream: jest.fn(),
   createJPEGStream: jest.fn(),
   Image: jest.fn(() => ({
-    src: '',
+    src: "",
     onload: jest.fn(),
     onerror: jest.fn(),
   })),
@@ -107,7 +107,7 @@ const mockCanvas = {
 };
 
 // Mock canvas module
-jest.mock('canvas', () => mockCanvas);
+jest.mock("canvas", () => mockCanvas);
 
 jest.mock("next/navigation", () => ({
   useRouter: () => ({

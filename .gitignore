@@ -46,3 +46,7 @@ next-env.d.ts
 tempjson.json
 TODO.md
 ASSET_MANAGEMENT.md
+.zencoder
+/.vscode
+.vscode/*
+/.zencoder
