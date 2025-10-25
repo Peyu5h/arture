@@ -1,11 +1,4 @@
 {
-  "buildCommand": "npx prisma generate && next build",
-  "functions": {
-    "api/**/*.js": {
-      "includeFiles": "node_modules/.prisma/client/libquery_engine-rhel-openssl-3.0.x.so.node"
-    },
-    ".next/server/**/*.js": {
-      "includeFiles": "node_modules/.prisma/client/**"
-    }
-  }
+  "buildCommand": "npm ci --legacy-peer-deps && npx prisma generate && next build",
+  "installCommand": "npm ci --legacy-peer-deps"
 }
