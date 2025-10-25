@@ -1,4 +1,0 @@
-{
-  "buildCommand": "npm ci --legacy-peer-deps && npx prisma generate && next build",
-  "installCommand": "npm ci --legacy-peer-deps"
-}
