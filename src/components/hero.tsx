@@ -150,7 +150,7 @@ export function Hero() {
               disabled={createProjectMutation.isPending}
               size={"lg"}
               effect="shineHover"
-              className="bg-primary/50 hover:bg-primary/60 relative"
+              className="dark:bg-primary/50 bg-primary hover:bg-primary/90 dark:hover:bg-primary/60 relative"
             >
               {createProjectMutation.isPending ? (
                 <>
@@ -164,7 +164,7 @@ export function Hero() {
             <Button
               size="lg"
               variant="outline"
-              className="border-border/50 hover:border-accent/50 group relative h-12 rounded-lg border bg-slate-900/30 px-8 backdrop-blur-sm hover:bg-slate-900/40"
+              className="border-border/50 dark:hover:border-accent/50 group relative h-12 rounded-lg border bg-slate-200/30 px-8 backdrop-blur-sm hover:bg-slate-200/40 dark:bg-slate-900/30 dark:hover:bg-slate-900/40"
             >
               Inspire me
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />

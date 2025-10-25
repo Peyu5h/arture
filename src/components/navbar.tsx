@@ -18,6 +18,7 @@ import {
 import { LogOut, User } from "lucide-react";
 import { ClientOnly } from "~/components/client-only";
 import { ny } from "~/lib/utils";
+import { AnimatedThemeToggler } from "./ui/animated-theme-toggler";
 
 export function Navbar({
   onAuthDialogOpen,
@@ -150,13 +151,18 @@ export function Navbar({
               </DropdownMenu>
             ) : (
               <Button
+                effect={"shineHover"}
                 onClick={handleAuthClick}
-                className="bg-primary hover:bg-primary/90 rounded-lg px-6"
+                className="bg-primary/70 hover:bg-primary/80 rounded-lg px-6"
               >
-                Start Creating
+                Get started
               </Button>
             )}
           </ClientOnly>
+
+          <div className="ml-2">
+            <AnimatedThemeToggler />
+          </div>
         </div>
       </div>
     </header>
