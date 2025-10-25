@@ -107,8 +107,8 @@ export function PricingSection() {
           </h2>
 
           <p className="text-muted-foreground mx-auto mb-8 max-w-2xl px-4 text-base sm:px-0 sm:text-lg">
-            Choose an affordable plan that's packed with the best features for
-            engaging your audience, creating customer loyalty, and driving
+            Choose an affordable plan that&apos;s packed with the best features
+            for engaging your audience, creating customer loyalty, and driving
             sales.
           </p>
 

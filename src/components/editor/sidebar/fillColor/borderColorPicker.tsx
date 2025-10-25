@@ -60,7 +60,7 @@ export const BorderColorPicker = ({
 
   return (
     <div className="w-full space-y-4">
-      <div className="flex items-center gap-3 rounded-md border bg-gray-50/50 p-3">
+      <div className="bg-muted/50 flex items-center gap-3 rounded-md border p-3">
         <div
           className="size-8 rounded-md border shadow-sm"
           style={{ backgroundColor: value }}
@@ -73,7 +73,7 @@ export const BorderColorPicker = ({
         />
       </div>
 
-      <div className="rounded-lg border bg-white p-4">
+      <div className="bg-card rounded-lg border p-4">
         <CirclePicker
           color={value}
           colors={extendedColors}

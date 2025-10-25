@@ -166,8 +166,8 @@ export function FeaturesSection() {
                         </span>
                       </div>
                       <p className="text-muted-foreground mx-auto mt-3 max-w-xs text-xs sm:mt-4 sm:text-sm">
-                        Type "Create a wedding invitation" and watch AI generate
-                        a complete,
+                        Type &ldquo;Create a wedding invitation&rdquo; and watch
+                        AI generate a complete,
                         <span className="text-accent-foreground font-medium">
                           {" "}
                           culturally perfect{" "}
@@ -194,7 +194,7 @@ export function FeaturesSection() {
                         Drag elements, change colors, or reprompt
                         <span className="text-accent-foreground font-medium">
                           {" "}
-                          "make it more festive"{" "}
+                          &ldquo;make it more festive&rdquo;{" "}
                         </span>
                         - full control meets AI intelligence.
                       </p>

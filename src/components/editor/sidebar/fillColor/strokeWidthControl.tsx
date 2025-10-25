@@ -63,24 +63,24 @@ export const StrokeWidthControl = ({
       </div>
 
       <div className="space-y-3">
-        <span className="text-sm font-medium text-gray-700">Style</span>
+        <span className="text-foreground text-sm font-medium">Style</span>
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => handleStrokeTypeChange("solid")}
-            className={`flex h-10 items-center justify-center rounded-md border transition-all hover:bg-gray-50 ${
+            className={`hover:bg-accent/50 flex h-10 items-center justify-center rounded-md border transition-all ${
               strokeType === "solid"
-                ? "border-black bg-gray-50"
-                : "border-gray-200"
+                ? "border-primary bg-accent/50"
+                : "border-border"
             }`}
           >
-            <div className="h-0.5 w-16 bg-black" />
+            <div className="bg-foreground h-0.5 w-16" />
           </button>
           <button
             onClick={() => handleStrokeTypeChange("dashed")}
-            className={`flex h-10 items-center justify-center rounded-md border transition-all hover:bg-gray-50 ${
+            className={`hover:bg-accent/50 flex h-10 items-center justify-center rounded-md border transition-all ${
               strokeType === "dashed"
-                ? "border-black bg-gray-50"
-                : "border-gray-200"
+                ? "border-primary bg-accent/50"
+                : "border-border"
             }`}
           >
             <div className="h-0.5 w-16 border-t-2 border-dashed border-black" />

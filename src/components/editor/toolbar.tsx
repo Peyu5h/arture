@@ -201,7 +201,7 @@ export const Toolbar = ({
 
   return (
     <div className="absolute top-2 left-1/2 z-[15] flex -translate-x-1/2 items-center justify-center">
-      <div className="animate-in slide-in-from-bottom-2 flex items-center gap-x-2 rounded-lg border-0 bg-white px-4 py-2 shadow-sm transition-all duration-300">
+      <div className="animate-in slide-in-from-bottom-2 bg-card flex items-center gap-x-2 rounded-lg border px-4 py-2 shadow-sm transition-all duration-300">
         <div className="flex h-full items-center justify-between">
           <Hint label="Color" side="bottom">
             <Button

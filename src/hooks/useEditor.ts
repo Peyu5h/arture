@@ -550,13 +550,29 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         save();
       },
       addImage: (value: string) => {
+        console.log("Adding image with URL:", value);
+
         fabric.Image.fromURL(
           value,
           (image) => {
+            console.log("Image loaded:", image);
             const workspace = getWorkspace();
 
-            image.scaleToWidth(workspace?.width || 0);
-            image.scaleToHeight(workspace?.height || 0);
+            if (!image) {
+              console.error("Failed to load image");
+              return;
+            }
+
+            // Scale image to fit within workspace while maintaining aspect ratio
+            const workspaceWidth = workspace?.width || 500;
+            const workspaceHeight = workspace?.height || 500;
+
+            const scale = Math.min(
+              workspaceWidth / (image.width || 1),
+              workspaceHeight / (image.height || 1),
+            );
+
+            image.scale(scale * 0.5); // Scale to 50% of workspace
 
             addObject(image);
           },
@@ -661,7 +677,8 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
 
       initialCanvas.add(initialWorkspace);
       initialCanvas.centerObject(initialWorkspace);
-      initialCanvas.clipPath = initialWorkspace;
+      // Removed clipPath to allow elements to be visible outside canvas
+      // initialCanvas.clipPath = initialWorkspace;
 
       setCanvas(initialCanvas);
       setContainer(initialContainer);

@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
+import NextImage from "next/image";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -403,13 +404,15 @@ function AssetCard({ asset, onDelete }: AssetCardProps) {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="relative aspect-square bg-gray-100">
-        <img
+        <NextImage
           src={asset.thumbnail}
           alt={asset.name}
           className="h-full w-full object-cover"
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
         />
         {isHovered && (
-          <div className="absolute inset-0 flex items-center justify-center space-x-2 bg-black bg-opacity-50">
+          <div className="bg-opacity-50 absolute inset-0 flex items-center justify-center space-x-2 bg-black">
             <Button size="sm" variant="secondary">
               <Eye className="h-4 w-4" />
             </Button>

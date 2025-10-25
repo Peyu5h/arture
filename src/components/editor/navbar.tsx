@@ -4,8 +4,9 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "../ui/button";
+import { PreviewDialog } from "./preview-dialog";
 import {
   ChevronDown,
   Download,
@@ -80,6 +81,7 @@ export const Navbar = ({
   const { projectId } = useParams();
   const updateProject = useUpdateProject();
   const { toast } = useToast();
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const handleSave = async () => {
     if (!editor?.canvas || !projectId) return;
@@ -179,7 +181,7 @@ export const Navbar = ({
   return (
     <nav
       style={{ zIndex: 40 }}
-      className="flex h-[68px] min-w-full items-center gap-x-8 overflow-hidden border-b bg-white p-4 lg:pl-8"
+      className="bg-background flex h-[68px] min-w-full items-center gap-x-8 overflow-hidden border-b p-4 lg:pl-8"
     >
       <div className="select-none">
         <Image
@@ -427,11 +429,21 @@ export const Navbar = ({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Button variant="outline" size="sm">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setPreviewOpen(true)}
+        >
           <EyeIcon className="size-4" />
           <span className="text-xs">Preview</span>
         </Button>
       </div>
+
+      <PreviewDialog
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        canvas={editor?.canvas}
+      />
     </nav>
   );
 };

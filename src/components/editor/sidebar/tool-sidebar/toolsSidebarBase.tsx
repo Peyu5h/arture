@@ -42,7 +42,7 @@ export const ToolsSidebarBase = ({
           exit={{ x: -400, opacity: 1 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           className={ny(
-            "absolute z-50 z-[50] flex h-full w-[360px] flex-col border-r bg-white shadow-lg",
+            "bg-card absolute z-50 z-[50] flex h-full w-[360px] flex-col border-r shadow-lg",
             className,
           )}
         >

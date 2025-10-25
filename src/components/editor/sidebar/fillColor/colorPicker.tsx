@@ -102,7 +102,7 @@ export const ColorPicker = ({ value, onChange, canvas }: ColorPickerProps) => {
           {documentColors.map(({ color }) => (
             <div
               key={color}
-              className="max-w-auto size-12 cursor-pointer rounded-lg border border-gray-200 transition-transform hover:scale-105"
+              className="max-w-auto border-border size-12 cursor-pointer rounded-lg border transition-transform hover:scale-105"
               style={{ backgroundColor: color }}
               onClick={() => onChange(color)}
             />

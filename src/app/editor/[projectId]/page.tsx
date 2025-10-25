@@ -25,6 +25,7 @@ import { LucideLoader2 } from "lucide-react";
 import { useAutoSave } from "~/hooks/useAutoSave";
 import { useCanvasEvents } from "~/hooks/useCanvasEvents";
 import { AuthGuard } from "~/components/auth-guard";
+import { CanvasSkeleton } from "~/components/editor/canvas-skeleton";
 
 export default function Editor() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -130,7 +131,8 @@ export default function Editor() {
             });
             canvas.add(workspaceObj);
             canvas.centerObject(workspaceObj);
-            canvas.clipPath = workspaceObj;
+            // Removed clipPath to allow elements to be visible outside canvas
+            // canvas.clipPath = workspaceObj;
 
             if (containerRef.current) {
               const containerRect =
@@ -241,6 +243,7 @@ export default function Editor() {
                 overscrollBehaviorY: "contain",
               }}
             >
+              {!editor && <CanvasSkeleton />}
               <div
                 className="canvas-scroll-wrapper absolute inset-0"
                 style={{

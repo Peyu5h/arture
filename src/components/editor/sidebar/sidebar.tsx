@@ -20,7 +20,7 @@ interface SidebarProps {
 
 export const Sidebar = ({ activeTool, onChangeActiveTool }: SidebarProps) => {
   return (
-    <aside className="bg-background z-45 flex max-w-[100px] min-w-[100px] flex-shrink-0 flex-col overflow-y-auto border-r shadow-lg">
+    <aside className="bg-card border-border z-45 flex max-w-[100px] min-w-[100px] flex-shrink-0 flex-col overflow-y-auto border-r shadow-lg">
       <ul className="flex w-full flex-col gap-2 p-2">
         <SidebarItem
           icon={Layers3}

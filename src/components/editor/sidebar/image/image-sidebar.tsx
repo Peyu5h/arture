@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useDebounce } from "use-debounce";
-import { ChevronLeft, ChevronRight, LucideLoader2, Search, Upload, Sparkles } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  LucideLoader2,
+  Search,
+  Upload,
+  Sparkles,
+} from "lucide-react";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Button } from "~/components/ui/button";
 import { ny } from "~/lib/utils";
@@ -9,7 +16,6 @@ import { ToolSidebarClose } from "../tool-sidebar/tool-sidebar-close";
 import { SidebarBase } from "../tool-sidebar/sidebarBase";
 import { useGetPhotosByQuery, useGetRandomPhotos } from "~/hooks/useUnsplash";
 import { Input } from "~/components/ui/input";
-import Image from "next/image";
 import { AiOutlineCloudUpload } from "react-icons/ai";
 import { ActiveTool, Editor } from "~/lib/types";
 import { ClientOnly } from "~/components/client-only";
@@ -32,7 +38,7 @@ const LoadingSkeleton = () => {
         <div
           key={index}
           className={ny(
-            "overflow-hidden rounded-lg bg-muted",
+            "bg-muted overflow-hidden rounded-lg",
             index % 3 === 0 ? "row-span-2 h-80" : "aspect-square",
             "animate-pulse",
           )}
@@ -77,18 +83,27 @@ export const ImageSidebar = ({
     }
   }, [handleScroll]);
 
-  const { data: randomPhotos, isLoading: isLoadingRandom, error: randomError } = useGetRandomPhotos(
-    { count: 20 },
-  );
+  const {
+    data: randomPhotos,
+    isLoading: isLoadingRandom,
+    error: randomError,
+  } = useGetRandomPhotos({ count: 20 });
 
-  const { data: searchedPhotos, isLoading: isLoadingSearch, error: searchError } =
-    useGetPhotosByQuery({
-      query: debouncedSearch || selectedTag,
-    });
+  const {
+    data: searchedPhotos,
+    isLoading: isLoadingSearch,
+    error: searchError,
+  } = useGetPhotosByQuery({
+    query: debouncedSearch || selectedTag,
+  });
 
   // Debug logging
   React.useEffect(() => {
     console.log("Random photos:", randomPhotos);
+    console.log("Random photos length:", randomPhotos?.length);
+    if (randomPhotos && randomPhotos.length > 0) {
+      console.log("First photo URLs:", randomPhotos[0].urls);
+    }
     console.log("Random error:", randomError);
     console.log("Search photos:", searchedPhotos);
     console.log("Search error:", searchError);
@@ -179,10 +194,7 @@ export const ImageSidebar = ({
           onChange={handleFileInputChange}
           accept="image/png, image/jpeg, image/jpg, image/webp"
         />
-        <Button
-          onClick={() => handleImageClick()}
-          className="gap-3"
-        >
+        <Button onClick={() => handleImageClick()} className="gap-3">
           {!uploading ? (
             <>
               <Upload className="h-4 w-4" />
@@ -196,7 +208,7 @@ export const ImageSidebar = ({
           )}
         </Button>
         <div className="relative">
-          <Search className="absolute top-2.5 left-2 h-4 w-4 text-muted-foreground" />
+          <Search className="text-muted-foreground absolute top-2.5 left-2 h-4 w-4" />
           <Input
             placeholder="Search for images"
             value={searchQuery}
@@ -210,7 +222,7 @@ export const ImageSidebar = ({
 
         <div className="relative flex items-center">
           {canScrollLeft && (
-            <div className="absolute left-0 z-10 h-full w-12 bg-gradient-to-r from-background via-background to-transparent" />
+            <div className="from-background via-background absolute left-0 z-10 h-full w-12 bg-gradient-to-r to-transparent" />
           )}
 
           {canScrollLeft && (
@@ -248,7 +260,7 @@ export const ImageSidebar = ({
           </div>
 
           {canScrollRight && (
-            <div className="absolute right-0 z-10 h-full w-12 bg-gradient-to-l from-background via-background to-transparent" />
+            <div className="from-background via-background absolute right-0 z-10 h-full w-12 bg-gradient-to-l to-transparent" />
           )}
 
           {canScrollRight && (
@@ -268,46 +280,75 @@ export const ImageSidebar = ({
         <ScrollArea className="pr-2 pb-4" style={{ maxHeight: "70vh" }}>
           {isLoadingSearch || isLoadingRandom ? (
             <LoadingSkeleton />
-          ) : (
+          ) : displayPhotos && displayPhotos.length > 0 ? (
             <ClientOnly>
               <div className="grid grid-cols-2 gap-2 p-2 pb-24">
-                {displayPhotos?.map((photo, index) => (
-                  <div
-                    onClick={() => editor?.addImage(photo.urls.small)}
-                    key={photo.id}
-                    className={ny(
-                      "group relative cursor-pointer overflow-hidden rounded-lg",
-                      index % 3 === 0 ? "row-span-2" : "aspect-square",
-                    )}
-                  >
-                    <Image
-                      src={photo.urls.small}
-                      width={800}
-                      height={800}
-                      alt={photo.alt_description || "Unsplash photo"}
-                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                      unoptimized
-                      onError={(e) => {
-                        console.error("Image failed to load:", photo.urls.small);
-                        // Show a placeholder instead of hiding
-                        e.currentTarget.src = `data:image/svg+xml;base64,${btoa(`
-                          <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
-                            <rect width="100%" height="100%" fill="#f3f4f6"/>
-                            <text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="#9ca3af" font-family="Arial, sans-serif" font-size="16">
-                              Image not available
-                            </text>
-                          </svg>
-                        `)}`;
+                {displayPhotos?.map((photo, index) => {
+                  // Ensure we have valid photo data
+                  if (!photo?.urls?.small || !photo?.urls?.regular) {
+                    console.warn("Invalid photo data:", photo);
+                    return null;
+                  }
+
+                  return (
+                    <div
+                      onClick={() => {
+                        console.log("Clicked photo URL:", photo.urls.regular);
+                        editor?.addImage(photo.urls.regular);
                       }}
-                      onLoad={() => {
-                        console.log("Image loaded successfully:", photo.urls.small);
-                      }}
-                    />
-                    <div className="bg-opacity-0 group-hover:bg-opacity-20 absolute inset-0 bg-black transition-opacity" />
-                  </div>
-                ))}
+                      key={photo.id}
+                      className={ny(
+                        "group bg-muted relative cursor-pointer overflow-hidden rounded-lg",
+                        index % 3 === 0 ? "row-span-2" : "aspect-square",
+                      )}
+                    >
+                      <img
+                        src={photo.urls.small}
+                        alt={photo.alt_description || "Unsplash photo"}
+                        className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                        loading="lazy"
+                        crossOrigin="anonymous"
+                        onError={(e) => {
+                          console.error(
+                            "Image failed to load:",
+                            photo.urls.small,
+                          );
+                          const target = e.currentTarget;
+                          // Fallback to regular size if small fails
+                          if (!target.dataset.fallback) {
+                            target.dataset.fallback = "true";
+                            target.src = photo.urls.regular;
+                          } else {
+                            // If regular also fails, show error state
+                            const parent = target.parentElement;
+                            if (parent) {
+                              parent.style.backgroundColor = "#ef4444";
+                              parent.innerHTML =
+                                '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:white;font-size:12px;">Failed to load</div>';
+                            }
+                          }
+                        }}
+                        onLoad={() => {
+                          console.log(
+                            "Image loaded successfully:",
+                            photo.urls.small,
+                          );
+                        }}
+                      />
+                      <div className="bg-opacity-0 group-hover:bg-opacity-20 absolute inset-0 bg-black transition-opacity" />
+                    </div>
+                  );
+                })}
               </div>
             </ClientOnly>
+          ) : (
+            <div className="flex flex-col items-center justify-center p-8 text-center">
+              <p className="text-muted-foreground text-sm">
+                {searchError || randomError
+                  ? "Failed to load images. Please check your Unsplash API key."
+                  : "No images found"}
+              </p>
+            </div>
           )}
         </ScrollArea>
       </div>

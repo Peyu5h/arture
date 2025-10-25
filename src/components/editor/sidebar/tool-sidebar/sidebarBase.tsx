@@ -43,7 +43,7 @@ export const SidebarBase = ({
   }, [isVisible, onClose]);
 
   return (
-    <div className="absolute left-24 h-full ">
+    <div className="absolute left-24 h-full">
       <AnimatePresence>
         {isVisible && (
           <>
@@ -65,7 +65,7 @@ export const SidebarBase = ({
                 damping: 30,
               }}
               className={ny(
-                "absolute z-[40] flex h-full w-[360px] flex-col border-r bg-white shadow-lg",
+                "bg-card absolute z-[40] flex h-full w-[360px] flex-col border-r shadow-lg",
                 className,
               )}
             >
