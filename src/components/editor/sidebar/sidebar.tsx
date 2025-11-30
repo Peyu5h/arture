@@ -20,8 +20,8 @@ interface SidebarProps {
 
 export const Sidebar = ({ activeTool, onChangeActiveTool }: SidebarProps) => {
   return (
-    <aside className="bg-card border-border z-45 flex max-w-[100px] min-w-[100px] flex-shrink-0 flex-col overflow-y-auto border-r shadow-lg">
-      <ul className="flex w-full flex-col gap-2 p-2">
+    <aside className="bg-card border-border z-45 flex w-20 flex-shrink-0 flex-col border-r shadow-sm">
+      <nav className="flex flex-1 flex-col gap-0.5 px-1 py-2">
         <SidebarItem
           icon={Layers3}
           label="Design"
@@ -52,7 +52,6 @@ export const Sidebar = ({ activeTool, onChangeActiveTool }: SidebarProps) => {
           isActive={activeTool === "draw"}
           onClick={() => onChangeActiveTool("draw")}
         />
-
         <SidebarItem
           icon={Sparkles}
           label="AI"
@@ -65,7 +64,7 @@ export const Sidebar = ({ activeTool, onChangeActiveTool }: SidebarProps) => {
           isActive={activeTool === "settings"}
           onClick={() => onChangeActiveTool("settings")}
         />
-      </ul>
+      </nav>
     </aside>
   );
 };

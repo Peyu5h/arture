@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useEditor } from "~/hooks/useEditor";
 import { fabric } from "fabric";
 import { Navbar } from "~/components/editor/navbar";
 import { Toolbar } from "~/components/editor/toolbar";
-import { Footer } from "~/components/editor/footer";
 import { Sidebar } from "~/components/editor/sidebar/sidebar";
 import { ActiveTool, selectionDependentTool } from "~/lib/types";
 import { ShapeSidebar } from "~/components/editor/sidebar/shapes/shape-sidebar";
@@ -26,8 +25,16 @@ import { useAutoSave } from "~/hooks/useAutoSave";
 import { useCanvasEvents } from "~/hooks/useCanvasEvents";
 import { AuthGuard } from "~/components/auth-guard";
 import { CanvasSkeleton } from "~/components/editor/canvas-skeleton";
+import { AgentPanel } from "~/components/editor/agent";
+import {
+  DragProvider,
+  useDragContext,
+  DragItem,
+} from "~/contexts/drag-context";
+import { DragPreview } from "~/components/editor/drag-preview";
+import { CanvasDropZone } from "~/components/editor/canvas-drop-zone";
 
-export default function Editor() {
+function EditorContent() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -43,6 +50,11 @@ export default function Editor() {
   const [selectedObjects, setSelectedObjects] = React.useState<
     fabric.Object[] | null
   >(null);
+  const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(true);
+
+  const { dragState, setOnDrop } = useDragContext();
+  const setOnDropRef = useRef(setOnDrop);
+  setOnDropRef.current = setOnDrop;
 
   const onClearSelection = useCallback(() => {
     if (selectionDependentTool.includes(activeTool)) {
@@ -55,8 +67,161 @@ export default function Editor() {
     onModified: () => setUnsavedChanges(true),
   });
 
+  // handle drag drop onto canvas
+  const handleDrop = useCallback(
+    (item: DragItem, position: { x: number; y: number }) => {
+      if (!editor || !containerRef.current) return;
+
+      const canvas = editor.canvas;
+      if (!canvas) return;
+
+      // convert screen position to canvas coordinates
+      const vpt = canvas.viewportTransform;
+      if (!vpt) return;
+
+      const canvasX = (position.x - vpt[4]) / vpt[0];
+      const canvasY = (position.y - vpt[5]) / vpt[3];
+
+      if (item.type === "shape") {
+        const shapeType = item.data.shapeType as string;
+
+        switch (shapeType) {
+          case "circle":
+            editor.addCircle();
+            break;
+          case "rectangle":
+            editor.addRectangle();
+            break;
+          case "softRectangle":
+            editor.addSoftRectangle();
+            break;
+          case "triangle":
+            editor.addTriangle();
+            break;
+          case "inverseTriangle":
+            editor.addInverseTriangle();
+            break;
+          case "diamond":
+            editor.addDiamond();
+            break;
+        }
+
+        // move the newly added shape to drop position
+        const objects = canvas.getObjects();
+        const lastObject = objects[objects.length - 1];
+        if (lastObject && lastObject.name !== "clip") {
+          lastObject.set({
+            left: canvasX - (lastObject.width || 0) / 2,
+            top: canvasY - (lastObject.height || 0) / 2,
+          });
+          lastObject.setCoords();
+          canvas.setActiveObject(lastObject);
+          canvas.requestRenderAll();
+        }
+      }
+
+      if (item.type === "text") {
+        const textType = item.data.textType as string;
+        const textOptions = item.data.options || {};
+
+        editor.addText(textOptions.text || "Text", {
+          ...textOptions,
+          left: canvasX,
+          top: canvasY,
+        });
+
+        const objects = canvas.getObjects();
+        const lastObject = objects[objects.length - 1];
+        if (lastObject && lastObject.name !== "clip") {
+          canvas.setActiveObject(lastObject);
+          canvas.requestRenderAll();
+        }
+      }
+
+      if (item.type === "image") {
+        const imageUrl = item.data.url as string;
+        if (imageUrl) {
+          // store reference to current canvas
+          const currentCanvas = canvas;
+
+          // preload image using html Image element first
+          const htmlImg = new Image();
+          htmlImg.crossOrigin = "anonymous";
+
+          htmlImg.onload = () => {
+            // create fabric image from loaded html image
+            const fabricImg = new fabric.Image(htmlImg, {
+              left: 0,
+              top: 0,
+            });
+
+            // scale image to reasonable size
+            const maxSize = 300;
+            const scale = Math.min(
+              maxSize / (fabricImg.width || 1),
+              maxSize / (fabricImg.height || 1),
+              1,
+            );
+            fabricImg.scale(scale);
+
+            // position at drop location
+            const scaledWidth = (fabricImg.width || 0) * scale;
+            const scaledHeight = (fabricImg.height || 0) * scale;
+            fabricImg.set({
+              left: canvasX - scaledWidth / 2,
+              top: canvasY - scaledHeight / 2,
+            });
+
+            // add to canvas
+            currentCanvas.add(fabricImg);
+            fabricImg.setCoords();
+            currentCanvas.setActiveObject(fabricImg);
+
+            // force multiple render calls to ensure visibility
+            currentCanvas.renderAll();
+            requestAnimationFrame(() => {
+              currentCanvas.requestRenderAll();
+            });
+          };
+
+          htmlImg.onerror = () => {
+            console.error("Failed to load image:", imageUrl);
+          };
+
+          // start loading
+          htmlImg.src = imageUrl;
+        }
+      }
+    },
+    [editor],
+  );
+
+  // register drop handler
+  useEffect(() => {
+    setOnDropRef.current(handleDrop);
+    return () => setOnDropRef.current(null);
+  }, [handleDrop]);
+
   //@ts-ignore
-  const { debouncedSave, saveState } = useAutoSave(editor);
+  const { debouncedSave, saveState, saveThumbnail } = useAutoSave(editor);
+
+  // capture thumbnail before user leaves
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (editor?.canvas) {
+        saveThumbnail();
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      // save thumbnail on unmount
+      if (editor?.canvas) {
+        saveThumbnail();
+      }
+    };
+  }, [editor, saveThumbnail]);
 
   useCanvasEvents({
     canvas: editor?.canvas || null,
@@ -91,11 +256,12 @@ export default function Editor() {
     canvasRef.current.height = project?.height || 500;
 
     const canvas = new fabric.Canvas(canvasRef.current, {
-      backgroundColor: "#ffffff",
+      backgroundColor: "transparent",
       preserveObjectStacking: true,
       selection: true,
-      width: containerRef.current.offsetWidth - 40,
-      height: containerRef.current.offsetHeight - 40,
+      controlsAboveOverlay: true,
+      width: containerRef.current.offsetWidth,
+      height: containerRef.current.offsetHeight,
     });
 
     init({
@@ -131,8 +297,6 @@ export default function Editor() {
             });
             canvas.add(workspaceObj);
             canvas.centerObject(workspaceObj);
-            // Removed clipPath to allow elements to be visible outside canvas
-            // canvas.clipPath = workspaceObj;
 
             if (containerRef.current) {
               const containerRect =
@@ -173,8 +337,8 @@ export default function Editor() {
         const containerHeight = containerRef.current!.offsetHeight;
 
         canvas.setDimensions({
-          width: containerWidth - 40,
-          height: containerHeight - 40,
+          width: containerWidth,
+          height: containerHeight,
         });
 
         canvas.renderAll();
@@ -212,7 +376,7 @@ export default function Editor() {
   }
 
   return (
-    <AuthGuard>
+    <>
       <div className="flex h-screen w-screen flex-col overflow-hidden">
         <Navbar
           editor={editor}
@@ -225,51 +389,31 @@ export default function Editor() {
             activeTool={activeTool}
             onChangeActiveTool={onChangeActiveTool}
           />
-          <main className="relative flex w-full flex-1 flex-col overflow-hidden">
+          <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
             <div
               className="canvas-container absolute inset-0"
               ref={containerRef}
-              style={{
-                scrollBehavior: "smooth",
-                overscrollBehavior: "contain",
-                WebkitOverflowScrolling: "touch",
-                position: "relative",
-                width: "100%",
-                height: "100%",
-                maxHeight: "100%",
-                minHeight: "0",
-                overflow: "visible",
-                overscrollBehaviorX: "contain",
-                overscrollBehaviorY: "contain",
-              }}
             >
               {!editor && <CanvasSkeleton />}
               <div
-                className="canvas-scroll-wrapper absolute inset-0"
+                className="canvas-scroll-wrapper absolute inset-0 overflow-auto"
                 style={{
-                  overflowX: "auto",
-                  overflowY: "auto",
                   scrollbarWidth: "thin",
                   scrollbarColor: "rgba(0, 0, 0, 0.3) transparent",
                 }}
               >
-                <canvas
-                  ref={canvasRef}
-                  style={{
-                    margin: "20px",
-                  }}
-                />
+                <canvas ref={canvasRef} />
               </div>
               <div className="absolute right-4 bottom-4 z-10">
                 <ZoomControls editor={editor} />
               </div>
+              <CanvasDropZone />
             </div>
             <Toolbar
               editor={editor}
               activeTool={activeTool}
               onChangeActiveTool={onChangeActiveTool}
             />
-            {/* <Footer editor={editor} /> */}
           </main>
           <DesignSidebar
             editor={editor}
@@ -320,8 +464,32 @@ export default function Editor() {
             activeTool={activeTool}
             onChangeActiveTool={onChangeActiveTool}
           />
+
+          <AgentPanel
+            editor={editor}
+            isOpen={isAgentPanelOpen}
+            onToggle={() => setIsAgentPanelOpen(!isAgentPanelOpen)}
+          />
         </div>
       </div>
+
+      {/* drag preview */}
+      <DragPreview
+        item={dragState.item}
+        position={dragState.position}
+        isOverCanvas={dragState.isOverCanvas}
+        isDragging={dragState.isDragging}
+      />
+    </>
+  );
+}
+
+export default function Editor() {
+  return (
+    <AuthGuard>
+      <DragProvider>
+        <EditorContent />
+      </DragProvider>
     </AuthGuard>
   );
 }

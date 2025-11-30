@@ -13,6 +13,7 @@ export const autosaveSchema = z
     json: z.any().optional(),
     height: z.number().int().positive().optional(),
     width: z.number().int().positive().optional(),
+    thumbnailUrl: z.string().optional(),
   })
   .refine(
     (data) => {

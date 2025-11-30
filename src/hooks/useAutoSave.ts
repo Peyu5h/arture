@@ -3,8 +3,12 @@ import { Editor } from "~/lib/types";
 import { useParams } from "next/navigation";
 import { useUpdateProject } from "./useUpdateProject";
 import { useToast } from "~/components/ui/use-toast";
+import { generateThumbnail, compressDataUrl } from "~/lib/thumbnail";
+import { useProject } from "./projects.hooks";
 
 const DEBOUNCE_TIME = 1000;
+const THUMBNAIL_DEBOUNCE_TIME = 5000;
+const INITIAL_THUMBNAIL_DELAY = 2000;
 
 type CanvasStateValue =
   | string
@@ -24,12 +28,72 @@ export type SaveState = "Idle" | "Saving" | "Saved" | "Save failed";
 
 export const useAutoSave = (editor: Editor | undefined) => {
   const { projectId } = useParams();
+  const { data: project } = useProject(projectId as string);
   const updateProject = useUpdateProject();
   const { toast } = useToast();
   const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const thumbnailTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const initialThumbnailRef = useRef<boolean>(false);
   const lastSaveRef = useRef<string>("");
+  const lastThumbnailRef = useRef<string>("");
   const savingRef = useRef(false);
   const [saveState, setSaveState] = useState<SaveState>("Idle");
+
+  // generates and saves thumbnail
+  const saveThumbnail = useCallback(async () => {
+    if (!editor?.canvas || !projectId) return;
+
+    try {
+      const thumbnailDataUrl = await generateThumbnail(editor.canvas, {
+        maxWidth: 400,
+        maxHeight: 300,
+        quality: 0.8,
+        format: "jpeg",
+      });
+
+      if (!thumbnailDataUrl) return;
+
+      // compress if needed
+      const compressedThumbnail = await compressDataUrl(thumbnailDataUrl, 80);
+
+      // skip if thumbnail unchanged
+      if (compressedThumbnail === lastThumbnailRef.current) return;
+      lastThumbnailRef.current = compressedThumbnail;
+
+      await updateProject.mutateAsync({
+        id: projectId as string,
+        data: {
+          thumbnailUrl: compressedThumbnail,
+        },
+      });
+    } catch (error) {
+      console.error("Error saving thumbnail:", error);
+    }
+  }, [editor, projectId, updateProject]);
+
+  // capture initial thumbnail for projects without one
+  useEffect(() => {
+    if (
+      !editor?.canvas ||
+      !projectId ||
+      !project ||
+      initialThumbnailRef.current
+    ) {
+      return;
+    }
+
+    // check if project needs initial thumbnail
+    if (!project.thumbnailUrl) {
+      const timeout = setTimeout(() => {
+        initialThumbnailRef.current = true;
+        saveThumbnail();
+      }, INITIAL_THUMBNAIL_DELAY);
+
+      return () => clearTimeout(timeout);
+    }
+
+    initialThumbnailRef.current = true;
+  }, [editor, projectId, project, saveThumbnail]);
 
   const handleAutoSave = useCallback(async () => {
     if (!editor?.canvas || !projectId || savingRef.current) return;
@@ -130,15 +194,28 @@ export const useAutoSave = (editor: Editor | undefined) => {
     }
     setSaveState("Idle");
     saveTimeoutRef.current = setTimeout(handleAutoSave, DEBOUNCE_TIME);
-  }, [handleAutoSave]);
 
+    // debounce thumbnail with longer delay
+    if (thumbnailTimeoutRef.current) {
+      clearTimeout(thumbnailTimeoutRef.current);
+    }
+    thumbnailTimeoutRef.current = setTimeout(
+      saveThumbnail,
+      THUMBNAIL_DEBOUNCE_TIME,
+    );
+  }, [handleAutoSave, saveThumbnail]);
+
+  // save thumbnail on unmount
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
+      if (thumbnailTimeoutRef.current) {
+        clearTimeout(thumbnailTimeoutRef.current);
+      }
     };
   }, []);
 
-  return { debouncedSave, saveState, setSaveState };
+  return { debouncedSave, saveState, setSaveState, saveThumbnail };
 };

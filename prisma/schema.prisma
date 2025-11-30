@@ -45,7 +45,7 @@ model Project {
   isPro         Boolean        @default(false)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @default(now())
-  projectAssets ProjectAsset[] // Track assets used in this project
+  projectAssets ProjectAsset[]
 
   @@map("project")
 }
@@ -176,7 +176,7 @@ model ProjectAsset {
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assetId   String
   asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  usageData Json // Store how the asset is used in this project
+  usageData Json // store how the asset is used in this project
   createdAt DateTime @default(now())
 
   @@unique([projectId, assetId])

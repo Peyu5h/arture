@@ -1,4 +1,5 @@
 import { ChevronsLeft } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface ToolSidebarCloseProps {
   onClick: () => void;
@@ -6,11 +7,15 @@ interface ToolSidebarCloseProps {
 
 export const ToolSidebarClose = ({ onClick }: ToolSidebarCloseProps) => {
   return (
-    <button
+    <motion.button
       onClick={onClick}
-      className="group bg-card absolute top-1/2 -right-[1.80rem] flex h-[70px] -translate-y-1/2 transform items-center justify-center rounded-r-xl border-y border-r px-1 pr-2"
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      className="group bg-card hover:bg-muted/80 absolute top-1/2 -right-5 flex h-16 -translate-y-1/2 transform items-center justify-center rounded-r-xl border-y border-r shadow-sm transition-colors"
     >
-      <ChevronsLeft className="size-4 text-black transition group-hover:opacity-75" />
-    </button>
+      <div className="flex items-center px-1.5">
+        <ChevronsLeft className="text-muted-foreground group-hover:text-foreground size-4 transition-colors" />
+      </div>
+    </motion.button>
   );
 };

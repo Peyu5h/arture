@@ -26,6 +26,7 @@ import { authClient } from "~/lib/auth-client";
 import { useProjects } from "~/hooks/projects.hooks";
 import { formatDistanceToNow } from "date-fns";
 import { Footer } from "~/components/footer";
+import { RecentDesigns } from "~/components/recent-designs";
 
 const TEMPLATE_COLLECTIONS = [
   {
@@ -434,69 +435,16 @@ function TemplatesContent() {
       </section>
 
       {/* User's Recent Designs Section */}
-      {session && recentDesigns && recentDesigns.length > 0 && (
-        <section className="border-border/40 bg-background border-b px-6 py-16">
-          <div className="mx-auto max-w-[1400px]">
-            <div className="mb-8 flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-semibold">Your Recent Designs</h2>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  Continue working on your projects
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-primary hover:bg-primary/10"
-                onClick={() => router.push("/")}
-              >
-                View all
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Button>
-            </div>
-
-            {isProjectsLoading ? (
-              <div className="flex h-40 items-center justify-center">
-                <Loader2 className="text-primary h-6 w-6 animate-spin" />
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-                {recentDesigns.slice(0, 6).map((design, idx) => (
-                  <Link
-                    key={design.id || idx}
-                    href={`/editor/${design.id}`}
-                    className="block"
-                  >
-                    <div className="group border-border/50 bg-card hover:border-primary/30 relative aspect-[4/3] overflow-hidden rounded-xl border shadow-sm transition-all hover:shadow-md">
-                      {design.thumbnailUrl ? (
-                        <Image
-                          width={320}
-                          height={240}
-                          src={design.thumbnailUrl}
-                          alt={design.name || "Untitled design"}
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="bg-muted flex h-full w-full items-center justify-center">
-                          <ImageIcon className="text-muted-foreground/50 h-10 w-10" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                      <div className="absolute right-0 bottom-0 left-0 p-4 text-white">
-                        <p className="truncate font-medium opacity-0 transition-opacity group-hover:opacity-100">
-                          {design.name || "Untitled design"}
-                        </p>
-                        <p className="text-xs text-gray-300 opacity-0 transition-opacity group-hover:opacity-100">
-                          {formatDate(design.updatedAt || design.createdAt)}
-                        </p>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
+      {session && recentDesigns && (
+        <RecentDesigns
+          designs={recentDesigns}
+          isLoading={isProjectsLoading}
+          title="Your Recent Designs"
+          description="Continue working on your projects"
+          initialCount={5}
+          incrementCount={20}
+          maxColumns={5}
+        />
       )}
 
       {/* Templates Grid */}

@@ -129,6 +129,7 @@ export type Editor = {
   isWorkspaceVisible: () => boolean;
   enableDrawingMode: () => void;
   disableDrawingMode: () => void;
+  setBrushType: (type: "pen" | "pencil" | "marker" | "highlighter") => void;
   addImage: (value: string) => void;
   strokeType: "solid" | "dashed";
   changeStrokeType: (type: "solid" | "dashed") => void;

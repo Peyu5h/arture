@@ -4,6 +4,7 @@ import { err, success, validationErr } from "../utils/response";
 import {
   autosaveSchema,
   CreateProjectInput,
+  AutosaveProjectInput,
   projectsSchema,
 } from "../schemas/projects.schema";
 import { ValidationError } from "better-auth/react";
@@ -38,6 +39,9 @@ export const getUserProjects = async (c: Context) => {
     const projects = await prisma.project.findMany({
       where: {
         userId: user.id,
+      },
+      orderBy: {
+        updatedAt: "desc",
       },
     });
     return c.json(success(projects));
@@ -75,12 +79,13 @@ export const updateUserProject = async (c: Context) => {
       return c.json(validationErr(result.error), 400);
     }
 
-    const updateData: Partial<CreateProjectInput & { updatedAt: Date }> = {};
+    const updateData: Partial<AutosaveProjectInput & { updatedAt: Date }> = {};
 
     if ("json" in body) updateData.json = body.json;
     if ("name" in body) updateData.name = body.name;
     if ("height" in body) updateData.height = body.height;
     if ("width" in body) updateData.width = body.width;
+    if ("thumbnailUrl" in body) updateData.thumbnailUrl = body.thumbnailUrl;
 
     updateData.updatedAt = new Date();
 

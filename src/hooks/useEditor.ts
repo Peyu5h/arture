@@ -298,6 +298,61 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         canvas.freeDrawingBrush.width = strokeWidth;
       },
 
+      setBrushType: (type: "pen" | "pencil" | "marker" | "highlighter") => {
+        let brush: fabric.BaseBrush;
+
+        switch (type) {
+          case "pencil":
+            // pencil brush with slight texture effect
+            brush = new fabric.PencilBrush(canvas);
+            brush.width = strokeWidth || 2;
+            brush.color = fillColor;
+            // @ts-ignore
+            brush.decimate = 2;
+            break;
+
+          case "marker":
+            // marker with thicker, more opaque strokes
+            brush = new fabric.PencilBrush(canvas);
+            brush.width = Math.max(strokeWidth, 8);
+            brush.color = fillColor;
+            // @ts-ignore
+            brush.strokeLineCap = "round";
+            // @ts-ignore
+            brush.strokeLineJoin = "round";
+            break;
+
+          case "highlighter":
+            // highlighter with semi-transparent color
+            brush = new fabric.PencilBrush(canvas);
+            brush.width = Math.max(strokeWidth, 16);
+            // convert color to rgba with transparency
+            const hexColor = fillColor.replace("#", "");
+            const r = parseInt(hexColor.substring(0, 2), 16) || 255;
+            const g = parseInt(hexColor.substring(2, 4), 16) || 255;
+            const b = parseInt(hexColor.substring(4, 6), 16) || 0;
+            brush.color = `rgba(${r}, ${g}, ${b}, 0.4)`;
+            // @ts-ignore
+            brush.strokeLineCap = "square";
+            break;
+
+          case "pen":
+          default:
+            // smooth pen brush
+            brush = new fabric.PencilBrush(canvas);
+            brush.width = strokeWidth || 2;
+            brush.color = fillColor;
+            // @ts-ignore
+            brush.strokeLineCap = "round";
+            // @ts-ignore
+            brush.strokeLineJoin = "round";
+            break;
+        }
+
+        canvas.freeDrawingBrush = brush;
+        canvas.requestRenderAll();
+      },
+
       disableDrawingMode: () => {
         canvas.isDrawingMode = false;
       },
@@ -658,6 +713,10 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         transparentCorners: false,
         cornerStrokeColor: "#3b82f6",
       });
+
+      // allow controls to render outside canvas bounds
+      initialCanvas.controlsAboveOverlay = true;
+      initialCanvas.preserveObjectStacking = true;
 
       const initialWorkspace = new fabric.Rect({
         width: WORKSPACE_WIDTH,
