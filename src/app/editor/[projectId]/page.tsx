@@ -391,20 +391,16 @@ function EditorContent() {
           />
           <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
             <div
-              className="canvas-container absolute inset-0"
+              className="canvas-container absolute inset-0 overflow-hidden"
               ref={containerRef}
+              style={{
+                touchAction: "none",
+                userSelect: "none",
+              }}
             >
               {!editor && <CanvasSkeleton />}
-              <div
-                className="canvas-scroll-wrapper absolute inset-0 overflow-auto"
-                style={{
-                  scrollbarWidth: "thin",
-                  scrollbarColor: "rgba(0, 0, 0, 0.3) transparent",
-                }}
-              >
-                <canvas ref={canvasRef} />
-              </div>
-              <div className="absolute right-4 bottom-4 z-10">
+              <canvas ref={canvasRef} className="absolute inset-0" />
+              <div className="pointer-events-auto absolute right-4 bottom-4 z-10">
                 <ZoomControls editor={editor} />
               </div>
               <CanvasDropZone />

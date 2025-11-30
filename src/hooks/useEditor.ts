@@ -144,9 +144,14 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
     centerWorkspace,
     getCurrentZoom,
     isWorkspaceVisible,
+    minZoom,
+    maxZoom,
   } = useAdvancedZoom({
     canvas,
     container,
+    minZoom: 0.1,
+    maxZoom: 5,
+    margin: 90,
   });
 
   useCanvasEvents({
@@ -242,32 +247,30 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
 
       zoomIn: () => {
         zoomIn();
-        save();
       },
 
       zoomOut: () => {
         zoomOut();
-        save();
       },
 
       resetZoom: () => {
         resetZoom();
-        save();
       },
 
       fitToScreen: () => {
         fitToScreen();
-        save();
       },
 
       centerWorkspace: () => {
         centerWorkspace();
-        save();
       },
 
       getCurrentZoom: () => getCurrentZoom(),
 
       isWorkspaceVisible: () => isWorkspaceVisible(),
+
+      minZoom,
+      maxZoom,
 
       changeSize: (value: { width: number; height: number }) => {
         const workspace = getWorkspace();

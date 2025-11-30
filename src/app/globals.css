@@ -26,11 +26,14 @@ body,
 }
 
 .canvas-container canvas {
-  cursor: grab;
+  cursor: default;
 }
 
-.canvas-container canvas:active {
-  cursor: grabbing;
+/* prevent browser zoom on trackpad pinch */
+.canvas-container {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* Dark mode version with even more subtle checkerboard */
@@ -43,24 +46,14 @@ body,
     linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.05) 75%);
 }
 
-/* Custom scrollbar styles for canvas container */
+/* hide scrollbars - panning is handled via mouse/touch */
 .canvas-container::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  display: none;
 }
 
-.canvas-container::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
-}
-
-.canvas-container::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
-}
-
-.canvas-container::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.5);
+.canvas-container {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 :root {

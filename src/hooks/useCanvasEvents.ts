@@ -35,14 +35,15 @@ export const useCanvasEvents = ({
   useEffect(() => {
     if (canvas) {
       // Track zoom state
-      const originalZoomToPoint = canvas.zoomToPoint;
+      const originalZoomToPoint = canvas.zoomToPoint.bind(canvas);
       canvas.zoomToPoint = function (point: fabric.Point, zoom: number) {
         isZoomingRef.current = true;
-        originalZoomToPoint.call(this, point, zoom);
+        const result = originalZoomToPoint(point, zoom);
         setTimeout(() => {
           isZoomingRef.current = false;
         }, 50);
-      };
+        return result;
+      } as typeof canvas.zoomToPoint;
 
       canvas.on("selection:created", (e) => {
         setSelectedObjects(e.selected || null);
