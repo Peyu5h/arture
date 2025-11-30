@@ -17,11 +17,20 @@ export interface DragItem {
   data: Record<string, any>;
 }
 
+interface WorkspaceBounds {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
 interface DragState {
   isDragging: boolean;
   item: DragItem | null;
   position: { x: number; y: number };
   isOverCanvas: boolean;
+  isOverWorkspace: boolean;
+  workspaceBounds: WorkspaceBounds | null;
 }
 
 interface DragContextValue {
@@ -32,6 +41,7 @@ interface DragContextValue {
       | ((item: DragItem, position: { x: number; y: number }) => void)
       | null,
   ) => void;
+  setWorkspaceBounds: (bounds: WorkspaceBounds | null) => void;
 }
 
 const defaultDragState: DragState = {
@@ -39,12 +49,15 @@ const defaultDragState: DragState = {
   item: null,
   position: { x: 0, y: 0 },
   isOverCanvas: false,
+  isOverWorkspace: false,
+  workspaceBounds: null,
 };
 
 const defaultContextValue: DragContextValue = {
   dragState: defaultDragState,
   startDrag: () => {},
   setOnDrop: () => {},
+  setWorkspaceBounds: () => {},
 };
 
 const DragContext = createContext<DragContextValue>(defaultContextValue);
@@ -68,6 +81,7 @@ export const DragProvider = ({
   >(null);
   const isDraggingRef = useRef(false);
   const dragItemRef = useRef<DragItem | null>(null);
+  const workspaceBoundsRef = useRef<WorkspaceBounds | null>(null);
 
   const isPointOverCanvas = useCallback(
     (x: number, y: number): boolean => {
@@ -81,6 +95,18 @@ export const DragProvider = ({
     },
     [canvasSelector],
   );
+
+  const isPointOverWorkspace = useCallback((x: number, y: number): boolean => {
+    const bounds = workspaceBoundsRef.current;
+    if (!bounds) return false;
+
+    return (
+      x >= bounds.left &&
+      x <= bounds.left + bounds.width &&
+      y >= bounds.top &&
+      y <= bounds.top + bounds.height
+    );
+  }, []);
 
   const getCanvasRelativePosition = useCallback(
     (x: number, y: number): { x: number; y: number } => {
@@ -96,6 +122,12 @@ export const DragProvider = ({
     [canvasSelector],
   );
 
+  const setWorkspaceBounds = useCallback((bounds: WorkspaceBounds | null) => {
+    // only update ref to avoid render loops
+    // state will be updated during drag operations
+    workspaceBoundsRef.current = bounds;
+  }, []);
+
   const startDrag = useCallback(
     (e: React.MouseEvent | React.TouchEvent, item: DragItem) => {
       e.preventDefault();
@@ -107,14 +139,17 @@ export const DragProvider = ({
       isDraggingRef.current = true;
       dragItemRef.current = item;
 
-      setDragState({
+      setDragState((prev) => ({
+        ...prev,
         isDragging: true,
         item,
         position: { x: clientX, y: clientY },
         isOverCanvas: isPointOverCanvas(clientX, clientY),
-      });
+        isOverWorkspace: isPointOverWorkspace(clientX, clientY),
+        workspaceBounds: workspaceBoundsRef.current,
+      }));
     },
-    [isPointOverCanvas],
+    [isPointOverCanvas, isPointOverWorkspace],
   );
 
   const setOnDrop = useCallback(
@@ -136,6 +171,8 @@ export const DragProvider = ({
         ...prev,
         position: { x: clientX, y: clientY },
         isOverCanvas: isPointOverCanvas(clientX, clientY),
+        isOverWorkspace: isPointOverWorkspace(clientX, clientY),
+        workspaceBounds: workspaceBoundsRef.current,
       }));
     };
 
@@ -151,7 +188,10 @@ export const DragProvider = ({
       isDraggingRef.current = false;
       dragItemRef.current = null;
 
-      setDragState(defaultDragState);
+      setDragState((prev) => ({
+        ...defaultDragState,
+        workspaceBounds: prev.workspaceBounds,
+      }));
 
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
@@ -186,7 +226,10 @@ export const DragProvider = ({
       if (e.key === "Escape" && isDraggingRef.current) {
         isDraggingRef.current = false;
         dragItemRef.current = null;
-        setDragState(defaultDragState);
+        setDragState((prev) => ({
+          ...defaultDragState,
+          workspaceBounds: prev.workspaceBounds,
+        }));
         document.body.style.userSelect = "";
         document.body.style.cursor = "";
       }
@@ -205,7 +248,7 @@ export const DragProvider = ({
       window.removeEventListener("touchend", handleTouchEnd);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isPointOverCanvas, getCanvasRelativePosition]);
+  }, [isPointOverCanvas, isPointOverWorkspace, getCanvasRelativePosition]);
 
   useEffect(() => {
     if (dragState.isDragging) {
@@ -215,7 +258,9 @@ export const DragProvider = ({
   }, [dragState.isDragging]);
 
   return (
-    <DragContext.Provider value={{ dragState, startDrag, setOnDrop }}>
+    <DragContext.Provider
+      value={{ dragState, startDrag, setOnDrop, setWorkspaceBounds }}
+    >
       {children}
     </DragContext.Provider>
   );

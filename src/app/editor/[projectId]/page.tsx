@@ -20,11 +20,14 @@ import { DesignSidebar } from "~/components/editor/sidebar/design/design-sidebar
 import { ZoomControls } from "~/components/editor/zoom-controls";
 import { useParams } from "next/navigation";
 import { useProject } from "~/hooks/projects.hooks";
-import { LucideLoader2 } from "lucide-react";
+
 import { useAutoSave } from "~/hooks/useAutoSave";
 import { useCanvasEvents } from "~/hooks/useCanvasEvents";
 import { AuthGuard } from "~/components/auth-guard";
-import { CanvasSkeleton } from "~/components/editor/canvas-skeleton";
+import {
+  CanvasSkeleton,
+  EditorSkeleton,
+} from "~/components/editor/canvas-skeleton";
 import { AgentPanel } from "~/components/editor/agent";
 import {
   DragProvider,
@@ -52,7 +55,7 @@ function EditorContent() {
   >(null);
   const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(true);
 
-  const { dragState, setOnDrop } = useDragContext();
+  const { dragState, setOnDrop, setWorkspaceBounds } = useDragContext();
   const setOnDropRef = useRef(setOnDrop);
   setOnDropRef.current = setOnDrop;
 
@@ -201,6 +204,52 @@ function EditorContent() {
     setOnDropRef.current(handleDrop);
     return () => setOnDropRef.current(null);
   }, [handleDrop]);
+
+  // track workspace bounds for drag highlighting - only when dragging
+  const updateWorkspaceBounds = useCallback(() => {
+    if (!editor?.canvas || !containerRef.current) return;
+
+    const canvas = editor.canvas;
+    const workspace = canvas.getObjects().find((obj) => obj.name === "clip");
+    if (!workspace) return;
+
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const zoom = canvas.getZoom();
+    const vpt = canvas.viewportTransform;
+    if (!vpt) return;
+
+    const workspaceWidth = (workspace.width || 0) * zoom;
+    const workspaceHeight = (workspace.height || 0) * zoom;
+    const workspaceCenter = workspace.getCenterPoint();
+
+    const screenX = workspaceCenter.x * zoom + vpt[4] + containerRect.left;
+    const screenY = workspaceCenter.y * zoom + vpt[5] + containerRect.top;
+
+    setWorkspaceBounds({
+      left: screenX - workspaceWidth / 2,
+      top: screenY - workspaceHeight / 2,
+      width: workspaceWidth,
+      height: workspaceHeight,
+    });
+  }, [editor, setWorkspaceBounds]);
+
+  // only track bounds while dragging
+  useEffect(() => {
+    if (!dragState.isDragging) return;
+
+    // update immediately when drag starts
+    updateWorkspaceBounds();
+
+    // continue updating during drag
+    const handleUpdate = () => updateWorkspaceBounds();
+    window.addEventListener("mousemove", handleUpdate);
+    window.addEventListener("scroll", handleUpdate, true);
+
+    return () => {
+      window.removeEventListener("mousemove", handleUpdate);
+      window.removeEventListener("scroll", handleUpdate, true);
+    };
+  }, [dragState.isDragging, updateWorkspaceBounds]);
 
   //@ts-ignore
   const { debouncedSave, saveState, saveThumbnail } = useAutoSave(editor);
@@ -360,11 +409,7 @@ function EditorContent() {
   }, [init, project]);
 
   if (isProjectLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <LucideLoader2 className="animate-spin" />
-      </div>
-    );
+    return <EditorSkeleton />;
   }
 
   if (projectError) {
