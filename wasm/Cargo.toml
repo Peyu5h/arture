@@ -1,0 +1,48 @@
+[package]
+name = "arture-wasm"
+version = "0.1.0"
+edition = "2021"
+description = "WebGPU img processing"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["console_error_panic_hook"]
+
+[dependencies]
+wasm-bindgen = "0.2.92"
+wasm-bindgen-futures = "0.4.42"
+js-sys = "0.3.69"
+console_error_panic_hook = { version = "0.1.7", optional = true }
+serde = { version = "1.0", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+
+[dependencies.web-sys]
+version = "0.3.69"
+features = [
+    "console",
+    "Window",
+    "Navigator",
+    "Document",
+    "Element",
+    "HtmlCanvasElement",
+    "CanvasRenderingContext2d",
+    "ImageData",
+]
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.42"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+
+[package.metadata.wasm-pack.profile.release]
+# Use `wasm-opt` to optimize the WASM file
+wasm-opt = ["-Os"]
+
+# Tell wasm-pack to include additional WebAssembly features
+# that our code needs to work properly in browsers

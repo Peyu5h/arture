@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
+    "build:wasm": "cd wasm && wasm-pack build --target web --out-dir ../src/lib/wasm/pkg --release",
+    "build:wasm:dev": "cd wasm && wasm-pack build --target web --out-dir ../src/lib/wasm/pkg --dev",
+    "build:all": "npm run build:wasm && npm run build",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",

@@ -1,0 +1,10 @@
+[package.metadata.wasm-pack.profile.release]
+# Disable wasm-opt to avoid validation issues
+# wasm-opt = ["-Os"]
+
+# Tell wasm-pack to include additional WebAssembly features
+# that our code needs to work properly in browsers
+wasm-bindgen-flags = [
+  "--enable-bulk-memory",
+  "--enable-sign-ext",
+]

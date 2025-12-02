@@ -146,7 +146,7 @@ export const AISidebar = ({
         icon={Sparkles}
       />
 
-      <ScrollArea className="flex-1">
+      {/*<ScrollArea className="flex-1">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -213,7 +213,7 @@ export const AISidebar = ({
             </div>
           </div>
         </motion.div>
-      </ScrollArea>
+      </ScrollArea>*/}
 
       <ToolSidebarClose onClick={onClose} />
     </SidebarBase>

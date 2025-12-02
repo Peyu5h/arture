@@ -50,3 +50,11 @@ ASSET_MANAGEMENT.md
 /.vscode
 .vscode/*
 /.zencoder
+.rules
+
+# wasm build artifacts
+/wasm/target
+/wasm/pkg
+/src/lib/wasm/pkg/*.wasm
+/src/lib/wasm/pkg/arture_wasm_bg.js
+/src/lib/wasm/pkg/arture_wasm_bg.wasm.d.ts

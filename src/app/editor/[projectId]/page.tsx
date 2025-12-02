@@ -36,6 +36,8 @@ import {
 } from "~/contexts/drag-context";
 import { DragPreview } from "~/components/editor/drag-preview";
 import { CanvasDropZone } from "~/components/editor/canvas-drop-zone";
+import { ImageToolsDialog } from "~/components/editor/image-tools/image-tools-dialog";
+import { useImageTools } from "~/hooks/useImageTools";
 
 function EditorContent() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -68,6 +70,17 @@ function EditorContent() {
   const { init, editor } = useEditor({
     clearSelection: onClearSelection,
     onModified: () => setUnsavedChanges(true),
+  });
+
+  // Initialize image tools with double-tap detection
+  const {
+    isDialogOpen,
+    selectedImage,
+    openImageTools,
+    closeImageTools,
+    handleImageUpdate,
+  } = useImageTools({
+    canvas: editor?.canvas || null,
   });
 
   // handle drag drop onto canvas
@@ -520,6 +533,14 @@ function EditorContent() {
         position={dragState.position}
         isOverCanvas={dragState.isOverCanvas}
         isDragging={dragState.isDragging}
+      />
+
+      {/* Image Tools Dialog */}
+      <ImageToolsDialog
+        isOpen={isDialogOpen}
+        onClose={closeImageTools}
+        imageElement={selectedImage}
+        onImageUpdate={handleImageUpdate}
       />
     </>
   );
