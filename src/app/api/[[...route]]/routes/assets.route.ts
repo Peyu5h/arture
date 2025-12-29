@@ -13,6 +13,7 @@ import {
   getAssetsByType,
   deleteAsset,
   updateAsset,
+  deleteCloudinaryImage,
 } from "../controllers/assets.controller";
 
 const assetsRoutes = new Hono();
@@ -37,4 +38,8 @@ assetsRoutes.post("/search", authMiddleware, searchAssets);
 assetsRoutes.delete("/:id", authMiddleware, deleteAsset);
 assetsRoutes.put("/:id", authMiddleware, updateAsset);
 
+// Cloudinary image deletion (for user-uploaded images)
+assetsRoutes.post("/cloudinary/delete", deleteCloudinaryImage);
+
 export default assetsRoutes;
+

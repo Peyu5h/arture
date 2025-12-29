@@ -74,7 +74,7 @@ export const useShortcuts = ({
       canvas?.setActiveObject(
         new fabric.ActiveSelection(allObjects, { canvas }),
       );
-      canvas?.renderAll();
+      canvas?.requestRenderAll(); // instant visual feedback
     }
 
     if (event.key === "[") {
@@ -98,7 +98,7 @@ export const useShortcuts = ({
       if (activeObject && activeObject.top) {
         activeObject.top -= 5;
         activeObject.setCoords();
-        canvas?.renderAll();
+        canvas?.requestRenderAll();
       }
       save();
     }
@@ -109,7 +109,7 @@ export const useShortcuts = ({
       if (activeObject && activeObject.top) {
         activeObject.top += 5;
         activeObject.setCoords();
-        canvas?.renderAll();
+        canvas?.requestRenderAll();
       }
       save();
     }
@@ -120,7 +120,7 @@ export const useShortcuts = ({
       if (activeObject && activeObject.left) {
         activeObject.left -= 5;
         activeObject.setCoords();
-        canvas?.renderAll();
+        canvas?.requestRenderAll();
       }
       save();
     }
@@ -131,7 +131,7 @@ export const useShortcuts = ({
       if (activeObject && activeObject.left) {
         activeObject.left += 5;
         activeObject.setCoords();
-        canvas?.renderAll();
+        canvas?.requestRenderAll();
       }
       save();
     }

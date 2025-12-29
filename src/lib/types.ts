@@ -20,6 +20,7 @@ export type ActiveTool =
   | "shapes"
   | "text"
   | "images"
+  | "elements"
   | "draw"
   | "settings"
   | "ai"

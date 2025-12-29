@@ -8,6 +8,7 @@ import {
   Hexagon,
   Sparkles,
   TypeOutline,
+  Boxes,
 } from "lucide-react";
 
 import { SidebarItem } from "./sidebar-item";
@@ -45,6 +46,12 @@ export const Sidebar = ({ activeTool, onChangeActiveTool }: SidebarProps) => {
           label="Shapes"
           isActive={activeTool === "shapes"}
           onClick={() => onChangeActiveTool("shapes")}
+        />
+        <SidebarItem
+          icon={Boxes}
+          label="Elements"
+          isActive={activeTool === "elements"}
+          onClick={() => onChangeActiveTool("elements")}
         />
         <SidebarItem
           icon={PenTool}

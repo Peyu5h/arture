@@ -15,6 +15,7 @@ import {
   Trash2,
   Trash,
   Copy,
+  Pencil,
 } from "lucide-react";
 import { BsBorderWidth } from "react-icons/bs";
 import { RxTransparencyGrid } from "react-icons/rx";
@@ -81,6 +82,7 @@ export const Toolbar = ({
 
   const selectedObject = editor?.canvas?.getActiveObject();
   const isTextObject = selectedObject?.type === "textbox";
+  const isSvgGroup = selectedObject?.type === "group" && (selectedObject as any).name === "svg-element";
   const hasSelection = !!selectedObject;
 
   const onChangeFontSize = (value: number) => {
@@ -469,6 +471,27 @@ export const Toolbar = ({
             </Button>
           </Hint>
         </div>
+
+        {isSvgGroup && (
+          <div className="flex h-full items-center justify-between">
+            <Hint label="Edit SVG" side="bottom">
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => {
+                  // dispatch custom event to open svg editor
+                  window.dispatchEvent(
+                    new CustomEvent("open-svg-editor", {
+                      detail: { svgGroup: selectedObject },
+                    })
+                  );
+                }}
+              >
+                <Pencil size={20} />
+              </Button>
+            </Hint>
+          </div>
+        )}
 
         <div className="flex h-full items-center justify-between">
           <Hint label="Delete" side="bottom">

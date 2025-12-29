@@ -1,8 +1,9 @@
 import { v2 as cloudinary } from "cloudinary";
+
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || "dkysrpdi6",
+  api_key: process.env.CLOUDINARY_API_KEY || "154346211332761",
+  api_secret: process.env.CLOUDINARY_API_SECRET || "uup5UzKTbwaRt3FATIySWtTxitk",
 });
 
 export interface UploadResult {

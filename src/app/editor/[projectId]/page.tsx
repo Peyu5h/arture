@@ -17,6 +17,7 @@ import { SettingsSidebar } from "~/components/editor/sidebar/settings/settings-s
 import { TextSidebar } from "~/components/editor/sidebar/text/text-sidebar";
 import { FontSidebar } from "~/components/editor/sidebar/text/font-sidebar";
 import { DesignSidebar } from "~/components/editor/sidebar/design/design-sidebar";
+import { ElementsSidebar } from "~/components/editor/sidebar/elements/elements-sidebar";
 import { ZoomControls } from "~/components/editor/zoom-controls";
 import { useParams } from "next/navigation";
 import { useProject } from "~/hooks/projects.hooks";
@@ -38,6 +39,7 @@ import { DragPreview } from "~/components/editor/drag-preview";
 import { CanvasDropZone } from "~/components/editor/canvas-drop-zone";
 import { ImageToolsDialog } from "~/components/editor/image-tools/image-tools-dialog";
 import { useImageTools } from "~/hooks/useImageTools";
+import { SvgEditorDialog } from "~/components/editor/svg-editor/svg-editor-dialog";
 
 function EditorContent() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -56,6 +58,8 @@ function EditorContent() {
     fabric.Object[] | null
   >(null);
   const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(true);
+  const [svgEditorOpen, setSvgEditorOpen] = useState(false);
+  const [selectedSvgGroup, setSelectedSvgGroup] = useState<fabric.Group | null>(null);
 
   const { dragState, setOnDrop, setWorkspaceBounds } = useDragContext();
   const setOnDropRef = useRef(setOnDrop);
@@ -71,6 +75,17 @@ function EditorContent() {
     clearSelection: onClearSelection,
     onModified: () => setUnsavedChanges(true),
   });
+
+  // svg editor event listener
+  useEffect(() => {
+    const handleOpenSvgEditor = (e: CustomEvent<{ svgGroup: fabric.Group }>) => {
+      setSelectedSvgGroup(e.detail.svgGroup);
+      setSvgEditorOpen(true);
+    };
+
+    window.addEventListener("open-svg-editor", handleOpenSvgEditor as EventListener);
+    return () => window.removeEventListener("open-svg-editor", handleOpenSvgEditor as EventListener);
+  }, []);
 
   // Initialize image tools with double-tap detection
   const {
@@ -157,55 +172,85 @@ function EditorContent() {
       if (item.type === "image") {
         const imageUrl = item.data.url as string;
         if (imageUrl) {
-          // store reference to current canvas
           const currentCanvas = canvas;
+          const isSvg = imageUrl.toLowerCase().includes(".svg") || imageUrl.includes("/svg");
 
-          // preload image using html Image element first
-          const htmlImg = new Image();
-          htmlImg.crossOrigin = "anonymous";
+          if (isSvg) {
+            // load svg as vector paths
+            fabric.loadSVGFromURL(imageUrl, (objects, options) => {
+              if (!objects || objects.length === 0) {
+                console.error("Failed to load SVG:", imageUrl);
+                return;
+              }
 
-          htmlImg.onload = () => {
-            // create fabric image from loaded html image
-            const fabricImg = new fabric.Image(htmlImg, {
-              left: 0,
-              top: 0,
+              const svgGroup = fabric.util.groupSVGElements(objects, options);
+              svgGroup.set({
+                name: "svg-element",
+                selectable: true,
+                evented: true,
+                hasControls: true,
+              });
+
+              // scale to reasonable size
+              const maxSize = 300;
+              const scale = Math.min(
+                maxSize / (svgGroup.width || 1),
+                maxSize / (svgGroup.height || 1),
+                1,
+              );
+              svgGroup.scale(scale);
+
+              // position at drop location
+              const scaledWidth = (svgGroup.width || 0) * scale;
+              const scaledHeight = (svgGroup.height || 0) * scale;
+              svgGroup.set({
+                left: canvasX - scaledWidth / 2,
+                top: canvasY - scaledHeight / 2,
+              });
+
+              currentCanvas.add(svgGroup);
+              svgGroup.setCoords();
+              currentCanvas.setActiveObject(svgGroup);
+              currentCanvas.renderAll();
             });
+          } else {
+            // regular image loading
+            const htmlImg = new Image();
+            htmlImg.crossOrigin = "anonymous";
 
-            // scale image to reasonable size
-            const maxSize = 300;
-            const scale = Math.min(
-              maxSize / (fabricImg.width || 1),
-              maxSize / (fabricImg.height || 1),
-              1,
-            );
-            fabricImg.scale(scale);
+            htmlImg.onload = () => {
+              const fabricImg = new fabric.Image(htmlImg, {
+                left: 0,
+                top: 0,
+              });
 
-            // position at drop location
-            const scaledWidth = (fabricImg.width || 0) * scale;
-            const scaledHeight = (fabricImg.height || 0) * scale;
-            fabricImg.set({
-              left: canvasX - scaledWidth / 2,
-              top: canvasY - scaledHeight / 2,
-            });
+              const maxSize = 300;
+              const scale = Math.min(
+                maxSize / (fabricImg.width || 1),
+                maxSize / (fabricImg.height || 1),
+                1,
+              );
+              fabricImg.scale(scale);
 
-            // add to canvas
-            currentCanvas.add(fabricImg);
-            fabricImg.setCoords();
-            currentCanvas.setActiveObject(fabricImg);
+              const scaledWidth = (fabricImg.width || 0) * scale;
+              const scaledHeight = (fabricImg.height || 0) * scale;
+              fabricImg.set({
+                left: canvasX - scaledWidth / 2,
+                top: canvasY - scaledHeight / 2,
+              });
 
-            // force multiple render calls to ensure visibility
-            currentCanvas.renderAll();
-            requestAnimationFrame(() => {
-              currentCanvas.requestRenderAll();
-            });
-          };
+              currentCanvas.add(fabricImg);
+              fabricImg.setCoords();
+              currentCanvas.setActiveObject(fabricImg);
+              currentCanvas.renderAll();
+            };
 
-          htmlImg.onerror = () => {
-            console.error("Failed to load image:", imageUrl);
-          };
+            htmlImg.onerror = () => {
+              console.error("Failed to load image:", imageUrl);
+            };
 
-          // start loading
-          htmlImg.src = imageUrl;
+            htmlImg.src = imageUrl;
+          }
         }
       }
     },
@@ -324,6 +369,11 @@ function EditorContent() {
       controlsAboveOverlay: true,
       width: containerRef.current.offsetWidth,
       height: containerRef.current.offsetHeight,
+      // selection styling
+      selectionColor: "rgba(59, 130, 246, 0.08)",
+      selectionBorderColor: "#3b82f6",
+      selectionLineWidth: 1,
+      selectionDashArray: [5, 5],
     });
 
     init({
@@ -503,6 +553,11 @@ function EditorContent() {
             activeTool={activeTool}
             onChangeActiveTool={onChangeActiveTool}
           />
+          <ElementsSidebar
+            editor={editor}
+            activeTool={activeTool}
+            onChangeActiveTool={onChangeActiveTool}
+          />
           <SettingsSidebar
             editor={editor}
             activeTool={activeTool}
@@ -541,6 +596,17 @@ function EditorContent() {
         onClose={closeImageTools}
         imageElement={selectedImage}
         onImageUpdate={handleImageUpdate}
+      />
+
+      {/* SVG Editor Dialog */}
+      <SvgEditorDialog
+        isOpen={svgEditorOpen}
+        onClose={() => {
+          setSvgEditorOpen(false);
+          setSelectedSvgGroup(null);
+        }}
+        svgGroup={selectedSvgGroup}
+        canvas={editor?.canvas || null}
       />
     </>
   );

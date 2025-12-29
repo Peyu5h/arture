@@ -18,79 +18,82 @@ export const useCanvasEvents = ({
   clearSelection,
   onModified,
 }: CanvasEvents) => {
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isZoomingRef = useRef(false);
 
-  const debouncedSave = () => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-    saveTimeoutRef.current = setTimeout(() => {
-      if (!isZoomingRef.current) {
-        save();
-      }
-    }, 100); // Debounce saves by 100ms
-  };
-
   useEffect(() => {
-    if (canvas) {
-      // Track zoom state
-      const originalZoomToPoint = canvas.zoomToPoint.bind(canvas);
-      canvas.zoomToPoint = function (point: fabric.Point, zoom: number) {
-        isZoomingRef.current = true;
-        const result = originalZoomToPoint(point, zoom);
-        setTimeout(() => {
-          isZoomingRef.current = false;
-        }, 50);
-        return result;
-      } as typeof canvas.zoomToPoint;
+    if (!canvas) return;
 
-      canvas.on("selection:created", (e) => {
-        setSelectedObjects(e.selected || null);
-        debouncedSave();
-      });
+    // track zoom state
+    const originalZoomToPoint = canvas.zoomToPoint.bind(canvas);
+    canvas.zoomToPoint = function (point: fabric.Point, zoom: number) {
+      isZoomingRef.current = true;
+      const result = originalZoomToPoint(point, zoom);
+      setTimeout(() => {
+        isZoomingRef.current = false;
+      }, 50);
+      return result;
+    } as typeof canvas.zoomToPoint;
 
-      canvas.on("selection:updated", (e) => {
-        setSelectedObjects(e.selected || null);
-        debouncedSave();
-      });
+    // selection handlers - call renderAll for immediate visual feedback
+    const onSelectionCreated = (e: fabric.IEvent) => {
+      setSelectedObjects((e as any).selected || null);
+      canvas.renderAll();
+    };
 
-      canvas.on("selection:cleared", () => {
-        setSelectedObjects(null);
-        clearSelection?.();
-        debouncedSave();
-      });
+    const onSelectionUpdated = (e: fabric.IEvent) => {
+      setSelectedObjects((e as any).selected || null);
+      canvas.renderAll();
+    };
 
-      const handleModification = () => {
-        debouncedSave();
-        onModified?.();
-      };
+    const onSelectionCleared = () => {
+      setSelectedObjects(null);
+      clearSelection?.();
+      canvas.renderAll();
+    };
 
-      canvas.on("object:added", handleModification);
-      canvas.on("object:removed", handleModification);
-      canvas.on("object:modified", handleModification);
-      canvas.on("object:scaling", handleModification);
-      canvas.on("object:moving", handleModification);
-      canvas.on("object:rotating", handleModification);
-      canvas.on("object:updated", handleModification);
-    }
+    // content change handlers
+    const onObjectAdded = () => {
+      if (isZoomingRef.current) return;
+      save();
+      onModified?.();
+    };
+
+    const onObjectRemoved = () => {
+      if (isZoomingRef.current) return;
+      canvas.renderAll();
+      save();
+      onModified?.();
+    };
+
+    const onObjectModified = () => {
+      if (isZoomingRef.current) return;
+      const active = canvas.getActiveObject();
+      if (active) active.setCoords();
+      canvas.renderAll();
+      save();
+      onModified?.();
+    };
+
+    canvas.on("selection:created", onSelectionCreated);
+    canvas.on("selection:updated", onSelectionUpdated);
+    canvas.on("selection:cleared", onSelectionCleared);
+    canvas.on("object:added", onObjectAdded);
+    canvas.on("object:removed", onObjectRemoved);
+    canvas.on("object:modified", onObjectModified);
+    
+    // clear drag selection rectangle after mouse up
+    canvas.on("mouse:up", () => {
+      canvas.renderAll();
+    });
 
     return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-      if (canvas) {
-        canvas.off("selection:created");
-        canvas.off("selection:updated");
-        canvas.off("selection:cleared");
-        canvas.off("object:added");
-        canvas.off("object:removed");
-        canvas.off("object:modified");
-        canvas.off("object:scaling");
-        canvas.off("object:moving");
-        canvas.off("object:rotating");
-        canvas.off("object:updated");
-      }
+      canvas.off("selection:created", onSelectionCreated);
+      canvas.off("selection:updated", onSelectionUpdated);
+      canvas.off("selection:cleared", onSelectionCleared);
+      canvas.off("object:added", onObjectAdded);
+      canvas.off("object:removed", onObjectRemoved);
+      canvas.off("object:modified", onObjectModified);
+      canvas.off("mouse:up");
     };
   }, [canvas, setSelectedObjects, clearSelection, save, onModified]);
 };

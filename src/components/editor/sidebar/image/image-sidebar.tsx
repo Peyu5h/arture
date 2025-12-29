@@ -146,6 +146,25 @@ const ImageCard = ({ photo, index, onClick }: ImageCardProps) => {
   );
 };
 
+// track uploaded images and their cloudinary public ids
+interface UploadedImage {
+  url: string;
+  publicId: string;
+}
+
+// delete image from cloudinary
+async function deleteFromCloudinary(publicId: string): Promise<void> {
+  try {
+    await fetch("/api/assets/cloudinary/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ publicId }),
+    });
+  } catch (error) {
+    console.error("Failed to delete from Cloudinary:", error);
+  }
+}
+
 export const ImageSidebar = ({
   activeTool,
   onChangeActiveTool,
@@ -163,6 +182,9 @@ export const ImageSidebar = ({
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [uploading, setUploading] = useState(false);
 
+  // track uploaded images with their cloudinary public ids
+  const uploadedImagesRef = useRef<Map<string, UploadedImage>>(new Map());
+
   const handleScroll = useCallback(() => {
     if (tagsRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = tagsRef.current;
@@ -179,6 +201,34 @@ export const ImageSidebar = ({
       return () => tagsElement.removeEventListener("scroll", handleScroll);
     }
   }, [handleScroll]);
+
+  // listen for object removal to delete from cloudinary
+  useEffect(() => {
+    const canvas = editor?.canvas;
+    if (!canvas) return;
+
+    const handleObjectRemoved = (e: any) => {
+      const removedObj = e.target;
+      if (!removedObj) return;
+
+      // check if it's an image with a tracked url
+      const src = removedObj.getSrc?.() || removedObj._element?.src;
+      if (src && uploadedImagesRef.current.has(src)) {
+        const uploadedImage = uploadedImagesRef.current.get(src);
+        if (uploadedImage?.publicId) {
+          // delete from cloudinary in background
+          deleteFromCloudinary(uploadedImage.publicId);
+          uploadedImagesRef.current.delete(src);
+        }
+      }
+    };
+
+    canvas.on("object:removed", handleObjectRemoved);
+
+    return () => {
+      canvas.off("object:removed", handleObjectRemoved);
+    };
+  }, [editor]);
 
   const {
     data: randomPhotos,
@@ -206,7 +256,7 @@ export const ImageSidebar = ({
   const displayPhotos =
     searchQuery || selectedTag ? searchedPhotos : randomPhotos;
 
-  const uploadImg = async (file: any) => {
+  const uploadImg = async (file: any): Promise<{ url: string; publicId: string | null }> => {
     setUploading(true);
     try {
       const formData = new FormData();
@@ -229,8 +279,15 @@ export const ImageSidebar = ({
 
       const data = await response.json();
       const url = data.secure_url;
+      const publicId = data.public_id || null;
+
+      // track the uploaded image
+      if (url && publicId) {
+        uploadedImagesRef.current.set(url, { url, publicId });
+      }
+
       setUploading(false);
-      return url;
+      return { url, publicId };
     } catch (error) {
       setUploading(false);
       console.error("Error uploading image:", error);
@@ -249,7 +306,7 @@ export const ImageSidebar = ({
     const allowedExtensions = ["jpg", "jpeg", "png", "webp"];
     const fileExtension = file.name.split(".").pop().toLowerCase();
     if (allowedExtensions.includes(fileExtension)) {
-      const url = await uploadImg(file);
+      const { url } = await uploadImg(file);
       editor?.addImage(url);
     } else {
       alert("Invalid file type. Please select a jpg, jpeg, png, or webp file.");

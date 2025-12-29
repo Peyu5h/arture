@@ -228,9 +228,13 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
       },
 
       delete: () => {
-        canvas.getActiveObjects().forEach((object) => canvas.remove(object));
+        const activeObjects = canvas.getActiveObjects();
+        if (activeObjects.length === 0) return;
+        
+        activeObjects.forEach((object) => canvas.remove(object));
         canvas.discardActiveObject();
         canvas.renderAll();
+        save();
       },
 
       onCopy: () => copy(),
@@ -715,6 +719,9 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         borderOpacityWhenMoving: 1,
         transparentCorners: false,
         cornerStrokeColor: "#3b82f6",
+        selectable: true,
+        evented: true,
+        hasControls: true,
       });
 
       // allow controls to render outside canvas bounds
@@ -745,11 +752,11 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
       setCanvas(initialCanvas);
       setContainer(initialContainer);
 
-      // initialCanvas.renderAll();
+      initialCanvas.renderAll();
 
-      const currState = JSON.stringify(initialCanvas.toJSON(JSON_KEYS));
-
-      canvasHistory.current = [currState];
+      // save initial state to history
+      const initialState = JSON.stringify(initialCanvas.toJSON(JSON_KEYS));
+      canvasHistory.current = [initialState];
       setHistoryIndex(0);
     },
     [canvasHistory, setHistoryIndex],

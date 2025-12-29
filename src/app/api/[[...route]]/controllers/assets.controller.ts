@@ -472,3 +472,21 @@ export const updateAsset = async (c: Context) => {
     return c.json(err("Failed to update asset"), 500);
   }
 };
+
+// delete cloudinary image by publicId (for user uploaded images)
+export const deleteCloudinaryImage = async (c: Context) => {
+  try {
+    const { publicId } = await c.req.json();
+
+    if (!publicId || typeof publicId !== "string") {
+      return c.json(err("publicId is required"), 400);
+    }
+
+    await CloudinaryService.deleteAsset(publicId);
+
+    return c.json(success({ message: "Image deleted from Cloudinary" }));
+  } catch (error) {
+    console.error("Delete cloudinary image error:", error);
+    return c.json(err("Failed to delete image from Cloudinary"), 500);
+  }
+};
