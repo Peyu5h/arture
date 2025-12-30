@@ -490,3 +490,82 @@ export const deleteCloudinaryImage = async (c: Context) => {
     return c.json(err("Failed to delete image from Cloudinary"), 500);
   }
 };
+
+// fuzzy search with typo tolerance
+export const fuzzySearchAssets = async (c: Context) => {
+  try {
+    const { q, type, limit = "50" } = c.req.query();
+
+    if (!q || q.length < 2) {
+      return c.json(err("Query must be at least 2 characters"), 400);
+    }
+
+    const assets = await assetRepository.fuzzySearch(
+      q,
+      type,
+      parseInt(limit as string)
+    );
+
+    return c.json(
+      success({
+        assets,
+        total: assets.length,
+        query: q,
+        searchType: "fuzzy",
+      })
+    );
+  } catch (error) {
+    console.error("Fuzzy search error:", error);
+    return c.json(err("Failed to perform fuzzy search"), 500);
+  }
+};
+
+// gemini similar words suggestions using langchain
+export const getSimilarWords = async (c: Context) => {
+  try {
+    const { query } = await c.req.json();
+
+    if (!query || typeof query !== "string" || query.length < 2) {
+      return c.json(err("Query must be at least 2 characters"), 400);
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error("GEMINI_API_KEY not found in environment");
+      return c.json(err("GEMINI_API_KEY not configured"), 500);
+    }
+
+    const { ChatGoogleGenerativeAI } = await import("@langchain/google-genai");
+
+    const model = new ChatGoogleGenerativeAI({
+      model: "gemini-2.5-flash",
+      apiKey,
+      temperature: 0.3,
+    });
+
+    const prompt = `Given the search term "${query}" for finding illustrations/graphics, suggest exactly 5 semantically similar or related words that could help find relevant results. Return ONLY a JSON array of 5 strings, no explanation. Example: ["word1","word2","word3","word4","word5"]`;
+
+    const response = await model.invoke(prompt);
+    const text = typeof response.content === "string" 
+      ? response.content.trim() 
+      : "";
+
+    // parse json from response
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      return c.json(success({ words: [], query }));
+    }
+
+    const words = JSON.parse(jsonMatch[0]) as string[];
+
+    return c.json(
+      success({
+        words: words.slice(0, 5),
+        query,
+      })
+    );
+  } catch (error: any) {
+    console.error("Get similar words error:", error?.message || error);
+    return c.json(err("Failed to get similar words"), 500);
+  }
+};

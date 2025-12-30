@@ -176,43 +176,54 @@ function EditorContent() {
           const isSvg = imageUrl.toLowerCase().includes(".svg") || imageUrl.includes("/svg");
 
           if (isSvg) {
-            // load svg as vector paths
-            fabric.loadSVGFromURL(imageUrl, (objects, options) => {
-              if (!objects || objects.length === 0) {
-                console.error("Failed to load SVG:", imageUrl);
-                return;
-              }
+            // use proxy to bypass cors for r2 svgs
+            const proxyUrl = `/api/proxy/svg?url=${encodeURIComponent(imageUrl)}`;
+            fetch(proxyUrl)
+              .then((res) => {
+                if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
+                return res.text();
+              })
+              .then((svgText) => {
+                fabric.loadSVGFromString(svgText, (objects, options) => {
+                  if (!objects || objects.length === 0) {
+                    console.error("Failed to parse SVG:", imageUrl);
+                    return;
+                  }
 
-              const svgGroup = fabric.util.groupSVGElements(objects, options);
-              svgGroup.set({
-                name: "svg-element",
-                selectable: true,
-                evented: true,
-                hasControls: true,
+                  const svgGroup = fabric.util.groupSVGElements(objects, options);
+                  svgGroup.set({
+                    name: "svg-element",
+                    selectable: true,
+                    evented: true,
+                    hasControls: true,
+                  });
+
+                  // scale to reasonable size
+                  const maxSize = 300;
+                  const scale = Math.min(
+                    maxSize / (svgGroup.width || 1),
+                    maxSize / (svgGroup.height || 1),
+                    1,
+                  );
+                  svgGroup.scale(scale);
+
+                  // position at drop location
+                  const scaledWidth = (svgGroup.width || 0) * scale;
+                  const scaledHeight = (svgGroup.height || 0) * scale;
+                  svgGroup.set({
+                    left: canvasX - scaledWidth / 2,
+                    top: canvasY - scaledHeight / 2,
+                  });
+
+                  currentCanvas.add(svgGroup);
+                  svgGroup.setCoords();
+                  currentCanvas.setActiveObject(svgGroup);
+                  currentCanvas.renderAll();
+                });
+              })
+              .catch((err) => {
+                console.error("Failed to fetch SVG:", imageUrl, err);
               });
-
-              // scale to reasonable size
-              const maxSize = 300;
-              const scale = Math.min(
-                maxSize / (svgGroup.width || 1),
-                maxSize / (svgGroup.height || 1),
-                1,
-              );
-              svgGroup.scale(scale);
-
-              // position at drop location
-              const scaledWidth = (svgGroup.width || 0) * scale;
-              const scaledHeight = (svgGroup.height || 0) * scale;
-              svgGroup.set({
-                left: canvasX - scaledWidth / 2,
-                top: canvasY - scaledHeight / 2,
-              });
-
-              currentCanvas.add(svgGroup);
-              svgGroup.setCoords();
-              currentCanvas.setActiveObject(svgGroup);
-              currentCanvas.renderAll();
-            });
           } else {
             // regular image loading
             const htmlImg = new Image();
@@ -433,6 +444,11 @@ function EditorContent() {
             }
           }
           canvas.renderAll();
+          
+          // initialize history with current state as base (prevents blank on undo)
+          setTimeout(() => {
+            editor?.initializeHistory?.();
+          }, 100);
         });
       } catch (error) {
         console.error("Failed to load project data:", error);

@@ -52,13 +52,16 @@ export const SvgEditorDialog = ({
   const [colorGroups, setColorGroups] = useState<ColorGroup[]>([]);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [pickerColor, setPickerColor] = useState("#407bff");
-  const [svgElement, setSvgElement] = useState<SVGSVGElement | null>(null);
   const [primaryColorDetected, setPrimaryColorDetected] = useState<string | null>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [updateTrigger, setUpdateTrigger] = useState(0);
 
-  // extract colors and create inline SVG
+  // extract colors on open
   useEffect(() => {
-    if (!svgGroup || !isOpen) return;
+    if (!svgGroup || !isOpen) {
+      setColorGroups([]);
+      return;
+    }
 
     const objects = svgGroup.getObjects();
     const colorMap = new Map<string, { count: number; objects: fabric.Object[] }>();
@@ -90,43 +93,76 @@ export const SvgEditorDialog = ({
     // detect primary color
     const detected = groups.find((g) => isPrimaryColor(g.color));
     setPrimaryColorDetected(detected?.color || null);
-
-    // render SVG to inline element
-    renderSvgPreview();
+    
+    // trigger initial render
+    setUpdateTrigger(1);
   }, [svgGroup, isOpen]);
 
-  // render SVG preview using toSVG
-  const renderSvgPreview = useCallback(() => {
-    if (!svgGroup || !previewRef.current) return;
+  // render SVG directly using toDataURL approach
+  useEffect(() => {
+    if (!svgGroup || !isOpen || !previewCanvasRef.current) return;
 
-    try {
-      const svgString = svgGroup.toSVG();
-      // parse and set
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(svgString, "image/svg+xml");
-      const svg = doc.querySelector("svg");
+    const canvasEl = previewCanvasRef.current;
+    const ctx = canvasEl.getContext("2d");
+    if (!ctx) return;
+
+    // get group dimensions
+    const groupWidth = svgGroup.width || 100;
+    const groupHeight = svgGroup.height || 100;
+    
+    // calculate scale
+    const maxSize = 400;
+    const scale = Math.min(maxSize / groupWidth, maxSize / groupHeight, 1);
+    
+    const renderWidth = Math.max(groupWidth * scale, 100);
+    const renderHeight = Math.max(groupHeight * scale, 100);
+    
+    // set canvas size
+    canvasEl.width = renderWidth + 40;
+    canvasEl.height = renderHeight + 40;
+    
+    // clear
+    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+    
+    // create temp fabric canvas to render the group
+    const tempCanvas = new fabric.StaticCanvas(null, {
+      width: renderWidth + 40,
+      height: renderHeight + 40,
+      backgroundColor: "transparent",
+    });
+    
+    // clone into temp canvas
+    svgGroup.clone((cloned: fabric.Group) => {
+      cloned.scale(scale);
+      cloned.set({
+        left: (renderWidth + 40) / 2,
+        top: (renderHeight + 40) / 2,
+        originX: "center",
+        originY: "center",
+      });
       
-      if (svg) {
-        svg.setAttribute("width", "100%");
-        svg.setAttribute("height", "100%");
-        svg.style.maxWidth = "100%";
-        svg.style.maxHeight = "100%";
-        setSvgElement(svg);
-        
-        // update preview container
-        previewRef.current.innerHTML = "";
-        previewRef.current.appendChild(svg.cloneNode(true));
-      }
-    } catch (e) {
-      console.error("Failed to render SVG:", e);
-    }
-  }, [svgGroup]);
+      tempCanvas.add(cloned);
+      tempCanvas.renderAll();
+      
+      // draw to our preview canvas
+      const dataUrl = tempCanvas.toDataURL({ format: "png" });
+      const img = new Image();
+      img.onload = () => {
+        ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+        ctx.drawImage(img, 0, 0);
+      };
+      img.src = dataUrl;
+      
+      // cleanup
+      tempCanvas.dispose();
+    });
+  }, [svgGroup, isOpen, updateTrigger]);
 
-  // refresh preview
+  // refresh preview after color change
   const refreshPreview = useCallback(() => {
     canvas?.renderAll();
-    setTimeout(renderSvgPreview, 20);
-  }, [canvas, renderSvgPreview]);
+    setUpdateTrigger((prev) => prev + 1);
+  }, [canvas]);
 
   // change color for a group
   const changeGroupColor = useCallback(
@@ -356,7 +392,7 @@ export const SvgEditorDialog = ({
 
                 {colorGroups.length === 0 && (
                   <div className="py-12 text-center text-sm text-muted-foreground">
-                    No colors found
+                    No colors found in SVG
                   </div>
                 )}
               </div>
@@ -377,10 +413,10 @@ export const SvgEditorDialog = ({
               backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
             }}
           >
-            <div
-              ref={previewRef}
-              className="w-full h-full flex items-center justify-center"
-              style={{ maxWidth: 500, maxHeight: 500 }}
+            <canvas
+              ref={previewCanvasRef}
+              className="rounded-lg"
+              style={{ maxWidth: "100%", maxHeight: "100%" }}
             />
           </div>
         </div>

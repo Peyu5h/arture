@@ -46,32 +46,24 @@ export const SidebarBase = ({
     <div className="absolute left-20 h-full">
       <AnimatePresence>
         {isVisible && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.1 }}
-              exit={{ opacity: 0 }}
-              className="pointer-events-none fixed inset-0 z-30"
-            />
-            <motion.aside
-              ref={sidebarRef}
-              data-sidebar="tool"
-              initial={{ x: -400, opacity: 1 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -400, opacity: 1 }}
-              transition={{
-                type: "spring",
-                stiffness: 400,
-                damping: 30,
-              }}
-              className={ny(
-                "bg-card absolute z-[40] flex h-full w-[360px] flex-col border-r shadow-lg select-none",
-                className,
-              )}
-            >
-              {children}
-            </motion.aside>
-          </>
+          <motion.aside
+            ref={sidebarRef}
+            data-sidebar="tool"
+            initial={{ x: -400 }}
+            animate={{ x: 0 }}
+            exit={{ x: -400 }}
+            transition={{
+              type: "spring",
+              stiffness: 400,
+              damping: 30,
+            }}
+            className={ny(
+              "bg-card absolute z-[40] flex h-full w-[360px] flex-col border-r shadow-xl select-none",
+              className,
+            )}
+          >
+            {children}
+          </motion.aside>
         )}
       </AnimatePresence>
     </div>

@@ -3,9 +3,10 @@ import { useDebounce } from "use-debounce";
 import {
   ChevronLeft,
   ChevronRight,
-  LucideLoader2,
   Search,
   Sparkles,
+  Wand2,
+  Loader2,
 } from "lucide-react";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Button } from "~/components/ui/button";
@@ -13,11 +14,11 @@ import { ny } from "~/lib/utils";
 import { ToolSidebarHeader } from "../tool-sidebar/tool-sidebar-header";
 import { ToolSidebarClose } from "../tool-sidebar/tool-sidebar-close";
 import { SidebarBase } from "../tool-sidebar/sidebarBase";
-import { useGetAssets, useSearchAssets, Asset } from "~/hooks/useAssets";
+import { useGetAssets, useEnhancedSearch, Asset } from "~/hooks/useAssets";
 import { Input } from "~/components/ui/input";
 import { ActiveTool } from "~/lib/types";
 import { ClientOnly } from "~/components/client-only";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useDragContext } from "~/contexts/drag-context";
 
 const elementTags = [
@@ -31,6 +32,8 @@ const elementTags = [
   "Travel",
 ];
 
+const ITEMS_PER_PAGE = 30;
+
 const LoadingSkeleton = () => {
   return (
     <div className="grid grid-cols-2 gap-2 p-2">
@@ -39,7 +42,7 @@ const LoadingSkeleton = () => {
           key={index}
           className={ny(
             "bg-muted overflow-hidden rounded-xl",
-            index % 3 === 0 ? "row-span-2 h-80" : "aspect-square",
+            "aspect-square",
             "animate-pulse",
           )}
         />
@@ -50,11 +53,10 @@ const LoadingSkeleton = () => {
 
 interface ElementCardProps {
   asset: Asset;
-  index: number;
   onClick: () => void;
 }
 
-const ElementCard = ({ asset, index, onClick }: ElementCardProps) => {
+const ElementCard = React.memo(({ asset, onClick }: ElementCardProps) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const { startDrag } = useDragContext();
@@ -80,10 +82,7 @@ const ElementCard = ({ asset, index, onClick }: ElementCardProps) => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: index * 0.02, duration: 0.15 }}
+    <div
       onClick={onClick}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
@@ -112,7 +111,6 @@ const ElementCard = ({ asset, index, onClick }: ElementCardProps) => {
           )}
           loading="lazy"
           draggable={false}
-          crossOrigin="anonymous"
           onLoad={() => setIsLoaded(true)}
           onError={() => setHasError(true)}
         />
@@ -122,9 +120,10 @@ const ElementCard = ({ asset, index, onClick }: ElementCardProps) => {
       <div className="absolute right-0 bottom-0 left-0 truncate bg-black/50 px-1.5 py-0.5 text-[9px] text-white opacity-0 transition-opacity group-hover:opacity-100">
         {asset.name.replace(/_/g, " ").slice(0, 25)}
       </div>
-    </motion.div>
+    </div>
   );
-};
+});
+ElementCard.displayName = "ElementCard";
 
 export const ElementsSidebar = ({
   activeTool,
@@ -137,8 +136,11 @@ export const ElementsSidebar = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState("");
-  const [debouncedSearch] = useDebounce(searchQuery, 500);
+  const [debouncedSearch] = useDebounce(searchQuery, 300);
+  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const tagsRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
@@ -161,11 +163,52 @@ export const ElementsSidebar = ({
 
   const effectiveSearch = debouncedSearch || selectedTag;
 
-  const { data: assets, isLoading } = useGetAssets({
-    search: effectiveSearch,
+  // use enhanced search for fuzzy + ai suggestions
+  const {
+    assets: enhancedAssets,
+    isLoading: isEnhancedLoading,
+    isAiLoading,
+  } = useEnhancedSearch(effectiveSearch, "DECORATION");
+
+  // fallback to regular fetch when no search
+  const { data: defaultAssets, isLoading: isDefaultLoading } = useGetAssets({
     type: "DECORATION",
-    limit: 50,
+    limit: 200,
   });
+
+  // use enhanced search results when searching, otherwise default
+  const allAssets = effectiveSearch ? enhancedAssets : defaultAssets;
+  const isLoading = effectiveSearch ? isEnhancedLoading : isDefaultLoading;
+
+  // paginated assets
+  const assets = allAssets?.slice(0, visibleCount) || [];
+  const hasMore = (allAssets?.length || 0) > visibleCount;
+
+  // reset visible count when search changes
+  useEffect(() => {
+    setVisibleCount(ITEMS_PER_PAGE);
+  }, [effectiveSearch]);
+
+  // infinite scroll handler
+  const handleLoadMore = useCallback(() => {
+    if (isLoadingMore || !hasMore) return;
+    setIsLoadingMore(true);
+    // simulate slight delay for smoothness
+    setTimeout(() => {
+      setVisibleCount((prev) => prev + ITEMS_PER_PAGE);
+      setIsLoadingMore(false);
+    }, 100);
+  }, [hasMore, isLoadingMore]);
+
+  // scroll detection for infinite scroll
+  const handleScrollArea = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+    // trigger load more when 200px from bottom
+    if (scrollBottom < 200 && hasMore && !isLoading && !isLoadingMore) {
+      handleLoadMore();
+    }
+  }, [hasMore, isLoading, isLoadingMore, handleLoadMore]);
 
   const onClose = () => {
     onChangeActiveTool("select");
@@ -185,12 +228,7 @@ export const ElementsSidebar = ({
       />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2 }}
-          className="space-y-3 p-4"
-        >
+        <div className="space-y-3 p-4">
           {/* search input */}
           <div className="relative">
             <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
@@ -203,6 +241,20 @@ export const ElementsSidebar = ({
               }}
               className="border-border bg-muted/30 focus:bg-background h-10 rounded-xl pl-10 text-sm transition-colors"
             />
+            {/* ai loading indicator */}
+            <AnimatePresence>
+              {isAiLoading && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  className="absolute top-1/2 right-3 flex -translate-y-1/2 items-center gap-1"
+                >
+                  <Wand2 className="text-primary size-3.5 animate-pulse" />
+                  <span className="text-muted-foreground text-[10px]">AI</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* tags */}
@@ -279,24 +331,33 @@ export const ElementsSidebar = ({
               </Button>
             )}
           </div>
-        </motion.div>
+        </div>
 
-        {/* element grid */}
-        <ScrollArea className="flex-1 px-4">
+        {/* element grid with infinite scroll */}
+        <div
+          ref={scrollAreaRef}
+          className="flex-1 overflow-y-auto px-4"
+          onScroll={handleScrollArea}
+        >
           {isLoading ? (
             <LoadingSkeleton />
           ) : assets && assets.length > 0 ? (
             <ClientOnly>
-              <div className="grid grid-cols-2 gap-2 pb-24">
-                {assets.map((asset, index) => (
+              <div className="grid grid-cols-2 gap-2 pb-4">
+                {assets.map((asset) => (
                   <ElementCard
                     key={asset.id}
                     asset={asset}
-                    index={index}
                     onClick={() => editor?.addImage(asset.url)}
                   />
                 ))}
               </div>
+              {/* loading more indicator */}
+              {(isLoadingMore || hasMore) && (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="text-muted-foreground size-5 animate-spin" />
+                </div>
+              )}
             </ClientOnly>
           ) : (
             <div className="flex flex-col items-center justify-center p-8 text-center">
@@ -309,7 +370,7 @@ export const ElementsSidebar = ({
               </p>
             </div>
           )}
-        </ScrollArea>
+        </div>
       </div>
 
       <ToolSidebarClose onClick={onClose} />

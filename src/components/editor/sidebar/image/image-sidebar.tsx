@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useDebounce } from "use-debounce";
 import {
   ChevronLeft,
@@ -7,14 +7,14 @@ import {
   Search,
   Upload,
   ImagePlus,
+  Loader2,
 } from "lucide-react";
-import { ScrollArea } from "~/components/ui/scroll-area";
 import { Button } from "~/components/ui/button";
 import { ny } from "~/lib/utils";
 import { ToolSidebarHeader } from "../tool-sidebar/tool-sidebar-header";
 import { ToolSidebarClose } from "../tool-sidebar/tool-sidebar-close";
 import { SidebarBase } from "../tool-sidebar/sidebarBase";
-import { useGetPhotosByQuery, useGetRandomPhotos } from "~/hooks/useUnsplash";
+import { useInfiniteRandomPhotos, useInfinitePhotosByQuery } from "~/hooks/useUnsplash";
 import { Input } from "~/components/ui/input";
 import { ActiveTool } from "~/lib/types";
 import { ClientOnly } from "~/components/client-only";
@@ -55,7 +55,7 @@ interface ImageCardProps {
   onClick: () => void;
 }
 
-const ImageCard = ({ photo, index, onClick }: ImageCardProps) => {
+const ImageCard = React.memo(({ photo, index, onClick }: ImageCardProps) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const { startDrag } = useDragContext();
@@ -85,10 +85,7 @@ const ImageCard = ({ photo, index, onClick }: ImageCardProps) => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: index * 0.03, duration: 0.2 }}
+    <div
       onClick={onClick}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
@@ -142,9 +139,10 @@ const ImageCard = ({ photo, index, onClick }: ImageCardProps) => {
           </p>
         </div>
       )}
-    </motion.div>
+    </div>
   );
-};
+});
+ImageCard.displayName = "ImageCard";
 
 // track uploaded images and their cloudinary public ids
 interface UploadedImage {
@@ -178,6 +176,7 @@ export const ImageSidebar = ({
   const [selectedTag, setSelectedTag] = useState("");
   const [debouncedSearch] = useDebounce(searchQuery, 1000);
   const tagsRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -230,19 +229,51 @@ export const ImageSidebar = ({
     };
   }, [editor]);
 
+  const effectiveQuery = debouncedSearch || selectedTag;
+
+  // use infinite queries for pagination
   const {
-    data: randomPhotos,
+    data: randomData,
     isLoading: isLoadingRandom,
-    error: randomError,
-  } = useGetRandomPhotos({ count: 20 });
+    fetchNextPage: fetchNextRandom,
+    hasNextPage: hasNextRandom,
+    isFetchingNextPage: isFetchingNextRandom,
+  } = useInfiniteRandomPhotos({ count: 20 });
 
   const {
-    data: searchedPhotos,
+    data: searchData,
     isLoading: isLoadingSearch,
-    error: searchError,
-  } = useGetPhotosByQuery({
-    query: debouncedSearch || selectedTag,
-  });
+    fetchNextPage: fetchNextSearch,
+    hasNextPage: hasNextSearch,
+    isFetchingNextPage: isFetchingNextSearch,
+  } = useInfinitePhotosByQuery({ query: effectiveQuery });
+
+  // flatten paginated results
+  const randomPhotos = useMemo(() => 
+    randomData?.pages.flat() || [], 
+    [randomData]
+  );
+
+  const searchedPhotos = useMemo(() => 
+    searchData?.pages.flatMap(p => p.results) || [], 
+    [searchData]
+  );
+
+  const displayPhotos = effectiveQuery ? searchedPhotos : randomPhotos;
+  const isLoading = effectiveQuery ? isLoadingSearch : isLoadingRandom;
+  const isFetchingNext = effectiveQuery ? isFetchingNextSearch : isFetchingNextRandom;
+  const hasNextPage = effectiveQuery ? hasNextSearch : hasNextRandom;
+  const fetchNextPage = effectiveQuery ? fetchNextSearch : fetchNextRandom;
+
+  // infinite scroll handler
+  const handleScrollArea = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+    // trigger load more when 200px from bottom
+    if (scrollBottom < 200 && hasNextPage && !isFetchingNext) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNext, fetchNextPage]);
 
   const onClose = () => {
     onChangeActiveTool("select");
@@ -252,9 +283,6 @@ export const ImageSidebar = ({
     setSelectedTag(tag === selectedTag ? "" : tag);
     setSearchQuery("");
   };
-
-  const displayPhotos =
-    searchQuery || selectedTag ? searchedPhotos : randomPhotos;
 
   const uploadImg = async (file: any): Promise<{ url: string; publicId: string | null }> => {
     setUploading(true);
@@ -467,13 +495,17 @@ export const ImageSidebar = ({
           </div>
         </motion.div>
 
-        {/* image grid */}
-        <ScrollArea className="flex-1 px-4">
-          {isLoadingSearch || isLoadingRandom ? (
+        {/* image grid with infinite scroll */}
+        <div
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto px-4"
+          onScroll={handleScrollArea}
+        >
+          {isLoading ? (
             <LoadingSkeleton />
           ) : displayPhotos && displayPhotos.length > 0 ? (
             <ClientOnly>
-              <div className="grid grid-cols-2 gap-2 pb-24">
+              <div className="grid grid-cols-2 gap-2 pb-4">
                 {displayPhotos.map((photo, index) => (
                   <ImageCard
                     key={photo.id}
@@ -483,6 +515,12 @@ export const ImageSidebar = ({
                   />
                 ))}
               </div>
+              {/* loading more indicator */}
+              {isFetchingNext && (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="text-muted-foreground size-5 animate-spin" />
+                </div>
+              )}
             </ClientOnly>
           ) : (
             <div className="flex flex-col items-center justify-center p-8 text-center">
@@ -491,13 +529,11 @@ export const ImageSidebar = ({
               </div>
               <p className="text-sm font-medium">No images found</p>
               <p className="text-muted-foreground text-xs">
-                {searchError || randomError
-                  ? "failed to load images"
-                  : "try a different search term"}
+                try a different search term
               </p>
             </div>
           )}
-        </ScrollArea>
+        </div>
       </div>
 
       <ToolSidebarClose onClick={onClose} />

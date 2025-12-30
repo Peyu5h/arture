@@ -12,9 +12,11 @@ export const useHistory = ({ canvas }: HistoryProps) => {
   const isRestoring = useRef<boolean>(false);
   const saveTimer = useRef<NodeJS.Timeout | null>(null);
   const lastSavedState = useRef<string>("");
+  const isInitialized = useRef<boolean>(false);
 
   const canUndo = useCallback(() => {
-    return historyIndex > 0;
+    // can only undo if we have more than one state (keep base state)
+    return historyIndex > 0 && canvasHistory.current.length > 1;
   }, [historyIndex]);
 
   const canRedo = useCallback(() => {
@@ -44,9 +46,38 @@ export const useHistory = ({ canvas }: HistoryProps) => {
     }
   }, []);
 
+  // initialize history with current canvas state as base
+  // call this after loading saved project data
+  const initializeHistory = useCallback(() => {
+    if (!canvas || isInitialized.current) return;
+
+    const currentState = getSerializableState();
+    if (!currentState) return;
+
+    // clear any existing history and set base state
+    canvasHistory.current = [currentState];
+    setHistoryIndex(0);
+    lastSavedState.current = currentState;
+    isInitialized.current = true;
+  }, [canvas, getSerializableState]);
+
+  // reset history (for new projects or switching projects)
+  const resetHistory = useCallback(() => {
+    canvasHistory.current = [];
+    setHistoryIndex(-1);
+    lastSavedState.current = "";
+    isInitialized.current = false;
+  }, []);
+
   const save = useCallback(
     (skip: boolean = false) => {
       if (!canvas || skip || isRestoring.current) {
+        return;
+      }
+
+      // auto-initialize on first save if not initialized
+      if (!isInitialized.current) {
+        initializeHistory();
         return;
       }
 
@@ -76,7 +107,7 @@ export const useHistory = ({ canvas }: HistoryProps) => {
         lastSavedState.current = currentState;
       }, 250);
     },
-    [canvas, historyIndex, getSerializableState, statesAreEqual],
+    [canvas, historyIndex, getSerializableState, statesAreEqual, initializeHistory],
   );
 
   const restoreState = useCallback(
@@ -146,10 +177,11 @@ export const useHistory = ({ canvas }: HistoryProps) => {
     const prevIndex = historyIndex - 1;
     const prevState = canvasHistory.current[prevIndex];
     
-    if (prevState) {
-      setHistoryIndex(prevIndex);
-      restoreState(prevState);
-    }
+    // extra safety check - never go below index 0
+    if (prevIndex < 0 || !prevState) return;
+
+    setHistoryIndex(prevIndex);
+    restoreState(prevState);
   }, [canvas, historyIndex, canUndo, restoreState]);
 
   const redo = useCallback(() => {
@@ -181,5 +213,7 @@ export const useHistory = ({ canvas }: HistoryProps) => {
     redo,
     setHistoryIndex,
     canvasHistory,
+    initializeHistory,
+    resetHistory,
   };
 };

@@ -93,6 +93,18 @@ export function useImageTools({
     [selectedImage, canvas, onImageUpdate],
   );
 
+  // listen for custom event from toolbar
+  useEffect(() => {
+    const handleOpenImageTools = (e: CustomEvent<{ imageElement: fabric.Image; defaultTab?: string }>) => {
+      if (e.detail.imageElement) {
+        openImageTools(e.detail.imageElement);
+      }
+    };
+
+    window.addEventListener("open-image-tools", handleOpenImageTools as EventListener);
+    return () => window.removeEventListener("open-image-tools", handleOpenImageTools as EventListener);
+  }, [openImageTools]);
+
   useEffect(() => {
     if (!canvas) return;
 

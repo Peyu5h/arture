@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ActiveTool, Editor, FONT_SIZE, FONT_WEIGHT } from "../../lib/types";
 import { Hint } from "../ui/hintToolTip";
 import { Button } from "../ui/button";
@@ -16,6 +16,8 @@ import {
   Trash,
   Copy,
   Pencil,
+  Crop,
+  RectangleHorizontal,
 } from "lucide-react";
 import { BsBorderWidth } from "react-icons/bs";
 import { RxTransparencyGrid } from "react-icons/rx";
@@ -83,7 +85,19 @@ export const Toolbar = ({
   const selectedObject = editor?.canvas?.getActiveObject();
   const isTextObject = selectedObject?.type === "textbox";
   const isSvgGroup = selectedObject?.type === "group" && (selectedObject as any).name === "svg-element";
+  const isImageObject = selectedObject?.type === "image";
   const hasSelection = !!selectedObject;
+
+  // corner radius state for images
+  const [cornerRadius, setCornerRadius] = useState(0);
+  
+  // sync corner radius when selection changes
+  useEffect(() => {
+    if (isImageObject && selectedObject) {
+      setCornerRadius((selectedObject as any)?.rx || 0);
+    }
+  }, [selectedObject, isImageObject]);
+
 
   const onChangeFontSize = (value: number) => {
     if (!selectedObject) {
@@ -491,6 +505,106 @@ export const Toolbar = ({
               </Button>
             </Hint>
           </div>
+        )}
+
+        {/* image edit and crop buttons */}
+        {isImageObject && (
+          <>
+            <div className="flex h-full items-center justify-between">
+              <Hint label="Edit Image" side="bottom">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => {
+                    // dispatch custom event to open image tools dialog
+                    window.dispatchEvent(
+                      new CustomEvent("open-image-tools", {
+                        detail: { imageElement: selectedObject },
+                      })
+                    );
+                  }}
+                >
+                  <Pencil size={20} />
+                </Button>
+              </Hint>
+            </div>
+            <div className="flex h-full items-center justify-between">
+              <Hint label="Crop" side="bottom">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => {
+                    // dispatch custom event to open image tools dialog with crop tab
+                    window.dispatchEvent(
+                      new CustomEvent("open-image-tools", {
+                        detail: { imageElement: selectedObject, defaultTab: "crop" },
+                      })
+                    );
+                  }}
+                >
+                  <Crop size={20} />
+                </Button>
+              </Hint>
+            </div>
+            <div className="flex h-full items-center justify-between">
+              <DropdownMenu>
+                <Hint label="Rounded Corners" side="bottom">
+                  <DropdownMenuTrigger asChild>
+                    <Button size="icon" variant="ghost" className="relative">
+                      <RectangleHorizontal size={20} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </Hint>
+                <DropdownMenuContent className="w-64 p-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Corner Radius</span>
+                      <span className="text-muted-foreground text-sm">
+                        {cornerRadius}px
+                      </span>
+                    </div>
+                    <Slider
+                      value={[cornerRadius]}
+                      onValueChange={(value) => {
+                        const img = selectedObject as any;
+                        if (!img || !editor?.canvas) return;
+                        
+                        const radius = value[0];
+                        setCornerRadius(radius);
+                        
+                        // create rounded rectangle clip path
+                        const clipRect = new (window as any).fabric.Rect({
+                          width: img.width,
+                          height: img.height,
+                          rx: radius,
+                          ry: radius,
+                          left: -img.width / 2,
+                          top: -img.height / 2,
+                          absolutePositioned: false,
+                        });
+                        
+                        img.set({
+                          clipPath: clipRect,
+                          rx: radius,
+                          ry: radius,
+                        });
+                        
+                        editor.canvas.requestRenderAll();
+                      }}
+                      min={0}
+                      max={100}
+                      step={1}
+                      className="[&_[role=slider]]:h-4 [&_[role=slider]]:w-4"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Square</span>
+                      <span>Rounded</span>
+                    </div>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </>
         )}
 
         <div className="flex h-full items-center justify-between">

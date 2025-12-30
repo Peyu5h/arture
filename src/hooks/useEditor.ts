@@ -133,7 +133,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
   });
 
   const { copy, paste } = useClipboard({ canvas });
-  const { save, canRedo, canUndo, undo, redo, canvasHistory, setHistoryIndex } =
+  const { save, canRedo, canUndo, undo, redo, canvasHistory, setHistoryIndex, initializeHistory } =
     useHistory({ canvas });
 
   const {
@@ -248,6 +248,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
 
       canUndo: () => canUndo(),
       canRedo: () => canRedo(),
+      initializeHistory: () => initializeHistory(),
 
       zoomIn: () => {
         zoomIn();
@@ -301,32 +302,42 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         canvas.discardActiveObject();
         canvas.renderAll();
         canvas.isDrawingMode = true;
-        canvas.freeDrawingBrush.color = fillColor;
+        canvas.freeDrawingBrush.color = strokeColor;
         canvas.freeDrawingBrush.width = strokeWidth;
       },
 
       setBrushType: (type: "pen" | "pencil" | "marker" | "highlighter") => {
         let brush: fabric.BaseBrush;
+        const brushColor = strokeColor;
 
         switch (type) {
           case "pencil":
-            // pencil brush with slight texture effect
+            // pencil brush with noise/jitter texture
             brush = new fabric.PencilBrush(canvas);
             brush.width = strokeWidth || 2;
-            brush.color = fillColor;
+            brush.color = brushColor;
+            // decimate adds jaggedness similar to pencil texture
             // @ts-ignore
-            brush.decimate = 2;
+            brush.decimate = 4;
+            // @ts-ignore
+            brush.strokeLineCap = "round";
             break;
 
           case "marker":
-            // marker with thicker, more opaque strokes
+            // marker with thicker strokes and chisel-like cap
             brush = new fabric.PencilBrush(canvas);
             brush.width = Math.max(strokeWidth, 8);
-            brush.color = fillColor;
+            brush.color = brushColor;
+            // @ts-ignore - square cap for chisel marker effect
+            brush.strokeLineCap = "square";
             // @ts-ignore
-            brush.strokeLineCap = "round";
-            // @ts-ignore
-            brush.strokeLineJoin = "round";
+            brush.strokeLineJoin = "bevel";
+            // @ts-ignore - add slight transparency for layering effect
+            const hexColor = brushColor.replace("#", "");
+            const r = parseInt(hexColor.substring(0, 2), 16) || 0;
+            const g = parseInt(hexColor.substring(2, 4), 16) || 0;
+            const b = parseInt(hexColor.substring(4, 6), 16) || 0;
+            brush.color = `rgba(${r}, ${g}, ${b}, 0.85)`;
             break;
 
           case "highlighter":
@@ -334,11 +345,11 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
             brush = new fabric.PencilBrush(canvas);
             brush.width = Math.max(strokeWidth, 16);
             // convert color to rgba with transparency
-            const hexColor = fillColor.replace("#", "");
-            const r = parseInt(hexColor.substring(0, 2), 16) || 255;
-            const g = parseInt(hexColor.substring(2, 4), 16) || 255;
-            const b = parseInt(hexColor.substring(4, 6), 16) || 0;
-            brush.color = `rgba(${r}, ${g}, ${b}, 0.4)`;
+            const hlHex = brushColor.replace("#", "");
+            const hr = parseInt(hlHex.substring(0, 2), 16) || 255;
+            const hg = parseInt(hlHex.substring(2, 4), 16) || 255;
+            const hb = parseInt(hlHex.substring(4, 6), 16) || 0;
+            brush.color = `rgba(${hr}, ${hg}, ${hb}, 0.4)`;
             // @ts-ignore
             brush.strokeLineCap = "square";
             break;
@@ -348,7 +359,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
             // smooth pen brush
             brush = new fabric.PencilBrush(canvas);
             brush.width = strokeWidth || 2;
-            brush.color = fillColor;
+            brush.color = brushColor;
             // @ts-ignore
             brush.strokeLineCap = "round";
             // @ts-ignore
@@ -701,6 +712,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
     centerWorkspace,
     getCurrentZoom,
     isWorkspaceVisible,
+    initializeHistory,
   ]);
 
   const init = useCallback(

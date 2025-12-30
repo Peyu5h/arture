@@ -19,7 +19,7 @@ export class AssetAnalyzer {
 
   constructor() {
     this.model = new ChatGoogleGenerativeAI({
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash",
       apiKey: process.env.GEMINI_API_KEY,
     });
     this.embeddings = new GoogleGenerativeAIEmbeddings({

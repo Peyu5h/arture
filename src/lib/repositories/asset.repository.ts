@@ -209,6 +209,69 @@ export class AssetRepository {
     });
   }
 
+  // fuzzy search with levenshtein distance for typo tolerance
+  async fuzzySearch(
+    query: string,
+    type?: string,
+    limit: number = 50
+  ): Promise<Asset[]> {
+    const { distance } = await import("fastest-levenshtein");
+    const queryLower = query.toLowerCase();
+
+    // fetch all assets of type (cached in production)
+    const allAssets = await prisma.asset.findMany({
+      where: {
+        isPublic: true,
+        ...(type ? { type: type as AssetType } : {}),
+      },
+      orderBy: { usageCount: "desc" },
+    });
+
+    // calculate similarity scores
+    const scored = allAssets
+      .map((asset) => {
+        const nameLower = asset.name.toLowerCase().replace(/_/g, " ");
+        const words = nameLower.split(" ");
+
+        // check exact contains first
+        if (nameLower.includes(queryLower)) {
+          return { asset, score: 1.0 };
+        }
+
+        // check each word for fuzzy match
+        let bestScore = 0;
+        for (const word of words) {
+          const maxLen = Math.max(word.length, queryLower.length);
+          if (maxLen === 0) continue;
+          const dist = distance(word, queryLower);
+          const similarity = 1 - dist / maxLen;
+          bestScore = Math.max(bestScore, similarity);
+        }
+
+        // also check tags
+        for (const tag of asset.tags) {
+          const tagLower = tag.toLowerCase();
+          if (tagLower.includes(queryLower)) {
+            bestScore = Math.max(bestScore, 0.95);
+          } else {
+            const maxLen = Math.max(tagLower.length, queryLower.length);
+            if (maxLen > 0) {
+              const dist = distance(tagLower, queryLower);
+              const similarity = 1 - dist / maxLen;
+              bestScore = Math.max(bestScore, similarity);
+            }
+          }
+        }
+
+        return { asset, score: bestScore };
+      })
+      .filter((item) => item.score >= 0.6) // 60% threshold (allows 1-2 typos)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+
+    return scored.map((s) => s.asset);
+  }
+
   async addAssetToProject(
     projectId: string,
     assetId: string,

@@ -15,6 +15,10 @@ const nextConfig = {
         protocol: "https",
         hostname: "images.unsplash.com",
       },
+      {
+        protocol: "https",
+        hostname: "pub-843dd4085f8c4cc1a42a96f3ebd54a31.r2.dev", // Add this
+      },
     ],
   },
   eslint: {
@@ -29,7 +33,6 @@ const nextConfig = {
       config.externals.push("@prisma/client");
     }
 
-    // exclude wasm files from webpack - we load them manually from public folder
     config.module.rules.push({
       test: /\.wasm$/,
       type: "asset/resource",
