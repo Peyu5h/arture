@@ -17,6 +17,7 @@ import {
   Copy,
 } from "lucide-react";
 import { Project } from "@prisma/client";
+import { toast } from "sonner";
 
 import { cn } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
@@ -27,6 +28,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
+import { useDeleteProject } from "~/hooks/projects.hooks";
 
 interface RecentDesignsProps {
   designs: Project[];
@@ -198,6 +210,8 @@ const DesignCard = ({ design, index, formatDate }: DesignCardProps) => {
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const deleteProject = useDeleteProject();
 
   const handleEdit = () => {
     router.push(`/editor/${design.id}`);
@@ -205,12 +219,26 @@ const DesignCard = ({ design, index, formatDate }: DesignCardProps) => {
 
   const handleDuplicate = () => {
     // todo: implement duplicate
-    console.log("Duplicate:", design.id);
+    toast.info("Duplicate feature coming soon");
   };
 
   const handleDelete = () => {
-    // todo: implement delete
-    console.log("Delete:", design.id);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    // close dialog first to prevent pointer-events issues
+    setShowDeleteDialog(false);
+
+    // small delay to allow dialog to close before mutation
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    try {
+      await deleteProject.mutateAsync(design.id);
+      toast.success("Design deleted successfully");
+    } catch (error) {
+      toast.error("Failed to delete design");
+    }
   };
 
   return (
@@ -312,6 +340,35 @@ const DesignCard = ({ design, index, formatDate }: DesignCardProps) => {
           {design.width} x {design.height}
         </p>
       </div>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete design?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{design.name || "Untitled design"}".
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteProject.isPending}
+            >
+              {deleteProject.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 };

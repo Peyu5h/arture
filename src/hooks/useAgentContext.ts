@@ -2,6 +2,19 @@ import { useCallback, useEffect, useState } from "react";
 import { fabric } from "fabric";
 import { CanvasContext } from "~/components/editor/agent/types";
 
+// safely serializes fill/stroke to string
+function serializeFillOrStroke(value: unknown): string | undefined {
+  if (!value) return undefined;
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    // gradient or pattern
+    if ("colorStops" in (value as object)) return "gradient";
+    if ("source" in (value as object)) return "pattern";
+    return "complex";
+  }
+  return String(value);
+}
+
 // extracts canvas context for ai agent
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const useAgentContext = (editor: any) => {
@@ -51,8 +64,8 @@ export const useAgentContext = (editor: any) => {
             top: activeObject.top,
             width: activeObject.width,
             height: activeObject.height,
-            fill: activeObject.fill,
-            stroke: activeObject.stroke,
+            fill: serializeFillOrStroke(activeObject.fill),
+            stroke: serializeFillOrStroke(activeObject.stroke),
             opacity: activeObject.opacity,
             angle: activeObject.angle,
             scaleX: activeObject.scaleX,
@@ -67,6 +80,16 @@ export const useAgentContext = (editor: any) => {
         };
       }
 
+      // safely extract background color
+      let bgColor = "#ffffff";
+      if (workspace?.fill) {
+        if (typeof workspace.fill === "string") {
+          bgColor = workspace.fill;
+        } else if (typeof workspace.fill === "object") {
+          bgColor = "gradient";
+        }
+      }
+
       const newContext: CanvasContext = {
         elementCount: objects.length,
         hasText,
@@ -77,7 +100,7 @@ export const useAgentContext = (editor: any) => {
           width: workspace?.width || 500,
           height: workspace?.height || 500,
         },
-        backgroundColor: (workspace?.fill as string) || "#ffffff",
+        backgroundColor: bgColor,
       };
 
       setContext(newContext);

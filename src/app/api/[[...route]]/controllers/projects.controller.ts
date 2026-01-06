@@ -144,7 +144,18 @@ export const updateUserProject = async (c: Context) => {
   try {
     const user = c.get("user");
     const id = c.req.param("id");
-    const body = await c.req.json();
+
+    let body;
+    try {
+      const text = await c.req.text();
+      if (!text || text.trim() === "") {
+        return c.json(err("Request body is empty"), 400);
+      }
+      body = JSON.parse(text);
+    } catch (parseError) {
+      return c.json(err("Invalid JSON in request body"), 400);
+    }
+
     const result = autosaveSchema.safeParse(body);
     if (!result.success) {
       return c.json(validationErr(result.error), 400);
@@ -268,6 +279,37 @@ export const getProjectShares = async (c: Context) => {
     return c.json(success(shares));
   } catch (error) {
     return c.json(err("Failed to fetch shares"), 500);
+  }
+};
+
+// delete project
+export const deleteProject = async (c: Context) => {
+  try {
+    const user = c.get("user");
+    const id = c.req.param("id");
+
+    const project = await prisma.project.findFirst({
+      where: { id, userId: user.id },
+    });
+
+    if (!project) {
+      return c.json(err("Project not found"), 404);
+    }
+
+    // delete related shares first
+    await prisma.projectShare.deleteMany({
+      where: { projectId: id },
+    });
+
+    // delete the project
+    await prisma.project.delete({
+      where: { id },
+    });
+
+    return c.json(success({ deleted: true }));
+  } catch (error) {
+    console.error("Delete project error:", error);
+    return c.json(err("Failed to delete project"), 500);
   }
 };
 

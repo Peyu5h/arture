@@ -229,6 +229,10 @@ export const colors = [
   material.brown["500"],
   material.blueGrey["500"],
   material.grey["500"],
+  "#ffffff",
+  "#000000",
+  "#f5f5f5",
+  "#333333",
   "transparent",
 ];
 

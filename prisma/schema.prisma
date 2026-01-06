@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
@@ -218,17 +218,53 @@ enum AssetType {
 model Template {
   id           String   @id @default(cuid()) @map("_id")
   name         String
-  category     String   // resume, poster, events, cards, invitations
+  category     String // resume, poster, events, cards, invitations
   tags         String[] // semantic tags for search
-  json         Json     // Fabric.js canvas data
+  json         Json // Fabric.js canvas data
   thumbnailUrl String?
   height       Int
   width        Int
   isTrending   Boolean  @default(false)
   displayOrder Int      @default(0)
-  createdBy    String   // admin user id
+  createdBy    String // admin user id
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@map("template")
+}
+
+// ai chat conversation history
+model ChatConversation {
+  id        String        @id @default(cuid()) @map("_id")
+  title     String        @default("New Chat")
+  userId    String
+  projectId String?
+  context   Json? // canvas context snapshot
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  messages  ChatMessage[]
+
+  @@index([userId])
+  @@index([projectId])
+  @@map("chatConversation")
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid()) @map("_id")
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           MessageRole
+  content        String
+  actions        Json? // agent actions taken
+  context        Json? // element references, mentions
+  createdAt      DateTime         @default(now())
+
+  @@index([conversationId])
+  @@map("chatMessage")
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
 }

@@ -4,6 +4,7 @@ import {
   getUserProjects,
   getUserProjectsById,
   updateUserProject,
+  deleteProject,
   createShareLink,
   getProjectShares,
   deleteShareLink,
@@ -17,6 +18,7 @@ const projectsRoutes = new Hono();
 projectsRoutes.post("/", authMiddleware, createProject);
 projectsRoutes.get("/", authMiddleware, getUserProjects);
 projectsRoutes.put("/:id", authMiddleware, updateUserProject);
+projectsRoutes.delete("/:id", authMiddleware, deleteProject);
 
 // share routes
 projectsRoutes.post("/:id/share", authMiddleware, createShareLink);

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Pusher, { PresenceChannel, Members } from "pusher-js";
 import { authClient } from "~/lib/auth-client";
 
@@ -44,7 +44,6 @@ const getPusher = (): Pusher | null => {
 };
 
 export const usePusherPresence = (projectId: string | undefined) => {
-  console.log("[Pusher] Hook called with projectId:", projectId);
   const [state, setState] = useState<PusherPresenceState>({
     users: [],
     isConnected: false,
@@ -52,21 +51,40 @@ export const usePusherPresence = (projectId: string | undefined) => {
   });
   const channelRef = useRef<PresenceChannel | null>(null);
   const { data: session } = authClient.useSession();
-  console.log("[Pusher] Hook state - users:", state.users.length, "isConnected:", state.isConnected);
+
+  // use stable user id instead of full session object
+  const userId = session?.user?.id;
+
+  const updateUsers = useCallback((members: Members) => {
+    const users: PresenceUser[] = [];
+    members.each((member: { id: string; info: Record<string, unknown> }) => {
+      users.push({
+        id: member.id,
+        name:
+          (member.info?.name as string) ||
+          `Anonymous ${member.info?.anonymousNumber || ""}`,
+        email: member.info?.email as string | undefined,
+        avatar: member.info?.avatar as string | undefined,
+        isAnonymous: (member.info?.isAnonymous as boolean) ?? true,
+      });
+    });
+    setState((prev) => ({
+      ...prev,
+      users,
+      isConnected: true,
+      error: null,
+    }));
+  }, []);
 
   useEffect(() => {
-    console.log("[Pusher] useEffect triggered, projectId:", projectId);
     if (!projectId) {
-      console.log("[Pusher] No projectId, skipping");
       return;
     }
 
     const pusher = getPusher();
     if (!pusher) {
-      console.log("[Pusher] No pusher instance available");
       return;
     }
-    console.log("[Pusher] Got pusher instance");
 
     const channelName = `presence-project-${projectId}`;
 
@@ -74,30 +92,7 @@ export const usePusherPresence = (projectId: string | undefined) => {
       const channel = pusher.subscribe(channelName) as PresenceChannel;
       channelRef.current = channel;
 
-      const updateUsers = (members: Members) => {
-        const users: PresenceUser[] = [];
-        members.each((member: { id: string; info: any }) => {
-          users.push({
-            id: member.id,
-            name:
-              member.info?.name ||
-              `Anonymous ${member.info?.anonymousNumber || ""}`,
-            email: member.info?.email,
-            avatar: member.info?.avatar,
-            isAnonymous: member.info?.isAnonymous ?? true,
-          });
-        });
-        console.log("[Pusher] Updated users:", users);
-        setState((prev) => ({
-          ...prev,
-          users,
-          isConnected: true,
-          error: null,
-        }));
-      };
-
       channel.bind("pusher:subscription_succeeded", (members: Members) => {
-        console.log("[Pusher] Subscription succeeded, members count:", members.count);
         updateUsers(members);
       });
 
@@ -113,7 +108,7 @@ export const usePusherPresence = (projectId: string | undefined) => {
         }
       });
 
-      channel.bind("pusher:subscription_error", (error: any) => {
+      channel.bind("pusher:subscription_error", (error: unknown) => {
         console.error("Pusher subscription error:", error);
         setState((prev) => ({
           ...prev,
@@ -133,7 +128,7 @@ export const usePusherPresence = (projectId: string | undefined) => {
       console.error("Pusher setup error:", err);
       return;
     }
-  }, [projectId, session?.user]);
+  }, [projectId, userId, updateUsers]);
 
   return state;
 };

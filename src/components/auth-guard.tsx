@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface AuthGuardProps {
@@ -8,7 +8,7 @@ interface AuthGuardProps {
   redirectTo?: string;
 }
 
-export function AuthGuard({
+function AuthGuardContent({
   children,
   redirectTo = "/onboarding",
 }: AuthGuardProps) {
@@ -46,4 +46,12 @@ export function AuthGuard({
   }, [router, redirectTo, shareToken]);
 
   return <>{children}</>;
+}
+
+export function AuthGuard({ children, redirectTo }: AuthGuardProps) {
+  return (
+    <Suspense fallback={null}>
+      <AuthGuardContent redirectTo={redirectTo}>{children}</AuthGuardContent>
+    </Suspense>
+  );
 }

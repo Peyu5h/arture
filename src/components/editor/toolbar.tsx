@@ -24,6 +24,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useBackgroundRemoval } from "~/hooks/useBackgroundRemoval";
+import { uploadBlobToCloudinary } from "~/lib/cloudinary-upload";
 import { BsBorderWidth } from "react-icons/bs";
 import { RxTransparencyGrid } from "react-icons/rx";
 import {
@@ -578,33 +579,55 @@ export const Toolbar = ({
                     const src = img._element?.src || img.getSrc?.();
                     if (!src) return;
 
-                    // store original element reference
-                    const originalElement = img._element;
-
-                    // save state for undo
+                    // save state for undo before making changes
                     editor.save?.();
 
                     const result = await removeBackground(src);
 
                     if (result) {
-                      const url = URL.createObjectURL(result);
-                      const htmlImg = new Image();
-                      htmlImg.crossOrigin = "anonymous";
-                      htmlImg.onload = () => {
-                        // update the image element immediately
-                        img.setElement(htmlImg);
-                        img._element = htmlImg;
+                      try {
+                        // upload to cloudinary for persistence
+                        const cloudinaryResult = await uploadBlobToCloudinary(
+                          result,
+                          `bg-removed-${Date.now()}.png`,
+                        );
 
-                        // force canvas update
-                        editor.canvas.requestRenderAll();
+                        const htmlImg = new Image();
+                        htmlImg.crossOrigin = "anonymous";
+                        htmlImg.onload = () => {
+                          // update the image element with cloudinary url
+                          img.setElement(htmlImg);
+                          img._element = htmlImg;
 
-                        // save the new state
-                        editor.save?.();
+                          // update the src property for serialization
+                          img.set("src", cloudinaryResult.url);
+                          (img as any)._originalElement = htmlImg;
 
-                        // clean up
-                        URL.revokeObjectURL(url);
-                      };
-                      htmlImg.src = url;
+                          // force canvas update
+                          editor.canvas.requestRenderAll();
+
+                          // save the new state with cloudinary url
+                          editor.save?.();
+                        };
+                        htmlImg.src = cloudinaryResult.url;
+                      } catch (uploadError) {
+                        console.error(
+                          "Failed to upload to Cloudinary:",
+                          uploadError,
+                        );
+                        // fallback to blob url (won't persist but works locally)
+                        const url = URL.createObjectURL(result);
+                        const htmlImg = new Image();
+                        htmlImg.crossOrigin = "anonymous";
+                        htmlImg.onload = () => {
+                          img.setElement(htmlImg);
+                          img._element = htmlImg;
+                          editor.canvas.requestRenderAll();
+                          editor.save?.();
+                          URL.revokeObjectURL(url);
+                        };
+                        htmlImg.src = url;
+                      }
                     }
                   }}
                 >

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, memo } from "react";
 import { motion } from "framer-motion";
 import { cn } from "~/lib/utils";
 import { AgentSuggestionsProps, Suggestion } from "./types";
@@ -15,26 +16,32 @@ const categoryIcons = {
 const defaultSuggestions: Suggestion[] = [
   {
     id: "1",
-    label: "Create a poster",
+    label: "Improve Layout",
+    prompt: "Improve the layout and alignment of elements",
+    category: "layout",
+  },
+  {
+    id: "2",
+    label: "Color Scheme",
+    prompt: "Suggest a modern color scheme for this design",
+    category: "style",
+  },
+  {
+    id: "3",
+    label: "Create Poster",
     prompt: "Create a modern poster design",
     category: "generate",
   },
   {
-    id: "2",
-    label: "Add headline",
-    prompt: "Add a bold headline text to the canvas",
+    id: "4",
+    label: "Add Headline",
+    prompt: "Add an eye-catching headline to the design",
     category: "content",
   },
   {
-    id: "3",
-    label: "Design invitation",
-    prompt: "Create an elegant invitation card",
-    category: "generate",
-  },
-  {
-    id: "4",
-    label: "Social post",
-    prompt: "Create an Instagram post template",
+    id: "5",
+    label: "Design Card",
+    prompt: "Create a social media card design",
     category: "generate",
   },
 ];
@@ -53,53 +60,39 @@ const getContextualSuggestions = (
       suggestions.push(
         {
           id: "ctx-1",
-          label: "Change font",
-          prompt: "Change the font style of the selected text",
+          label: "Style Text",
+          prompt: "Improve the styling of the selected text",
           category: "style",
         },
         {
           id: "ctx-2",
-          label: "Make larger",
-          prompt: "Increase the size of the selected text",
+          label: "Resize Text",
+          prompt: "Make the selected text larger and more prominent",
           category: "style",
-        },
-        {
-          id: "ctx-3",
-          label: "Center text",
-          prompt: "Center the selected text on the canvas",
-          category: "layout",
         },
       );
     } else if (type === "image") {
       suggestions.push(
         {
-          id: "ctx-4",
-          label: "Resize",
-          prompt: "Resize the selected image to fit better",
-          category: "layout",
+          id: "ctx-3",
+          label: "Enhance Image",
+          prompt: "Enhance the selected image with effects or borders",
+          category: "style",
         },
         {
-          id: "ctx-5",
-          label: "Add border",
-          prompt: "Add a border to the selected image",
-          category: "style",
+          id: "ctx-4",
+          label: "Resize Image",
+          prompt: "Resize and position the image better",
+          category: "layout",
         },
       );
     } else if (type === "rect" || type === "circle" || type === "triangle") {
-      suggestions.push(
-        {
-          id: "ctx-6",
-          label: "Change color",
-          prompt: "Change the color of the selected shape",
-          category: "style",
-        },
-        {
-          id: "ctx-7",
-          label: "Duplicate",
-          prompt: "Create a copy of this shape",
-          category: "layout",
-        },
-      );
+      suggestions.push({
+        id: "ctx-5",
+        label: "Style Shape",
+        prompt: "Change the color and style of the selected shape",
+        category: "style",
+      });
     }
   }
 
@@ -107,25 +100,8 @@ const getContextualSuggestions = (
     return defaultSuggestions;
   }
 
-  if (context.elementCount > 0 && suggestions.length < 4) {
-    suggestions.push({
-      id: "ctx-8",
-      label: "Improve layout",
-      prompt: "Improve the layout and alignment",
-      category: "layout",
-    });
-  }
-
-  if (context.hasText && suggestions.length < 4) {
-    suggestions.push({
-      id: "ctx-9",
-      label: "Color scheme",
-      prompt: "Suggest a better color scheme",
-      category: "style",
-    });
-  }
-
-  const remaining = 4 - suggestions.length;
+  // add default suggestions to fill
+  const remaining = 5 - suggestions.length;
   if (remaining > 0) {
     const filtered = defaultSuggestions.filter(
       (s) => !suggestions.find((existing) => existing.id === s.id),
@@ -133,10 +109,10 @@ const getContextualSuggestions = (
     suggestions.push(...filtered.slice(0, remaining));
   }
 
-  return suggestions.slice(0, 4);
+  return suggestions.slice(0, 5);
 };
 
-const SuggestionChip = ({
+const SuggestionPill = memo(function SuggestionPill({
   suggestion,
   onSelect,
   index,
@@ -144,48 +120,60 @@ const SuggestionChip = ({
   suggestion: Suggestion;
   onSelect: (suggestion: Suggestion) => void;
   index: number;
-}) => {
-  const Icon = categoryIcons[suggestion.category];
-
+}) {
   return (
     <motion.button
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.15, delay: index * 0.03 }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, delay: index * 0.05 }}
       onClick={() => onSelect(suggestion)}
       className={cn(
-        "border-border/60 bg-background flex items-center gap-1.5 rounded-full border px-3 py-1.5",
-        "text-muted-foreground text-xs transition-all duration-150",
-        "hover:border-primary/40 hover:bg-primary/5 hover:text-foreground",
-        "active:scale-95",
+        "group shrink-0 rounded-full px-4 py-2",
+        "bg-secondary/80 hover:bg-secondary",
+        "text-secondary-foreground text-xs font-medium",
+        "hover:border-border/50 border border-transparent",
+        "transition-all duration-150",
+        "hover:shadow-sm",
+        "active:scale-[0.98]",
       )}
     >
-      <Icon className="h-3 w-3" />
       <span>{suggestion.label}</span>
     </motion.button>
   );
-};
+});
 
-export const AgentSuggestions = ({
+export const AgentSuggestions = memo(function AgentSuggestions({
   suggestions: customSuggestions,
   onSelect,
   context,
-}: AgentSuggestionsProps) => {
+}: AgentSuggestionsProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   const suggestions =
     customSuggestions.length > 0
       ? customSuggestions
       : getContextualSuggestions(context);
 
   return (
-    <div className="border-border/60 flex flex-wrap gap-1.5 border-t px-3 py-2.5">
-      {suggestions.map((suggestion, index) => (
-        <SuggestionChip
-          key={suggestion.id}
-          suggestion={suggestion}
-          onSelect={onSelect}
-          index={index}
-        />
-      ))}
+    <div className="relative px-4 py-3">
+      <div
+        ref={scrollRef}
+        className="scrollbar-none -mx-1 flex gap-2 overflow-x-auto scroll-smooth px-1 pb-1"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      >
+        {suggestions.map((suggestion, index) => (
+          <SuggestionPill
+            key={suggestion.id}
+            suggestion={suggestion}
+            onSelect={onSelect}
+            index={index}
+          />
+        ))}
+      </div>
+
+      {/* fade edges */}
+      <div className="from-background pointer-events-none absolute top-0 bottom-0 left-0 w-4 bg-gradient-to-r to-transparent" />
+      <div className="from-background pointer-events-none absolute top-0 right-0 bottom-0 w-4 bg-gradient-to-l to-transparent" />
     </div>
   );
-};
+});

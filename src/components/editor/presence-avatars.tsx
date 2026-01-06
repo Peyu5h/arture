@@ -56,15 +56,11 @@ export const PresenceAvatars = ({
   const { users } = usePusherPresence(projectId);
   const { data: session } = authClient.useSession();
 
-  console.log("[PresenceAvatars] Render - users:", users, "session user id:", session?.user?.id);
-
   // filter out current user - only show other viewers
   const otherUsers = users.filter((user) => user.id !== session?.user?.id);
-  console.log("[PresenceAvatars] otherUsers after filter:", otherUsers);
 
   // if no other users, don't show anything
   if (otherUsers.length === 0) {
-    console.log("[PresenceAvatars] No other users, returning null");
     return null;
   }
 

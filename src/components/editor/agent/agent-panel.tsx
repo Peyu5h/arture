@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo } from "react";
+import type { ChatMessage } from "~/hooks/useChat";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "~/lib/utils";
 import { Sparkles } from "lucide-react";
@@ -15,28 +16,136 @@ import { AgentHeader } from "./agent-header";
 import { AgentChat } from "./agent-chat";
 import { AgentInput } from "./agent-input";
 import { AgentSuggestions } from "./agent-suggestions";
+import { AgentHistoryPanel } from "./agent-history-panel";
+import { AgentInspectTool } from "./agent-inspect-tool";
 import { useAgentContext } from "~/hooks/useAgentContext";
-import { AgentMessage, Suggestion, AgentPanelProps } from "./types";
+import {
+  useConversations,
+  useConversation,
+  useCreateConversation,
+  useCreateMessage,
+  useDeleteConversation,
+  useAIResponse,
+} from "~/hooks/useChat";
+import {
+  calculateContext,
+  formatTokenCount,
+  generateContextSummary,
+  extractElementContext,
+} from "~/lib/context-calculator";
+import {
+  AgentMessage,
+  Suggestion,
+  AgentPanelProps,
+  Conversation,
+  Mention,
+  MentionSuggestion,
+  ContextStats,
+  ElementReference,
+} from "./types";
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
-const welcomeMessage: AgentMessage = {
+const createWelcomeMessage = (): AgentMessage => ({
   id: "welcome",
   role: "assistant",
   content:
     "I can help you create and modify designs on your canvas. Describe what you'd like to do.",
   status: "complete",
   timestamp: Date.now(),
-};
+});
 
-const PANEL_WIDTH = 360;
+const PANEL_WIDTH = 380;
 
-export const AgentPanel = ({ editor, isOpen, onToggle }: AgentPanelProps) => {
-  const [messages, setMessages] = useState<AgentMessage[]>([welcomeMessage]);
+export const AgentPanel = ({
+  editor,
+  isOpen,
+  onToggle,
+  projectId,
+}: AgentPanelProps) => {
+  const [activeConversationId, setActiveConversationId] = useState<
+    string | null
+  >(null);
+  const [messages, setMessages] = useState<AgentMessage[]>([
+    createWelcomeMessage(),
+  ]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [activeMentions, setActiveMentions] = useState<Mention[]>([]);
+  const [mentionSuggestions, setMentionSuggestions] = useState<
+    MentionSuggestion[]
+  >([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [isInspectMode, setIsInspectMode] = useState(false);
+  const [contextStats, setContextStats] = useState<ContextStats | null>(null);
 
   const { context, isAnalyzing } = useAgentContext(editor);
+
+  // db hooks
+  const { data: conversations = [], refetch: refetchConversations } =
+    useConversations(projectId);
+  const { data: activeConversationData } =
+    useConversation(activeConversationId);
+  const createConversation = useCreateConversation();
+  const createMessage = useCreateMessage();
+  const deleteConversation = useDeleteConversation();
+  const aiResponse = useAIResponse();
+
+  // load messages when conversation changes
+  useEffect(() => {
+    if (activeConversationData?.messages) {
+      const msgs = activeConversationData.messages.map((msg: ChatMessage) => ({
+        id: msg.id,
+        role: msg.role as "user" | "assistant" | "system",
+        content: msg.content,
+        status: "complete" as const,
+        timestamp: msg.timestamp,
+        actions: msg.actions as AgentMessage["actions"],
+        context: msg.context as AgentMessage["context"],
+      }));
+      if (msgs.length > 0) {
+        setMessages([createWelcomeMessage(), ...msgs]);
+      }
+    }
+  }, [activeConversationData]);
+
+  // calculate context stats
+  useEffect(() => {
+    if (!editor?.canvas) return;
+
+    const elements = editor.canvas
+      .getObjects()
+      .map((obj: fabric.Object) =>
+        extractElementContext(obj as unknown as Record<string, unknown>),
+      );
+
+    // serialize mentions data to avoid object issues
+    const serializedMentions = activeMentions.map((m) => ({
+      type: m.type,
+      label: m.label,
+      data: m.data ? JSON.stringify(m.data) : undefined,
+    }));
+
+    const stats = calculateContext({
+      elements,
+      messages: messages.map((m) => ({ content: m.content, role: m.role })),
+      mentions: serializedMentions.map((m) => ({
+        type: m.type,
+        label: m.label,
+        data: m.data,
+      })),
+      canvasBackground: context?.backgroundColor,
+      canvasSize: context?.canvasSize,
+    });
+
+    setContextStats(stats);
+  }, [editor, messages, activeMentions, context]);
+
+  const activeConversation = useMemo(() => {
+    return conversations.find(
+      (c: Conversation) => c.id === activeConversationId,
+    );
+  }, [conversations, activeConversationId]);
 
   // only show suggestions when no user messages yet
   const showSuggestions = useMemo(() => {
@@ -44,24 +153,282 @@ export const AgentPanel = ({ editor, isOpen, onToggle }: AgentPanelProps) => {
     return userMessages.length === 0;
   }, [messages]);
 
+  // keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "i") {
+      if ((e.metaKey || e.ctrlKey) && e.key === "i" && !e.shiftKey) {
         e.preventDefault();
         onToggle();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "h" && !e.shiftKey) {
+        e.preventDefault();
+        if (isOpen) {
+          setShowHistory((prev) => !prev);
+        }
+      }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "I") {
+        e.preventDefault();
+        if (isOpen) {
+          setIsInspectMode((prev) => !prev);
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onToggle]);
+  }, [onToggle, isOpen]);
+
+  const handleNewChat = useCallback(async () => {
+    try {
+      const result = await createConversation.mutateAsync({
+        projectId,
+      });
+      setActiveConversationId(result.id);
+      setMessages([createWelcomeMessage()]);
+      setActiveMentions([]);
+      setShowHistory(false);
+      refetchConversations();
+    } catch (error) {
+      console.error("Failed to create conversation:", error);
+      // fallback to local state
+      setActiveConversationId(null);
+      setMessages([createWelcomeMessage()]);
+      setActiveMentions([]);
+      setShowHistory(false);
+    }
+  }, [projectId, createConversation, refetchConversations]);
+
+  const handleSelectConversation = useCallback((id: string) => {
+    setActiveConversationId(id);
+    setActiveMentions([]);
+    setShowHistory(false);
+  }, []);
+
+  const handleDeleteConversation = useCallback(
+    async (id: string) => {
+      try {
+        await deleteConversation.mutateAsync(id);
+        if (activeConversationId === id) {
+          setActiveConversationId(null);
+          setMessages([createWelcomeMessage()]);
+        }
+        refetchConversations();
+      } catch (error) {
+        console.error("Failed to delete conversation:", error);
+      }
+    },
+    [activeConversationId, deleteConversation, refetchConversations],
+  );
+
+  const handleShowHistory = useCallback(() => {
+    setShowHistory((prev) => !prev);
+  }, []);
 
   const handleSuggestionSelect = useCallback((suggestion: Suggestion) => {
     setInputValue(suggestion.prompt);
   }, []);
 
+  const handleMentionSelect = useCallback((mention: MentionSuggestion) => {
+    const newMention: Mention = {
+      id: mention.id,
+      type: mention.type,
+      label: mention.label,
+      data: mention.data,
+      elementRef: mention.elementRef,
+      isOnCanvas: mention.elementRef?.isOnCanvas ?? false,
+    };
+    setActiveMentions((prev) => {
+      if (prev.find((m) => m.id === mention.id)) return prev;
+      return [...prev, newMention];
+    });
+  }, []);
+
+  const handleInspectElementSelect = useCallback(
+    (element: ElementReference) => {
+      const mention: Mention = {
+        id: element.id,
+        type:
+          element.type === "textbox" ||
+          element.type === "text" ||
+          element.type === "i-text"
+            ? "text"
+            : element.type === "image"
+              ? "image"
+              : "shape",
+        label: element.name,
+        elementRef: element,
+        isOnCanvas: true,
+      };
+      setActiveMentions((prev) => {
+        if (prev.find((m) => m.id === element.id)) return prev;
+        return [...prev, mention];
+      });
+      setIsInspectMode(false);
+    },
+    [],
+  );
+
+  // builds element-specific mention suggestions from canvas
+  const handleMentionSearch = useCallback(
+    (query: string) => {
+      if (!editor?.canvas) {
+        setMentionSuggestions([]);
+        return;
+      }
+
+      const suggestions: MentionSuggestion[] = [];
+      const objects = editor.canvas.getObjects();
+      const lowerQuery = query.toLowerCase();
+
+      objects.forEach((obj: fabric.Object) => {
+        const type = obj.type || "unknown";
+        let name = "";
+        let description = "";
+        let thumbnail: string | undefined;
+        let text: string | undefined;
+        let imageSrc: string | undefined;
+        let mentionType: MentionSuggestion["type"] = "element";
+
+        // extract info based on type
+        if (type === "textbox" || type === "text" || type === "i-text") {
+          const textObj = obj as fabric.Textbox;
+          text = textObj.text || "";
+          name = text.slice(0, 30) + (text.length > 30 ? "..." : "");
+          description = `Text element`;
+          mentionType = "text";
+        } else if (type === "image") {
+          const imgObj = obj as fabric.Image;
+          const src = imgObj.getSrc?.() || (obj as any)._element?.src || "";
+          imageSrc = src;
+
+          // extract name from url
+          const match = src.match(/\/([^/]+)\.(jpg|jpeg|png|gif|webp)/i);
+          if (match) {
+            name = decodeURIComponent(match[1]).replace(/[-_]/g, " ");
+          } else if ((obj as any).name) {
+            name = (obj as any).name;
+          } else {
+            name = "Image";
+          }
+          description = "Image element";
+          mentionType = "image";
+
+          // generate thumbnail
+          try {
+            thumbnail = obj.toDataURL?.({
+              format: "png",
+              quality: 0.3,
+              multiplier: 0.15,
+            });
+          } catch {
+            // ignore thumbnail errors
+          }
+        } else if (type === "rect") {
+          name = "Rectangle";
+          const fillStr =
+            typeof obj.fill === "string"
+              ? obj.fill
+              : obj.fill
+                ? "gradient"
+                : "filled";
+          description = `Shape - ${fillStr}`;
+          mentionType = "shape";
+        } else if (type === "circle") {
+          name = "Circle";
+          const fillStr =
+            typeof obj.fill === "string"
+              ? obj.fill
+              : obj.fill
+                ? "gradient"
+                : "filled";
+          description = `Shape - ${fillStr}`;
+          mentionType = "shape";
+        } else if (type === "triangle") {
+          name = "Triangle";
+          const fillStr =
+            typeof obj.fill === "string"
+              ? obj.fill
+              : obj.fill
+                ? "gradient"
+                : "filled";
+          description = `Shape - ${fillStr}`;
+          mentionType = "shape";
+        } else {
+          name = (obj as any).name || type;
+          description = `${type} element`;
+          mentionType = "shape";
+        }
+
+        // filter by query
+        if (!query || name.toLowerCase().includes(lowerQuery)) {
+          const elementRef: ElementReference = {
+            id: (obj as any).id || generateId(),
+            type,
+            name,
+            text,
+            imageSrc,
+            thumbnail,
+            fill:
+              typeof obj.fill === "string"
+                ? obj.fill
+                : obj.fill
+                  ? "gradient"
+                  : undefined,
+            isOnCanvas: true,
+          };
+
+          suggestions.push({
+            id: elementRef.id,
+            type: mentionType,
+            label: name,
+            description,
+            thumbnail,
+            elementRef,
+          });
+        }
+      });
+
+      // add canvas background option
+      if (
+        !query ||
+        "canvas".includes(lowerQuery) ||
+        "background".includes(lowerQuery)
+      ) {
+        const bgDescription =
+          typeof context?.backgroundColor === "string"
+            ? context.backgroundColor
+            : "Background color";
+        suggestions.push({
+          id: "canvas-bg",
+          type: "canvas",
+          label: "Canvas Background",
+          description: bgDescription,
+          icon: "palette",
+        });
+      }
+
+      setMentionSuggestions(suggestions);
+    },
+    [editor, context],
+  );
+
   const handleSubmit = useCallback(async () => {
     if (!inputValue.trim() || isLoading) return;
+
+    // generate context summary if no specific mentions
+    let contextSummary: string | undefined;
+    if (activeMentions.length === 0 && editor?.canvas && context) {
+      const elements = editor.canvas
+        .getObjects()
+        .map((obj: fabric.Object) =>
+          extractElementContext(obj as unknown as Record<string, unknown>),
+        );
+      contextSummary = generateContextSummary(
+        elements,
+        context.canvasSize,
+        context.backgroundColor,
+      );
+    }
 
     const userMessage: AgentMessage = {
       id: generateId(),
@@ -69,38 +436,165 @@ export const AgentPanel = ({ editor, isOpen, onToggle }: AgentPanelProps) => {
       content: inputValue.trim(),
       status: "complete",
       timestamp: Date.now(),
+      mentions: activeMentions.length > 0 ? [...activeMentions] : undefined,
+      context:
+        activeMentions.length > 0
+          ? {
+              elements: activeMentions
+                .filter((m) => m.elementRef)
+                .map((m) => ({
+                  id: m.id,
+                  type: m.type,
+                  name: m.label,
+                  text: m.elementRef?.text,
+                  imageSrc: m.elementRef?.imageSrc,
+                })),
+            }
+          : contextSummary
+            ? { summary: contextSummary }
+            : undefined,
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
+    setActiveMentions([]);
     setIsLoading(true);
 
-    setTimeout(() => {
+    // ensure we have an active conversation
+    let convId = activeConversationId;
+    if (!convId) {
+      try {
+        const result = await createConversation.mutateAsync({
+          title:
+            inputValue.slice(0, 50) + (inputValue.length > 50 ? "..." : ""),
+          projectId,
+        });
+        convId = result.id;
+        setActiveConversationId(convId);
+        refetchConversations();
+      } catch (error) {
+        console.error("Failed to create conversation:", error);
+      }
+    }
+
+    // save user message to db
+    if (convId) {
+      try {
+        await createMessage.mutateAsync({
+          conversationId: convId,
+          role: "USER",
+          content: userMessage.content,
+          context: userMessage.context,
+        });
+      } catch (error) {
+        console.error("Failed to save message:", error);
+      }
+    }
+
+    // get ai response from gemini
+    try {
+      // build context for AI
+      const aiContext: {
+        elements?: Array<Record<string, unknown>>;
+        canvasSize?: { width: number; height: number };
+        backgroundColor?: string;
+        summary?: string;
+      } = {};
+
+      if (context?.canvasSize) {
+        aiContext.canvasSize = context.canvasSize;
+      }
+      if (context?.backgroundColor) {
+        aiContext.backgroundColor =
+          typeof context.backgroundColor === "string"
+            ? context.backgroundColor
+            : "gradient";
+      }
+      if (contextSummary) {
+        aiContext.summary = contextSummary;
+      }
+      if (editor?.canvas) {
+        const canvasElements = editor.canvas
+          .getObjects()
+          .map((obj: fabric.Object) =>
+            extractElementContext(obj as unknown as Record<string, unknown>),
+          );
+        aiContext.elements = canvasElements;
+      }
+
+      // build conversation history
+      const conversationHistory = messages
+        .filter((m) => m.role !== "system" && m.id !== "welcome")
+        .slice(-6)
+        .map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        }));
+
+      const response = await aiResponse.mutateAsync({
+        message: userMessage.content,
+        context: aiContext,
+        conversationHistory,
+      });
+
       const assistantMessage: AgentMessage = {
         id: generateId(),
         role: "assistant",
-        content:
-          "I understand you want to make changes to your design. This feature is currently being integrated with Gemini 2.5 Flash. Once connected, I'll be able to analyze your canvas, suggest improvements, and make real-time modifications based on your requests.",
+        content: response.response,
         status: "complete",
         timestamp: Date.now(),
-        actions: [
-          {
-            id: generateId(),
-            type: "analyze_canvas",
-            description: "Analyzing canvas structure",
-            status: "complete",
-            timestamp: Date.now(),
-          },
-        ],
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+
+      // save assistant message to db
+      if (convId) {
+        try {
+          await createMessage.mutateAsync({
+            conversationId: convId,
+            role: "ASSISTANT",
+            content: assistantMessage.content,
+          });
+        } catch (error) {
+          console.error("Failed to save assistant message:", error);
+        }
+      }
+    } catch (error) {
+      console.error("AI response error:", error);
+      const errorMessage: AgentMessage = {
+        id: generateId(),
+        role: "assistant",
+        content:
+          "Sorry, I encountered an issue processing your request. Please try again.",
+        status: "error",
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1500);
-  }, [inputValue, isLoading]);
+    }
+  }, [
+    inputValue,
+    isLoading,
+    activeMentions,
+    activeConversationId,
+    projectId,
+    createConversation,
+    createMessage,
+    refetchConversations,
+    editor,
+    context,
+    messages,
+    aiResponse,
+  ]);
+
+  const handleRemoveMention = useCallback((id: string) => {
+    setActiveMentions((prev) => prev.filter((m) => m.id !== id));
+  }, []);
 
   const handleClearHistory = useCallback(() => {
-    setMessages([welcomeMessage]);
+    setMessages([createWelcomeMessage()]);
+    setActiveMentions([]);
   }, []);
 
   return (
@@ -172,11 +666,14 @@ export const AgentPanel = ({ editor, isOpen, onToggle }: AgentPanelProps) => {
             >
               <AgentHeader
                 onClose={onToggle}
-                onClearHistory={handleClearHistory}
-                messageCount={messages.filter((m) => m.role === "user").length}
+                onNewChat={handleNewChat}
+                onShowHistory={handleShowHistory}
+                conversationTitle={activeConversation?.title}
+                contextStats={contextStats || undefined}
+                isHistoryOpen={showHistory}
               />
 
-              <div className="flex min-h-0 flex-1 flex-col">
+              <div className="relative flex min-h-0 flex-1 flex-col">
                 <AgentChat messages={messages} isLoading={isLoading} />
 
                 {showSuggestions && (
@@ -191,8 +688,34 @@ export const AgentPanel = ({ editor, isOpen, onToggle }: AgentPanelProps) => {
                   value={inputValue}
                   onChange={setInputValue}
                   onSubmit={handleSubmit}
+                  onMentionSelect={handleMentionSelect}
                   isLoading={isLoading}
                   disabled={!editor}
+                  mentions={activeMentions}
+                  mentionSuggestions={mentionSuggestions}
+                  onMentionSearch={handleMentionSearch}
+                  contextStats={contextStats || undefined}
+                  onInspectToggle={() => setIsInspectMode(!isInspectMode)}
+                  isInspectMode={isInspectMode}
+                  onRemoveMention={handleRemoveMention}
+                />
+
+                {/* inspect tool overlay - only active when inspect mode is on */}
+                <AgentInspectTool
+                  editor={editor}
+                  isActive={isInspectMode}
+                  onToggle={() => setIsInspectMode(!isInspectMode)}
+                  onElementSelect={handleInspectElementSelect}
+                />
+
+                {/* history panel overlay */}
+                <AgentHistoryPanel
+                  isOpen={showHistory}
+                  onClose={() => setShowHistory(false)}
+                  conversations={conversations}
+                  activeId={activeConversationId || undefined}
+                  onSelect={handleSelectConversation}
+                  onDelete={handleDeleteConversation}
                 />
               </div>
             </motion.div>

@@ -27,9 +27,15 @@ interface IllustrationCardProps {
   url: string;
   thumbnail: string;
   alt?: string;
+  onClick?: () => void;
 }
 
-const IllustrationCard = ({ url, thumbnail, alt }: IllustrationCardProps) => {
+const IllustrationCard = ({
+  url,
+  thumbnail,
+  alt,
+  onClick,
+}: IllustrationCardProps) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -74,6 +80,7 @@ const IllustrationCard = ({ url, thumbnail, alt }: IllustrationCardProps) => {
       whileTap={{ scale: 0.97 }}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
+      onClick={onClick}
       className={ny(
         "relative aspect-square cursor-grab overflow-hidden rounded-lg border transition-all active:cursor-grabbing",
         "border-border bg-muted/30 hover:border-primary/50 hover:shadow-md",
@@ -185,6 +192,7 @@ interface CategorySectionProps {
   title: string;
   items: Array<{ id: string; url: string; thumbnail: string; alt?: string }>;
   onShowAll: () => void;
+  onItemClick?: (url: string) => void;
   isLoading?: boolean;
   icon?: React.ReactNode;
   maxPreview?: number;
@@ -196,6 +204,7 @@ const CategorySection = ({
   title,
   items,
   onShowAll,
+  onItemClick,
   isLoading,
   icon,
   maxPreview = 4,
@@ -274,6 +283,7 @@ const CategorySection = ({
                 url={item.url}
                 thumbnail={item.thumbnail}
                 alt={item.alt}
+                onClick={() => onItemClick?.(item.url)}
               />
             </motion.div>
           ))}
@@ -290,6 +300,7 @@ interface ExpandedCategoryViewProps {
   imageType: "vector" | "illustration" | "photo" | "all";
   onBack: () => void;
   onSearchChange: (query: string) => void;
+  onItemClick?: (url: string) => void;
   uploads?: Array<{
     id: string;
     url: string;
@@ -310,6 +321,7 @@ const ExpandedCategoryView = ({
   imageType,
   onBack,
   onSearchChange,
+  onItemClick,
   uploads,
   illustrations,
 }: ExpandedCategoryViewProps) => {
@@ -495,6 +507,7 @@ const ExpandedCategoryView = ({
                       url={item.url}
                       thumbnail={item.thumbnail}
                       alt={item.alt}
+                      onClick={() => onItemClick?.(item.url)}
                     />
                   ) : (
                     <PreviewCard
@@ -502,6 +515,7 @@ const ExpandedCategoryView = ({
                       url={item.url}
                       thumbnail={item.thumbnail}
                       alt={item.alt}
+                      onClick={() => onItemClick?.(item.url)}
                     />
                   ),
                 )}
@@ -541,6 +555,7 @@ const ExpandedCategoryView = ({
 interface GlobalSearchViewProps {
   searchQuery: string;
   onBack: () => void;
+  onItemClick?: (url: string) => void;
   uploads: Array<{
     id: string;
     url: string;
@@ -558,6 +573,7 @@ interface GlobalSearchViewProps {
 const GlobalSearchView = ({
   searchQuery,
   onBack,
+  onItemClick,
   uploads,
   illustrations,
 }: GlobalSearchViewProps) => {
@@ -784,6 +800,7 @@ const GlobalSearchView = ({
                     url={item.url}
                     thumbnail={item.thumbnail}
                     alt={item.alt}
+                    onClick={() => onItemClick?.(item.url)}
                   />
                 ))}
               </div>
@@ -946,6 +963,13 @@ export const ElementsSidebar = ({
     onChangeActiveTool("select");
   };
 
+  const handleAddImage = useCallback(
+    (url: string) => {
+      editor?.addImage?.(url);
+    },
+    [editor],
+  );
+
   // handle expanded category view
   if (expandedCategory) {
     const categoryConfig = {
@@ -999,6 +1023,7 @@ export const ElementsSidebar = ({
             setCategorySearch("");
           }}
           onSearchChange={setCategorySearch}
+          onItemClick={handleAddImage}
           uploads={expandedCategory === "uploads" ? uploadItems : undefined}
           illustrations={
             expandedCategory === "illustrations" ? illustrationItems : undefined
@@ -1048,6 +1073,7 @@ export const ElementsSidebar = ({
         <GlobalSearchView
           searchQuery={debouncedSearch}
           onBack={() => setSearchQuery("")}
+          onItemClick={handleAddImage}
           uploads={uploadItems}
           illustrations={illustrationItems}
         />
@@ -1102,6 +1128,7 @@ export const ElementsSidebar = ({
               title="Uploads"
               items={uploadItems}
               onShowAll={() => setExpandedCategory("uploads")}
+              onItemClick={handleAddImage}
               icon={<Upload className="text-muted-foreground size-4" />}
             />
           )}
@@ -1111,6 +1138,7 @@ export const ElementsSidebar = ({
               title="Illustrations"
               items={illustrationItems}
               onShowAll={() => setExpandedCategory("illustrations")}
+              onItemClick={handleAddImage}
               isLoading={isLoadingAssets}
               icon={<Sparkles className="text-muted-foreground size-4" />}
             />
@@ -1120,6 +1148,7 @@ export const ElementsSidebar = ({
             title="Stickers"
             items={stickerItems}
             onShowAll={() => setExpandedCategory("stickers")}
+            onItemClick={handleAddImage}
             isLoading={isLoadingStickers}
             icon={<Smile className="text-muted-foreground size-4" />}
             showEmptyState={stickersRateLimited || stickersNoApiKey}
@@ -1133,6 +1162,7 @@ export const ElementsSidebar = ({
             title="Frames"
             items={frameItems}
             onShowAll={() => setExpandedCategory("frames")}
+            onItemClick={handleAddImage}
             isLoading={isLoadingFrames}
             icon={<Frame className="text-muted-foreground size-4" />}
             showEmptyState={framesRateLimited || framesNoApiKey}
@@ -1143,6 +1173,7 @@ export const ElementsSidebar = ({
             title="Mockups"
             items={mockupItems}
             onShowAll={() => setExpandedCategory("mockups")}
+            onItemClick={handleAddImage}
             isLoading={isLoadingMockups}
             icon={<Smartphone className="text-muted-foreground size-4" />}
             showEmptyState={mockupsRateLimited || mockupsNoApiKey}

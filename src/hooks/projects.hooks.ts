@@ -1,5 +1,5 @@
 import { Project } from "@prisma/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import api from "~/lib/api";
 
@@ -32,5 +32,21 @@ export function useProject(id: string | undefined) {
     },
     staleTime: 1000 * 60 * 5,
     enabled: !!id,
+  });
+}
+
+export function useDeleteProject() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.delete<{ deleted: boolean }>(
+        `/api/projects/${id}`,
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+    },
   });
 }

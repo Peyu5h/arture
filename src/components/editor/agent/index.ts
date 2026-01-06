@@ -5,4 +5,6 @@ export { AgentMessage } from "./agent-message";
 export { AgentSuggestions } from "./agent-suggestions";
 export { AgentHeader } from "./agent-header";
 export { AgentContextDisplay } from "./agent-context-display";
+export { AgentHistoryPanel } from "./agent-history-panel";
+export { AgentInspectTool } from "./agent-inspect-tool";
 export * from "./types";

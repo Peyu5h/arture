@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
   useMemo,
+  Suspense,
 } from "react";
 import { useSearchParams } from "next/navigation";
 import { useEditor } from "~/hooks/useEditor";
@@ -59,6 +60,7 @@ import {
 import { DragPreview } from "~/components/editor/drag-preview";
 import { CanvasDropZone } from "~/components/editor/canvas-drop-zone";
 import { ImageToolsDialog } from "~/components/editor/image-tools/image-tools-dialog";
+import { ImageEditorOverlay } from "~/components/editor/image-tools/image-editor-overlay";
 import { useImageTools } from "~/hooks/useImageTools";
 import { SvgEditorDialog } from "~/components/editor/svg-editor/svg-editor-dialog";
 import { PresenceAvatars } from "~/components/editor/presence-avatars";
@@ -558,55 +560,53 @@ function EditorContent() {
             });
             canvas.add(workspaceObj);
             canvas.centerObject(workspaceObj);
-
-            if (containerRef.current) {
-              const containerRect =
-                containerRef.current.getBoundingClientRect();
-              const workspaceCenter = workspaceObj.getCenterPoint();
-              const containerCenter = new fabric.Point(
-                containerRect.width / 2,
-                containerRect.height / 2,
-              );
-
-              const vpt = [
-                1,
-                0,
-                0,
-                1,
-                containerCenter.x - workspaceCenter.x,
-                containerCenter.y - workspaceCenter.y,
-              ];
-
-              canvas.setViewportTransform(vpt);
-            }
-          } else {
-            // center existing workspace in viewport
-            if (containerRef.current) {
-              const containerRect =
-                containerRef.current.getBoundingClientRect();
-              const workspaceCenter = workspace.getCenterPoint();
-              const containerCenter = new fabric.Point(
-                containerRect.width / 2,
-                containerRect.height / 2,
-              );
-
-              const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
-              vpt[4] = containerCenter.x - workspaceCenter.x;
-              vpt[5] = containerCenter.y - workspaceCenter.y;
-              canvas.setViewportTransform(vpt);
-            }
           }
+
+          // center workspace in viewport
+          const centerWorkspace = () => {
+            const ws = canvas.getObjects().find((obj) => obj.name === "clip");
+            if (!ws || !containerRef.current) return;
+
+            const containerRect = containerRef.current.getBoundingClientRect();
+            if (containerRect.width === 0 || containerRect.height === 0) return;
+
+            const workspaceCenter = ws.getCenterPoint();
+            const containerCenter = new fabric.Point(
+              containerRect.width / 2,
+              containerRect.height / 2,
+            );
+
+            const vpt: [number, number, number, number, number, number] = [
+              1,
+              0,
+              0,
+              1,
+              containerCenter.x - workspaceCenter.x,
+              containerCenter.y - workspaceCenter.y,
+            ];
+
+            canvas.setViewportTransform(vpt);
+            canvas.requestRenderAll();
+          };
+
+          // center immediately
+          centerWorkspace();
 
           // force render immediately
           canvas.requestRenderAll();
           canvas.renderAll();
 
-          // initialize history with current state as base (prevents blank on undo)
+          // recenter after layout settles
           setTimeout(() => {
+            centerWorkspace();
             editor?.initializeHistory?.();
-            // force another render to ensure visibility
             canvas.requestRenderAll();
-          }, 100);
+          }, 50);
+
+          // final recenter after everything loads
+          setTimeout(() => {
+            centerWorkspace();
+          }, 200);
         });
       } catch (error) {
         console.error("Failed to load project data:", error);
@@ -770,6 +770,7 @@ function EditorContent() {
                 editor={editor}
                 isOpen={isAgentPanelOpen}
                 onToggle={() => setIsAgentPanelOpen(!isAgentPanelOpen)}
+                projectId={projectId as string}
               />
             </>
           )}
@@ -784,11 +785,12 @@ function EditorContent() {
         isDragging={dragState.isDragging}
       />
 
-      {/* Image Tools Dialog */}
-      <ImageToolsDialog
+      {/* Image Editor Overlay - New sleek UI */}
+      <ImageEditorOverlay
         isOpen={isDialogOpen}
         onClose={closeImageTools}
         imageElement={selectedImage}
+        canvas={editor?.canvas || null}
         onImageUpdate={handleImageUpdate}
       />
 
@@ -816,10 +818,12 @@ function EditorContent() {
 
 export default function Editor() {
   return (
-    <AuthGuard>
-      <DragProvider>
-        <EditorContent />
-      </DragProvider>
-    </AuthGuard>
+    <Suspense fallback={<EditorSkeleton />}>
+      <AuthGuard>
+        <DragProvider>
+          <EditorContent />
+        </DragProvider>
+      </AuthGuard>
+    </Suspense>
   );
 }

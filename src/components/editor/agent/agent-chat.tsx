@@ -1,11 +1,66 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, memo } from "react";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { AgentMessage } from "./agent-message";
 import { AgentChatProps } from "./types";
+import { Shimmer } from "~/components/ai-elements/shimmer";
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningTrigger,
+} from "~/components/ai-elements/reasoning";
+import { Spinner } from "~/components/kibo-ui/spinner";
+import { Lightbulb } from "lucide-react";
+import { motion } from "framer-motion";
+import { ShimmeringText } from "~/components/ui/shimmering-text";
 
-export const AgentChat = ({ messages, isLoading }: AgentChatProps) => {
+interface ThinkingIndicatorProps {
+  isStreaming?: boolean;
+  content?: string;
+}
+
+const ThinkingIndicator = memo(function ThinkingIndicator({
+  isStreaming = true,
+  content,
+}: ThinkingIndicatorProps) {
+  if (content) {
+    return (
+      <Reasoning isStreaming={isStreaming} defaultOpen={true}>
+        <ReasoningTrigger />
+        <ReasoningContent>{content}</ReasoningContent>
+      </Reasoning>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className="flex items-start gap-3"
+    >
+      <div className="bg-primary/10 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg">
+        <Spinner variant="infinite" size="lg" className="text-primary" />
+      </div>
+
+      <div className="flex items-center gap-2 pt-1">
+        <Lightbulb className="text-muted-foreground h-4 w-4" />
+        <ShimmeringText
+          text="Thinking"
+          className="text-sm font-medium"
+          duration={1.5}
+          repeatDelay={1}
+        />
+      </div>
+    </motion.div>
+  );
+});
+
+export const AgentChat = memo(function AgentChat({
+  messages,
+  isLoading,
+}: AgentChatProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -17,35 +72,15 @@ export const AgentChat = ({ messages, isLoading }: AgentChatProps) => {
 
   return (
     <ScrollArea className="flex-1" ref={scrollRef}>
-      <div className="flex flex-col gap-3 p-4">
+      <div className="flex flex-col gap-4 p-4">
         {messages.map((message) => (
           <AgentMessage key={message.id} message={message} />
         ))}
 
-        {isLoading && (
-          <div className="flex items-start gap-2.5">
-            <div className="bg-primary/10 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg">
-              <div className="bg-primary h-2 w-2 animate-pulse rounded-full" />
-            </div>
-            <div className="bg-muted flex items-center gap-1.5 rounded-2xl rounded-tl-sm px-3 py-2">
-              <span
-                className="h-1.5 w-1.5 animate-bounce rounded-full bg-current opacity-60"
-                style={{ animationDelay: "0ms" }}
-              />
-              <span
-                className="h-1.5 w-1.5 animate-bounce rounded-full bg-current opacity-60"
-                style={{ animationDelay: "150ms" }}
-              />
-              <span
-                className="h-1.5 w-1.5 animate-bounce rounded-full bg-current opacity-60"
-                style={{ animationDelay: "300ms" }}
-              />
-            </div>
-          </div>
-        )}
+        {isLoading && <ThinkingIndicator isStreaming={true} />}
 
         <div ref={bottomRef} />
       </div>
     </ScrollArea>
   );
-};
+});
