@@ -129,9 +129,9 @@ const SuggestionPill = memo(function SuggestionPill({
       onClick={() => onSelect(suggestion)}
       className={cn(
         "group shrink-0 rounded-full px-4 py-2",
-        "bg-secondary/80 hover:bg-secondary",
+        "bg-secondary hover:bg-secondary/80 dark:bg-secondary/60 dark:hover:bg-secondary/80",
         "text-secondary-foreground text-xs font-medium",
-        "hover:border-border/50 border border-transparent",
+        "border-border/30 hover:border-border/50 border",
         "transition-all duration-150",
         "hover:shadow-sm",
         "active:scale-[0.98]",
@@ -172,8 +172,8 @@ export const AgentSuggestions = memo(function AgentSuggestions({
       </div>
 
       {/* fade edges */}
-      <div className="from-background pointer-events-none absolute top-0 bottom-0 left-0 w-4 bg-gradient-to-r to-transparent" />
-      <div className="from-background pointer-events-none absolute top-0 right-0 bottom-0 w-4 bg-gradient-to-l to-transparent" />
+      <div className="from-card pointer-events-none absolute top-0 bottom-0 left-0 w-8 bg-gradient-to-r to-transparent" />
+      <div className="from-card pointer-events-none absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l to-transparent" />
     </div>
   );
 });

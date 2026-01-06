@@ -42,7 +42,7 @@ export const AgentHistoryPanel = ({
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 20 }}
           transition={{ duration: 0.15 }}
-          className="bg-card border-border absolute inset-0 z-10 flex flex-col border-l"
+          className="bg-card border-border absolute inset-0 z-10 flex flex-col border-l shadow-lg"
         >
           <div className="border-border flex h-12 shrink-0 items-center justify-between border-b px-3">
             <div className="flex items-center gap-2">
@@ -77,8 +77,8 @@ export const AgentHistoryPanel = ({
                       className={cn(
                         "group relative flex cursor-pointer flex-col gap-1 rounded-lg p-3 transition-colors",
                         conv.id === activeId
-                          ? "bg-primary/10 border-primary/20 border"
-                          : "hover:bg-muted/50"
+                          ? "bg-primary/10 dark:bg-primary/15 border-primary/30 border"
+                          : "hover:bg-muted",
                       )}
                       onClick={() => onSelect(conv.id)}
                     >
@@ -90,7 +90,7 @@ export const AgentHistoryPanel = ({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="text-muted-foreground hover:text-destructive -mr-1.5 -mt-1 h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                            className="text-muted-foreground hover:text-destructive -mt-1 -mr-1.5 h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
                             onClick={(e) => {
                               e.stopPropagation();
                               onDelete(conv.id);
@@ -107,7 +107,7 @@ export const AgentHistoryPanel = ({
                         </p>
                       )}
 
-                      <div className="text-muted-foreground/70 flex items-center gap-2 text-[10px]">
+                      <div className="text-muted-foreground flex items-center gap-2 text-[10px]">
                         <span>{formatRelativeTime(conv.updatedAt)}</span>
                         <span>•</span>
                         <span>

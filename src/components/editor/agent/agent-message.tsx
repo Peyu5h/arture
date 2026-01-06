@@ -85,12 +85,12 @@ const MessageActions = memo(function MessageActions({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              variant="secondary"
+              variant="link"
               size="icon"
               className={cn(
                 "h-7 w-7 transition-colors",
                 copied
-                  ? "text-white hover:text-white"
+                  ? "text-primary hover:text-primary"
                   : "text-muted-foreground hover:text-foreground",
               )}
               onClick={handleCopy}
@@ -110,12 +110,12 @@ const MessageActions = memo(function MessageActions({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              variant="secondary"
+              variant="link"
               size="icon"
               className={cn(
-                "h-7 w-7",
+                "h-7 w-7 bg-transparent",
                 feedback === "like"
-                  ? "text-foreground bg-transparent"
+                  ? "text-foreground"
                   : "text-muted-foreground hover:text-foreground",
               )}
               onClick={() => handleFeedback("like")}
@@ -133,7 +133,7 @@ const MessageActions = memo(function MessageActions({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              variant="secondary"
+              variant="link"
               size="icon"
               className={cn(
                 "h-7 w-7",
@@ -178,7 +178,7 @@ export const AgentMessage = memo(function AgentMessage({
       )}
     >
       {!isUser && (
-        <div className="bg-primary/10 mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg">
+        <div className="bg-primary/10 dark:bg-primary/20 mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg">
           <div className="bg-primary h-2 w-2 rounded-full" />
         </div>
       )}
@@ -197,7 +197,7 @@ export const AgentMessage = memo(function AgentMessage({
                 className={cn(
                   "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
                   mention.isOnCanvas
-                    ? "bg-primary/15 text-primary"
+                    ? "bg-primary/15 dark:bg-primary/25 text-primary"
                     : "bg-muted text-muted-foreground",
                 )}
               >
@@ -212,9 +212,10 @@ export const AgentMessage = memo(function AgentMessage({
           className={cn(
             "relative",
             isUser
-              ? "bg-secondary text-secondary-foreground rounded-2xl rounded-br-md px-4 py-2.5"
+              ? "bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-2.5 shadow-sm"
               : "text-foreground",
-            isError && "bg-destructive/5 border-destructive/20 border",
+            isError &&
+              "bg-destructive/10 dark:bg-destructive/20 border-destructive/30 border",
           )}
         >
           {isUser ? (
@@ -222,7 +223,7 @@ export const AgentMessage = memo(function AgentMessage({
               {message.content}
             </p>
           ) : (
-            <div className="prose-sm">
+            <div className="prose-sm dark:prose-invert">
               <Markdown>{message.content}</Markdown>
             </div>
           )}

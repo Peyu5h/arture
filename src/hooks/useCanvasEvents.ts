@@ -19,6 +19,11 @@ export const useCanvasEvents = ({
   onModified,
 }: CanvasEvents) => {
   const isZoomingRef = useRef(false);
+  const canvasRef = useRef<fabric.Canvas | null>(null);
+
+  useEffect(() => {
+    canvasRef.current = canvas;
+  }, [canvas]);
 
   useEffect(() => {
     if (!canvas) return;
@@ -34,21 +39,32 @@ export const useCanvasEvents = ({
       return result;
     } as typeof canvas.zoomToPoint;
 
-    // selection handlers - call renderAll for immediate visual feedback
+    // safe render helper
+    const safeRenderAll = () => {
+      if (canvasRef.current) {
+        try {
+          canvasRef.current.requestRenderAll();
+        } catch (e) {
+          // canvas may be disposed
+        }
+      }
+    };
+
+    // selection handlers
     const onSelectionCreated = (e: fabric.IEvent) => {
       setSelectedObjects((e as any).selected || null);
-      canvas.renderAll();
+      safeRenderAll();
     };
 
     const onSelectionUpdated = (e: fabric.IEvent) => {
       setSelectedObjects((e as any).selected || null);
-      canvas.renderAll();
+      safeRenderAll();
     };
 
     const onSelectionCleared = () => {
       setSelectedObjects(null);
       clearSelection?.();
-      canvas.renderAll();
+      safeRenderAll();
     };
 
     // content change handlers
@@ -60,18 +76,28 @@ export const useCanvasEvents = ({
 
     const onObjectRemoved = () => {
       if (isZoomingRef.current) return;
-      canvas.renderAll();
+      safeRenderAll();
       save();
       onModified?.();
     };
 
     const onObjectModified = () => {
       if (isZoomingRef.current) return;
-      const active = canvas.getActiveObject();
-      if (active) active.setCoords();
-      canvas.renderAll();
+      if (canvasRef.current) {
+        try {
+          const active = canvasRef.current.getActiveObject();
+          if (active) active.setCoords();
+          safeRenderAll();
+        } catch (e) {
+          // canvas may be disposed
+        }
+      }
       save();
       onModified?.();
+    };
+
+    const onMouseUp = () => {
+      safeRenderAll();
     };
 
     canvas.on("selection:created", onSelectionCreated);
@@ -80,11 +106,7 @@ export const useCanvasEvents = ({
     canvas.on("object:added", onObjectAdded);
     canvas.on("object:removed", onObjectRemoved);
     canvas.on("object:modified", onObjectModified);
-    
-    // clear drag selection rectangle after mouse up
-    canvas.on("mouse:up", () => {
-      canvas.renderAll();
-    });
+    canvas.on("mouse:up", onMouseUp);
 
     return () => {
       canvas.off("selection:created", onSelectionCreated);
@@ -93,7 +115,7 @@ export const useCanvasEvents = ({
       canvas.off("object:added", onObjectAdded);
       canvas.off("object:removed", onObjectRemoved);
       canvas.off("object:modified", onObjectModified);
-      canvas.off("mouse:up");
+      canvas.off("mouse:up", onMouseUp);
     };
   }, [canvas, setSelectedObjects, clearSelection, save, onModified]);
 };

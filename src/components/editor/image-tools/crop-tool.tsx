@@ -23,6 +23,7 @@ import {
 } from "~/components/ui/tooltip";
 import { useImageProcessor, type CropRegion } from "~/hooks/useImageProcessor";
 import { ny } from "~/lib/utils";
+import { ScrollArea } from "~/components/ui/scroll-area";
 
 interface CropToolProps {
   imageData: ImageData | null;
@@ -422,245 +423,233 @@ export function CropTool({
 
   return (
     <TooltipProvider>
-      <div className="flex h-full flex-col overflow-hidden">
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Crop className="text-primary h-5 w-5" />
-            <h3 className="font-semibold">Crop & Transform</h3>
-            {state.isProcessing && (
-              <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
-            )}
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-
-        <div className="flex-1 space-y-4 overflow-y-auto p-4">
-          <div className="space-y-2">
-            <span className="text-sm font-medium">Aspect Ratio</span>
-            <div className="flex flex-wrap gap-1.5">
-              {ASPECT_OPTIONS.map((option) => (
-                <Tooltip key={`crop-aspect-${option.name}`}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={
-                        aspectRatio === option.name ? "default" : "outline"
-                      }
-                      size="sm"
-                      className="h-8 px-2"
-                      onClick={() => handleAspectChange(option.name)}
-                      disabled={state.isProcessing}
-                    >
-                      {option.icon}
-                      <span className="ml-1 text-xs">{option.label}</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{option.label}</TooltipContent>
-                </Tooltip>
-              ))}
+      <ScrollArea>
+        <div className="flex h-full w-72 flex-col overflow-hidden">
+          <div className="flex-1 space-y-4 overflow-y-auto p-4">
+            <div className="space-y-2">
+              <div className="no-scrollbar flex gap-1 overflow-x-auto pb-1">
+                {ASPECT_OPTIONS.map((option) => (
+                  <Tooltip key={`crop-aspect-${option.name}`}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={
+                          aspectRatio === option.name ? "default" : "outline"
+                        }
+                        size="sm"
+                        className="h-8 shrink-0 px-2.5"
+                        onClick={() => handleAspectChange(option.name)}
+                        disabled={state.isProcessing}
+                      >
+                        {option.icon}
+                        <span className="ml-1 text-[11px]">{option.label}</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{option.label}</TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div
-            ref={containerRef}
-            className="relative flex items-center justify-center rounded-lg border bg-neutral-900 p-2"
-            style={{ minHeight: 200, maxHeight: 280 }}
-          >
-            {currentImageData ? (
-              <div className="relative" style={scaledCanvasStyle}>
-                <canvas
-                  ref={canvasRef}
-                  className="block"
-                  style={{
-                    width: scaledCanvasStyle.width,
-                    height: scaledCanvasStyle.height,
-                  }}
-                />
-
-                {/* dark overlay for outside crop area */}
-                <div className="pointer-events-none absolute inset-0">
-                  {/* top overlay */}
-                  <div
-                    className="absolute top-0 right-0 left-0 bg-black/60"
-                    style={{ height: `${cropPercentages.top}%` }}
-                  />
-                  {/* bottom overlay */}
-                  <div
-                    className="absolute right-0 bottom-0 left-0 bg-black/60"
+            <div
+              ref={containerRef}
+              className="bg-muted relative flex items-center justify-center rounded-lg border p-2"
+              style={{ minHeight: 100, maxHeight: 180 }}
+            >
+              {currentImageData ? (
+                <div className="relative" style={scaledCanvasStyle}>
+                  <canvas
+                    ref={canvasRef}
+                    className="block"
                     style={{
-                      height: `${100 - cropPercentages.top - cropPercentages.height}%`,
+                      width: scaledCanvasStyle.width,
+                      height: scaledCanvasStyle.height,
                     }}
                   />
-                  {/* left overlay */}
-                  <div
-                    className="absolute left-0 bg-black/60"
-                    style={{
-                      top: `${cropPercentages.top}%`,
-                      width: `${cropPercentages.left}%`,
-                      height: `${cropPercentages.height}%`,
-                    }}
-                  />
-                  {/* right overlay */}
-                  <div
-                    className="absolute right-0 bg-black/60"
-                    style={{
-                      top: `${cropPercentages.top}%`,
-                      width: `${100 - cropPercentages.left - cropPercentages.width}%`,
-                      height: `${cropPercentages.height}%`,
-                    }}
-                  />
-                </div>
 
-                {/* crop selection */}
-                <div
-                  className="border-primary absolute border-2"
-                  style={{
-                    left: `${cropPercentages.left}%`,
-                    top: `${cropPercentages.top}%`,
-                    width: `${cropPercentages.width}%`,
-                    height: `${cropPercentages.height}%`,
-                  }}
-                >
-                  {/* move handle */}
-                  <div
-                    className="absolute inset-0 cursor-move"
-                    onMouseDown={(e) => handleMouseDown(e, "move")}
-                  />
-
-                  {/* corner handles */}
-                  <div
-                    className="bg-primary absolute -top-1.5 -left-1.5 h-3 w-3 cursor-nw-resize rounded-full"
-                    onMouseDown={(e) => handleMouseDown(e, "nw")}
-                  />
-                  <div
-                    className="bg-primary absolute -top-1.5 -right-1.5 h-3 w-3 cursor-ne-resize rounded-full"
-                    onMouseDown={(e) => handleMouseDown(e, "ne")}
-                  />
-                  <div
-                    className="bg-primary absolute -bottom-1.5 -left-1.5 h-3 w-3 cursor-sw-resize rounded-full"
-                    onMouseDown={(e) => handleMouseDown(e, "sw")}
-                  />
-                  <div
-                    className="bg-primary absolute -right-1.5 -bottom-1.5 h-3 w-3 cursor-se-resize rounded-full"
-                    onMouseDown={(e) => handleMouseDown(e, "se")}
-                  />
-
-                  {/* edge handles */}
-                  <div
-                    className="bg-primary absolute -top-1 left-1/2 h-2 w-6 -translate-x-1/2 cursor-n-resize rounded"
-                    onMouseDown={(e) => handleMouseDown(e, "n")}
-                  />
-                  <div
-                    className="bg-primary absolute -bottom-1 left-1/2 h-2 w-6 -translate-x-1/2 cursor-s-resize rounded"
-                    onMouseDown={(e) => handleMouseDown(e, "s")}
-                  />
-                  <div
-                    className="bg-primary absolute top-1/2 -left-1 h-6 w-2 -translate-y-1/2 cursor-w-resize rounded"
-                    onMouseDown={(e) => handleMouseDown(e, "w")}
-                  />
-                  <div
-                    className="bg-primary absolute top-1/2 -right-1 h-6 w-2 -translate-y-1/2 cursor-e-resize rounded"
-                    onMouseDown={(e) => handleMouseDown(e, "e")}
-                  />
-
-                  {/* rule of thirds grid */}
+                  {/* dark overlay for outside crop area */}
                   <div className="pointer-events-none absolute inset-0">
-                    <div className="bg-primary/30 absolute top-0 left-1/3 h-full w-px" />
-                    <div className="bg-primary/30 absolute top-0 left-2/3 h-full w-px" />
-                    <div className="bg-primary/30 absolute top-1/3 left-0 h-px w-full" />
-                    <div className="bg-primary/30 absolute top-2/3 left-0 h-px w-full" />
+                    {/* top overlay */}
+                    <div
+                      className="absolute top-0 right-0 left-0 bg-black/60"
+                      style={{ height: `${cropPercentages.top}%` }}
+                    />
+                    {/* bottom overlay */}
+                    <div
+                      className="absolute right-0 bottom-0 left-0 bg-black/60"
+                      style={{
+                        height: `${100 - cropPercentages.top - cropPercentages.height}%`,
+                      }}
+                    />
+                    {/* left overlay */}
+                    <div
+                      className="absolute left-0 bg-black/60"
+                      style={{
+                        top: `${cropPercentages.top}%`,
+                        width: `${cropPercentages.left}%`,
+                        height: `${cropPercentages.height}%`,
+                      }}
+                    />
+                    {/* right overlay */}
+                    <div
+                      className="absolute right-0 bg-black/60"
+                      style={{
+                        top: `${cropPercentages.top}%`,
+                        width: `${100 - cropPercentages.left - cropPercentages.width}%`,
+                        height: `${cropPercentages.height}%`,
+                      }}
+                    />
+                  </div>
+
+                  {/* crop selection */}
+                  <div
+                    className="border-primary absolute border-2"
+                    style={{
+                      left: `${cropPercentages.left}%`,
+                      top: `${cropPercentages.top}%`,
+                      width: `${cropPercentages.width}%`,
+                      height: `${cropPercentages.height}%`,
+                    }}
+                  >
+                    {/* move handle */}
+                    <div
+                      className="absolute inset-0 cursor-move"
+                      onMouseDown={(e) => handleMouseDown(e, "move")}
+                    />
+
+                    {/* corner handles */}
+                    <div
+                      className="bg-primary absolute -top-1.5 -left-1.5 h-3 w-3 cursor-nw-resize rounded-full"
+                      onMouseDown={(e) => handleMouseDown(e, "nw")}
+                    />
+                    <div
+                      className="bg-primary absolute -top-1.5 -right-1.5 h-3 w-3 cursor-ne-resize rounded-full"
+                      onMouseDown={(e) => handleMouseDown(e, "ne")}
+                    />
+                    <div
+                      className="bg-primary absolute -bottom-1.5 -left-1.5 h-3 w-3 cursor-sw-resize rounded-full"
+                      onMouseDown={(e) => handleMouseDown(e, "sw")}
+                    />
+                    <div
+                      className="bg-primary absolute -right-1.5 -bottom-1.5 h-3 w-3 cursor-se-resize rounded-full"
+                      onMouseDown={(e) => handleMouseDown(e, "se")}
+                    />
+
+                    {/* edge handles */}
+                    <div
+                      className="bg-primary absolute -top-1 left-1/2 h-2 w-6 -translate-x-1/2 cursor-n-resize rounded"
+                      onMouseDown={(e) => handleMouseDown(e, "n")}
+                    />
+                    <div
+                      className="bg-primary absolute -bottom-1 left-1/2 h-2 w-6 -translate-x-1/2 cursor-s-resize rounded"
+                      onMouseDown={(e) => handleMouseDown(e, "s")}
+                    />
+                    <div
+                      className="bg-primary absolute top-1/2 -left-1 h-6 w-2 -translate-y-1/2 cursor-w-resize rounded"
+                      onMouseDown={(e) => handleMouseDown(e, "w")}
+                    />
+                    <div
+                      className="bg-primary absolute top-1/2 -right-1 h-6 w-2 -translate-y-1/2 cursor-e-resize rounded"
+                      onMouseDown={(e) => handleMouseDown(e, "e")}
+                    />
+
+                    {/* rule of thirds grid */}
+                    <div className="pointer-events-none absolute inset-0">
+                      <div className="bg-primary/30 absolute top-0 left-1/3 h-full w-px" />
+                      <div className="bg-primary/30 absolute top-0 left-2/3 h-full w-px" />
+                      <div className="bg-primary/30 absolute top-1/3 left-0 h-px w-full" />
+                      <div className="bg-primary/30 absolute top-2/3 left-0 h-px w-full" />
+                    </div>
                   </div>
                 </div>
+              ) : (
+                <div className="text-muted-foreground flex h-40 items-center justify-center">
+                  No image loaded
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <span className="text-sm font-medium">Transform</span>
+              <div className="flex gap-1.5">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 flex-1"
+                      onClick={() => handleRotate(90)}
+                      disabled={state.isProcessing}
+                    >
+                      <RotateCw className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Rotate 90°</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 flex-1"
+                      onClick={() => handleFlip(true)}
+                      disabled={state.isProcessing}
+                    >
+                      <FlipHorizontal className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Flip horizontal</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 flex-1"
+                      onClick={() => handleFlip(false)}
+                      disabled={state.isProcessing}
+                    >
+                      <FlipVertical className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Flip vertical</TooltipContent>
+                </Tooltip>
               </div>
-            ) : (
-              <div className="text-muted-foreground flex h-40 items-center justify-center">
-                No image loaded
-              </div>
-            )}
-          </div>
+            </div>
 
-          <div className="space-y-2">
-            <span className="text-sm font-medium">Transform</span>
-            <div className="flex flex-wrap gap-1.5">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8"
-                    onClick={() => handleRotate(90)}
-                    disabled={state.isProcessing}
-                  >
-                    <RotateCw className="h-4 w-4" />
-                    <span className="ml-1 text-xs">90°</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Rotate 90°</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8"
-                    onClick={() => handleFlip(true)}
-                    disabled={state.isProcessing}
-                  >
-                    <FlipHorizontal className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Flip horizontal</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8"
-                    onClick={() => handleFlip(false)}
-                    disabled={state.isProcessing}
-                  >
-                    <FlipVertical className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Flip vertical</TooltipContent>
-              </Tooltip>
+            <div className="text-muted-foreground text-xs">
+              {Math.round(cropRegion.width)} × {Math.round(cropRegion.height)}{" "}
+              px
             </div>
           </div>
 
-          <div className="text-muted-foreground text-xs">
-            {Math.round(cropRegion.width)} × {Math.round(cropRegion.height)} px
+          <div className="flex gap-2 border-t p-3">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={handleReset}
+              disabled={state.isProcessing}
+            >
+              Reset
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={handleApply}
+              disabled={state.isProcessing || !currentImageData}
+            >
+              {state.isProcessing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <Check className="mr-1 h-4 w-4" />
+                  Apply
+                </>
+              )}
+            </Button>
           </div>
         </div>
-
-        <div className="flex gap-2 border-t p-3">
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={handleReset}
-            disabled={state.isProcessing}
-          >
-            Reset
-          </Button>
-          <Button
-            className="flex-1"
-            onClick={handleApply}
-            disabled={state.isProcessing || !currentImageData}
-          >
-            {state.isProcessing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                <Check className="mr-1 h-4 w-4" />
-                Apply
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
+      </ScrollArea>
     </TooltipProvider>
   );
 }

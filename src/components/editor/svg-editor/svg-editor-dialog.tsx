@@ -9,7 +9,11 @@ import {
 } from "~/components/ui/dialog";
 import { Button } from "~/components/ui/button";
 import { ScrollArea } from "~/components/ui/scroll-area";
-import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "~/components/ui/popover";
 import { ny } from "~/lib/utils";
 import { Trash2, Check, Eye, EyeOff, Pipette } from "lucide-react";
 import { fabric } from "fabric";
@@ -17,11 +21,21 @@ import { HexColorPicker, HexColorInput } from "react-colorful";
 
 // primary colors to detect
 const PRIMARY_COLORS = [
-  "#407bff", "#3b82f6", "#2563eb",
-  "#ba68c8", "#a855f7", "#9333ea",
-  "#92e3a9", "#4ade80", "#22c55e",
-  "#ffc727", "#facc15", "#eab308",
-  "#ff725e", "#ef4444", "#dc2626",
+  "#407bff",
+  "#3b82f6",
+  "#2563eb",
+  "#ba68c8",
+  "#a855f7",
+  "#9333ea",
+  "#92e3a9",
+  "#4ade80",
+  "#22c55e",
+  "#ffc727",
+  "#facc15",
+  "#eab308",
+  "#ff725e",
+  "#ef4444",
+  "#dc2626",
 ];
 
 interface SvgEditorDialogProps {
@@ -52,7 +66,9 @@ export const SvgEditorDialog = ({
   const [colorGroups, setColorGroups] = useState<ColorGroup[]>([]);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [pickerColor, setPickerColor] = useState("#407bff");
-  const [primaryColorDetected, setPrimaryColorDetected] = useState<string | null>(null);
+  const [primaryColorDetected, setPrimaryColorDetected] = useState<
+    string | null
+  >(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const [updateTrigger, setUpdateTrigger] = useState(0);
 
@@ -64,12 +80,15 @@ export const SvgEditorDialog = ({
     }
 
     const objects = svgGroup.getObjects();
-    const colorMap = new Map<string, { count: number; objects: fabric.Object[] }>();
+    const colorMap = new Map<
+      string,
+      { count: number; objects: fabric.Object[] }
+    >();
 
     objects.forEach((obj) => {
       const fill = (obj.fill as string) || "";
       if (!fill || fill === "transparent" || fill === "none") return;
-      
+
       const normalized = fill.toLowerCase();
       if (!colorMap.has(normalized)) {
         colorMap.set(normalized, { count: 0, objects: [] });
@@ -93,7 +112,7 @@ export const SvgEditorDialog = ({
     // detect primary color
     const detected = groups.find((g) => isPrimaryColor(g.color));
     setPrimaryColorDetected(detected?.color || null);
-    
+
     // trigger initial render
     setUpdateTrigger(1);
   }, [svgGroup, isOpen]);
@@ -106,56 +125,64 @@ export const SvgEditorDialog = ({
     const ctx = canvasEl.getContext("2d");
     if (!ctx) return;
 
-    // get group dimensions
-    const groupWidth = svgGroup.width || 100;
-    const groupHeight = svgGroup.height || 100;
-    
-    // calculate scale
-    const maxSize = 400;
-    const scale = Math.min(maxSize / groupWidth, maxSize / groupHeight, 1);
-    
-    const renderWidth = Math.max(groupWidth * scale, 100);
-    const renderHeight = Math.max(groupHeight * scale, 100);
-    
-    // set canvas size
-    canvasEl.width = renderWidth + 40;
-    canvasEl.height = renderHeight + 40;
-    
-    // clear
-    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
-    
-    // create temp fabric canvas to render the group
-    const tempCanvas = new fabric.StaticCanvas(null, {
-      width: renderWidth + 40,
-      height: renderHeight + 40,
-      backgroundColor: "transparent",
-    });
-    
-    // clone into temp canvas
-    svgGroup.clone((cloned: fabric.Group) => {
-      cloned.scale(scale);
-      cloned.set({
-        left: (renderWidth + 40) / 2,
-        top: (renderHeight + 40) / 2,
-        originX: "center",
-        originY: "center",
-      });
-      
-      tempCanvas.add(cloned);
-      tempCanvas.renderAll();
-      
-      // draw to our preview canvas
-      const dataUrl = tempCanvas.toDataURL({ format: "png" });
-      const img = new Image();
-      img.onload = () => {
+    try {
+      // get group dimensions
+      const groupWidth = svgGroup.width || 100;
+      const groupHeight = svgGroup.height || 100;
+
+      // calculate scale
+      const maxSize = 400;
+      const scale = Math.min(maxSize / groupWidth, maxSize / groupHeight, 1);
+
+      const renderWidth = Math.max(groupWidth * scale, 100);
+      const renderHeight = Math.max(groupHeight * scale, 100);
+
+      // set canvas size
+      canvasEl.width = renderWidth + 40;
+      canvasEl.height = renderHeight + 40;
+
+      // clear
+      if (ctx && canvasEl.width && canvasEl.height) {
         ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
-        ctx.drawImage(img, 0, 0);
-      };
-      img.src = dataUrl;
-      
-      // cleanup
-      tempCanvas.dispose();
-    });
+      }
+
+      // create temp fabric canvas to render the group
+      const tempCanvas = new fabric.StaticCanvas(null, {
+        width: renderWidth + 40,
+        height: renderHeight + 40,
+        backgroundColor: "transparent",
+      });
+
+      // clone into temp canvas
+      svgGroup.clone((cloned: fabric.Group) => {
+        cloned.scale(scale);
+        cloned.set({
+          left: (renderWidth + 40) / 2,
+          top: (renderHeight + 40) / 2,
+          originX: "center",
+          originY: "center",
+        });
+
+        tempCanvas.add(cloned);
+        tempCanvas.renderAll();
+
+        // draw to our preview canvas
+        const dataUrl = tempCanvas.toDataURL({ format: "png" });
+        const img = new Image();
+        img.onload = () => {
+          if (ctx && canvasEl.width && canvasEl.height) {
+            ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+            ctx.drawImage(img, 0, 0);
+          }
+        };
+        img.src = dataUrl;
+
+        // cleanup
+        tempCanvas.dispose();
+      });
+    } catch (error) {
+      console.error("Failed to render SVG preview:", error);
+    }
   }, [svgGroup, isOpen, updateTrigger]);
 
   // refresh preview after color change
@@ -175,21 +202,19 @@ export const SvgEditorDialog = ({
       });
 
       setColorGroups((prev) =>
-        prev.map((g) =>
-          g.color === fromColor ? { ...g, color: toColor } : g
-        )
+        prev.map((g) => (g.color === fromColor ? { ...g, color: toColor } : g)),
       );
       setSelectedColor(toColor);
       setPickerColor(toColor);
-      
+
       // update primary if changed
       if (fromColor === primaryColorDetected) {
         setPrimaryColorDetected(toColor);
       }
-      
+
       refreshPreview();
     },
-    [colorGroups, primaryColorDetected, refreshPreview]
+    [colorGroups, primaryColorDetected, refreshPreview],
   );
 
   // change primary color (all primary colors become new color)
@@ -205,13 +230,13 @@ export const SvgEditorDialog = ({
 
       setColorGroups((prev) =>
         prev.map((g) =>
-          isPrimaryColor(g.color) ? { ...g, color: newColor } : g
-        )
+          isPrimaryColor(g.color) ? { ...g, color: newColor } : g,
+        ),
       );
       setPrimaryColorDetected(newColor);
       refreshPreview();
     },
-    [colorGroups, refreshPreview]
+    [colorGroups, refreshPreview],
   );
 
   // toggle visibility
@@ -227,12 +252,12 @@ export const SvgEditorDialog = ({
 
       setColorGroups((prev) =>
         prev.map((g) =>
-          g.color === color ? { ...g, visible: newVisible } : g
-        )
+          g.color === color ? { ...g, visible: newVisible } : g,
+        ),
       );
       refreshPreview();
     },
-    [colorGroups, refreshPreview]
+    [colorGroups, refreshPreview],
   );
 
   // delete group
@@ -252,7 +277,7 @@ export const SvgEditorDialog = ({
       }
       refreshPreview();
     },
-    [colorGroups, svgGroup, selectedColor, refreshPreview]
+    [colorGroups, svgGroup, selectedColor, refreshPreview],
   );
 
   // done
@@ -267,7 +292,7 @@ export const SvgEditorDialog = ({
         <DialogHeader className="shrink-0 border-b px-6 py-4">
           <DialogTitle className="flex items-center gap-3">
             <span className="text-lg font-semibold">SVG Editor</span>
-            <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
+            <span className="bg-muted text-muted-foreground rounded-full px-2.5 py-0.5 text-xs">
               {colorGroups.length} colors
             </span>
           </DialogTitle>
@@ -275,13 +300,16 @@ export const SvgEditorDialog = ({
 
         <div className="flex flex-1 overflow-hidden">
           {/* left panel */}
-          <div className="flex w-80 flex-col border-r bg-muted/10">
+          <div className="bg-muted/10 flex w-80 flex-col border-r">
             {/* pick primary color */}
             {primaryColorDetected && (
               <div className="shrink-0 border-b p-3">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full gap-2 justify-start">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start gap-2"
+                    >
                       <div
                         className="size-4 rounded border"
                         style={{ backgroundColor: primaryColorDetected }}
@@ -315,8 +343,8 @@ export const SvgEditorDialog = ({
                     className={ny(
                       "group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-all",
                       selectedColor === group.color
-                        ? "bg-primary/10 ring-1 ring-primary/30"
-                        : "hover:bg-muted"
+                        ? "bg-primary/10 ring-primary/30 ring-1"
+                        : "hover:bg-muted",
                     )}
                   >
                     {/* color picker popover */}
@@ -329,12 +357,16 @@ export const SvgEditorDialog = ({
                           }}
                           className={ny(
                             "size-9 shrink-0 rounded-lg border-2 shadow-sm transition-transform hover:scale-105",
-                            !group.visible && "opacity-40"
+                            !group.visible && "opacity-40",
                           )}
                           style={{ backgroundColor: group.color }}
                         />
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-3" align="start" side="right">
+                      <PopoverContent
+                        className="w-auto p-3"
+                        align="start"
+                        side="right"
+                      >
                         <HexColorPicker
                           color={pickerColor}
                           onChange={(c) => {
@@ -355,17 +387,17 @@ export const SvgEditorDialog = ({
                     </Popover>
 
                     {/* info */}
-                    <div className="flex-1 min-w-0">
-                      <span className="font-mono text-xs uppercase block truncate">
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate font-mono text-xs uppercase">
                         {group.color}
                       </span>
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-muted-foreground text-[10px]">
                         {group.count} element{group.count > 1 ? "s" : ""}
                       </span>
                     </div>
 
                     {/* actions */}
-                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -381,7 +413,7 @@ export const SvgEditorDialog = ({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-7 text-destructive hover:bg-destructive/10"
+                        className="text-destructive hover:bg-destructive/10 size-7"
                         onClick={() => deleteGroup(group.color)}
                       >
                         <Trash2 className="size-3.5" />
@@ -391,7 +423,7 @@ export const SvgEditorDialog = ({
                 ))}
 
                 {colorGroups.length === 0 && (
-                  <div className="py-12 text-center text-sm text-muted-foreground">
+                  <div className="text-muted-foreground py-12 text-center text-sm">
                     No colors found in SVG
                   </div>
                 )}
@@ -400,29 +432,17 @@ export const SvgEditorDialog = ({
           </div>
 
           {/* right panel: SVG preview */}
-          <div
-            className="flex flex-1 items-center justify-center p-8"
-            style={{
-              background: `
-                linear-gradient(45deg, #e8e8e8 25%, transparent 25%),
-                linear-gradient(-45deg, #e8e8e8 25%, transparent 25%),
-                linear-gradient(45deg, transparent 75%, #e8e8e8 75%),
-                linear-gradient(-45deg, transparent 75%, #e8e8e8 75%)
-              `,
-              backgroundSize: "20px 20px",
-              backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
-            }}
-          >
+          <div className="bg-muted/30 flex flex-1 items-center justify-center p-8">
             <canvas
               ref={previewCanvasRef}
-              className="rounded-lg"
+              className="rounded-lg shadow-sm"
               style={{ maxWidth: "100%", maxHeight: "100%" }}
             />
           </div>
         </div>
 
         {/* footer */}
-        <div className="shrink-0 flex justify-end gap-3 border-t px-6 py-4 bg-muted/20">
+        <div className="bg-muted/20 flex shrink-0 justify-end gap-3 border-t px-6 py-4">
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>

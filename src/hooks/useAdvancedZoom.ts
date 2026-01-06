@@ -23,6 +23,9 @@ export const useAdvancedZoom = ({
   const isSpacebarDownRef = useRef(false);
   const lastPinchDistanceRef = useRef<number | null>(null);
   const targetZoomRef = useRef(1);
+  const isAnimatingRef = useRef(false);
+  const lastRenderTimeRef = useRef(0);
+  const renderThrottleMs = 16; // ~60fps
 
   // calculate minimum zoom to keep canvas centered with margin
   const getMinZoom = useCallback(() => {
@@ -108,24 +111,39 @@ export const useAdvancedZoom = ({
     return overlapsHorizontally && overlapsVertically;
   }, [canvas, container, getWorkspaceBounds]);
 
+  // throttled render to prevent excessive repaints
+  const throttledRender = useCallback(() => {
+    if (!canvas) return;
+    const now = performance.now();
+    if (now - lastRenderTimeRef.current >= renderThrottleMs) {
+      lastRenderTimeRef.current = now;
+      canvas.requestRenderAll();
+    }
+  }, [canvas]);
+
   // center the workspace in the viewport
-  const centerWorkspaceImmediate = useCallback(() => {
-    if (!canvas || !container) return;
+  const centerWorkspaceImmediate = useCallback(
+    (skipRender = false) => {
+      if (!canvas || !container) return;
 
-    const workspaceCenter = getWorkspaceCenter();
-    const containerRect = container.getBoundingClientRect();
-    const currentZoom = canvas.getZoom();
+      const workspaceCenter = getWorkspaceCenter();
+      const containerRect = container.getBoundingClientRect();
+      const currentZoom = canvas.getZoom();
 
-    const containerCenterX = containerRect.width / 2;
-    const containerCenterY = containerRect.height / 2;
+      const containerCenterX = containerRect.width / 2;
+      const containerCenterY = containerRect.height / 2;
 
-    const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
-    vpt[4] = containerCenterX - workspaceCenter.x * currentZoom;
-    vpt[5] = containerCenterY - workspaceCenter.y * currentZoom;
+      const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+      vpt[4] = containerCenterX - workspaceCenter.x * currentZoom;
+      vpt[5] = containerCenterY - workspaceCenter.y * currentZoom;
 
-    canvas.setViewportTransform(vpt);
-    canvas.requestRenderAll();
-  }, [canvas, container, getWorkspaceCenter]);
+      canvas.setViewportTransform(vpt);
+      if (!skipRender) {
+        throttledRender();
+      }
+    },
+    [canvas, container, getWorkspaceCenter, throttledRender],
+  );
 
   // smooth zoom to point with animation, then center
   const smoothZoomToPoint = useCallback(
@@ -144,13 +162,17 @@ export const useAdvancedZoom = ({
       }
 
       targetZoomRef.current = clampedZoom;
+      isAnimatingRef.current = true;
 
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
 
       const animateZoom = () => {
-        if (!canvas) return;
+        if (!canvas) {
+          isAnimatingRef.current = false;
+          return;
+        }
 
         const current = canvas.getZoom();
         const target = targetZoomRef.current;
@@ -160,20 +182,22 @@ export const useAdvancedZoom = ({
           canvas.zoomToPoint(focalPoint, target);
           centerWorkspaceImmediate();
           animationFrameRef.current = null;
+          isAnimatingRef.current = false;
           return;
         }
 
-        // smooth interpolation
-        const newZoom = current + (target - current) * 0.2;
+        // faster interpolation for snappier feel
+        const newZoom = current + (target - current) * 0.25;
         canvas.zoomToPoint(focalPoint, newZoom);
-        centerWorkspaceImmediate();
+        centerWorkspaceImmediate(true); // skip render during animation
+        throttledRender();
 
         animationFrameRef.current = requestAnimationFrame(animateZoom);
       };
 
       animationFrameRef.current = requestAnimationFrame(animateZoom);
     },
-    [canvas, container, clampZoom, centerWorkspaceImmediate],
+    [canvas, container, clampZoom, centerWorkspaceImmediate, throttledRender],
   );
 
   // constrain pan to keep workspace visible
@@ -228,7 +252,6 @@ export const useAdvancedZoom = ({
     }
 
     canvas.setViewportTransform(vpt);
-    canvas.requestRenderAll();
   }, [canvas, container, margin]);
 
   // handle wheel events - scroll to pan, pinch to zoom
@@ -243,20 +266,21 @@ export const useAdvancedZoom = ({
       const isPinchGesture = event.ctrlKey;
 
       if (isPinchGesture) {
-        // pinch to zoom
+        // pinch to zoom - use direct zoom without animation for responsiveness
         const containerRect = container.getBoundingClientRect();
         const centerX = containerRect.width / 2;
         const centerY = containerRect.height / 2;
         const focalPoint = new fabric.Point(centerX, centerY);
 
         const currentZoom = canvas.getZoom();
-        const sensitivity = 0.01;
+        const sensitivity = 0.008; // slightly reduced for smoother feel
         const zoomDelta = -event.deltaY * sensitivity;
         const zoomFactor = Math.exp(zoomDelta);
         const newZoom = clampZoom(currentZoom * zoomFactor);
 
         canvas.zoomToPoint(focalPoint, newZoom);
-        centerWorkspaceImmediate();
+        centerWorkspaceImmediate(true);
+        throttledRender();
         return;
       }
 
@@ -264,12 +288,13 @@ export const useAdvancedZoom = ({
       const vpt = canvas.viewportTransform;
       if (!vpt) return;
 
-      // pan based on scroll delta
+      // pan based on scroll delta with throttled render
       vpt[4] -= event.deltaX;
       vpt[5] -= event.deltaY;
 
       canvas.setViewportTransform(vpt);
       constrainPan();
+      throttledRender();
     },
     [canvas, container, clampZoom, centerWorkspaceImmediate, constrainPan],
   );
@@ -308,10 +333,11 @@ export const useAdvancedZoom = ({
 
       canvas.setViewportTransform(vpt);
       constrainPan();
+      throttledRender();
 
       lastPanPositionRef.current = { x: event.clientX, y: event.clientY };
     },
-    [canvas, constrainPan],
+    [canvas, constrainPan, throttledRender],
   );
 
   // mouse up to stop panning

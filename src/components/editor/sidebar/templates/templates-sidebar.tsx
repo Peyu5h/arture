@@ -401,22 +401,39 @@ export const TemplatesSidebar = ({
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => {
-        const pattern = new (window as any).fabric.Pattern({
-          source: img,
-          repeat: "no-repeat",
-        });
+        try {
+          // validate image is properly loaded
+          if (
+            !img.complete ||
+            img.naturalWidth === 0 ||
+            img.naturalHeight === 0
+          ) {
+            console.warn("Image not properly loaded for pattern");
+            return;
+          }
 
-        const scaleX = (workspace.width || 1) / img.width;
-        const scaleY = (workspace.height || 1) / img.height;
-        const scale = Math.max(scaleX, scaleY);
+          const pattern = new (window as any).fabric.Pattern({
+            source: img,
+            repeat: "no-repeat",
+          });
 
-        pattern.patternTransform = [scale, 0, 0, scale, 0, 0];
+          const scaleX = (workspace.width || 1) / img.width;
+          const scaleY = (workspace.height || 1) / img.height;
+          const scale = Math.max(scaleX, scaleY);
 
-        workspace.set({ fill: pattern });
-        editor.canvas.requestRenderAll();
-        editor.save?.();
-        setSelectedGradient(null);
-        setBackground("");
+          pattern.patternTransform = [scale, 0, 0, scale, 0, 0];
+
+          workspace.set({ fill: pattern });
+          editor.canvas.requestRenderAll();
+          editor.save?.();
+          setSelectedGradient(null);
+          setBackground("");
+        } catch (error) {
+          console.error("Failed to create pattern from image:", error);
+        }
+      };
+      img.onerror = () => {
+        console.error("Failed to load image for pattern:", imageUrl);
       };
       img.src = imageUrl;
     },

@@ -29,9 +29,9 @@ export const AgentHeader = ({
   isHistoryOpen,
 }: AgentHeaderProps) => {
   return (
-    <div className="border-border/40 bg-background/80 flex h-12 shrink-0 items-center justify-between border-b px-3 backdrop-blur-sm">
+    <div className="border-border/40 bg-background flex h-12 shrink-0 items-center justify-between border-b px-3 backdrop-blur-sm">
       <div className="flex items-center gap-2.5">
-        <div className="from-primary/20 to-primary/5 flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br">
+        <div className="from-primary/20 to-primary/10 dark:from-primary/30 dark:to-primary/10 flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br">
           <Sparkles className="text-primary h-3.5 w-3.5" />
         </div>
 
@@ -39,11 +39,6 @@ export const AgentHeader = ({
           <span className="text-foreground text-sm leading-tight font-medium">
             {conversationTitle || "New Chat"}
           </span>
-          {contextStats && (
-            <span className="text-muted-foreground/60 text-[10px] leading-tight">
-              ~{contextStats.formattedTokens} tokens
-            </span>
-          )}
         </div>
       </div>
 
@@ -55,7 +50,7 @@ export const AgentHeader = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-muted-foreground hover:text-foreground hover:bg-muted/50 h-8 w-8"
+                  className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8"
                   onClick={onNewChat}
                 >
                   <Plus className="h-4 w-4" />
@@ -76,8 +71,8 @@ export const AgentHeader = ({
                   className={cn(
                     "h-8 w-8",
                     isHistoryOpen
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted",
                   )}
                   onClick={onShowHistory}
                 >
@@ -95,7 +90,7 @@ export const AgentHeader = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-muted-foreground hover:text-foreground hover:bg-muted/50 h-8 w-8"
+                className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8"
                 onClick={onClose}
               >
                 <X className="h-4 w-4" />

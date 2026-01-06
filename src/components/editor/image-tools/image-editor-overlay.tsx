@@ -24,6 +24,7 @@ import { Slider } from "~/components/ui/slider";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { cn } from "~/lib/utils";
 import { useImageProcessor } from "~/hooks/useImageProcessor";
+import { CropTool } from "./crop-tool";
 
 interface ImageEditorOverlayProps {
   isOpen: boolean;
@@ -329,14 +330,18 @@ export function ImageEditorOverlay({
       outputCtx.filter = getCSSFilter(adjustments, selectedFilter);
       outputCtx.drawImage(img, 0, 0);
 
-      const finalData = outputCtx.getImageData(
+      const finalImageData = outputCtx.getImageData(
         0,
         0,
         outputCanvas.width,
         outputCanvas.height,
       );
 
-      onImageUpdate(finalData, finalData.width, finalData.height);
+      onImageUpdate(
+        finalImageData,
+        finalImageData.width,
+        finalImageData.height,
+      );
       onClose();
     } catch (error) {
       console.error("Failed to apply image edits:", error);
@@ -351,6 +356,15 @@ export function ImageEditorOverlay({
     onImageUpdate,
     onClose,
   ]);
+
+  const handleCropApply = useCallback(
+    (croppedData: ImageData, newWidth: number, newHeight: number) => {
+      setImageData(croppedData);
+      onImageUpdate(croppedData, newWidth, newHeight);
+      onClose();
+    },
+    [onImageUpdate, onClose],
+  );
 
   const hasChanges = useMemo(() => {
     return (
@@ -403,24 +417,26 @@ export function ImageEditorOverlay({
             </Button>
           </div>
 
-          {/* preview */}
-          <div className="border-border relative flex-shrink-0 border-b bg-black/5 p-4">
-            <div className="relative mx-auto flex aspect-video max-h-36 items-center justify-center overflow-hidden rounded-lg bg-black/10">
-              {previewSrc && (
-                <img
-                  src={previewSrc}
-                  alt="Preview"
-                  className="max-h-full max-w-full object-contain"
-                  style={{ filter: cssFilter }}
-                />
-              )}
-              {(state.isProcessing || isApplying) && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                  <Loader2 className="h-5 w-5 animate-spin text-white" />
-                </div>
-              )}
+          {/* preview - hide when in crop mode */}
+          {activeTab !== "crop" && (
+            <div className="border-border relative flex-shrink-0 border-b bg-black/5 p-4">
+              <div className="relative mx-auto flex aspect-video max-h-36 items-center justify-center overflow-hidden rounded-lg bg-black/10">
+                {previewSrc && (
+                  <img
+                    src={previewSrc}
+                    alt="Preview"
+                    className="max-h-full max-w-full object-contain"
+                    style={{ filter: cssFilter }}
+                  />
+                )}
+                {(state.isProcessing || isApplying) && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                    <Loader2 className="h-5 w-5 animate-spin text-white" />
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* quick actions */}
           <div className="border-border flex items-center justify-center gap-1 border-b px-3 py-2">
@@ -652,18 +668,21 @@ export function ImageEditorOverlay({
                 </div>
               )}
 
-              {activeTab === "crop" && (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="bg-muted/50 mb-3 flex h-12 w-12 items-center justify-center rounded-full">
-                    <Crop className="text-muted-foreground h-6 w-6" />
-                  </div>
-                  <p className="text-muted-foreground text-sm">
-                    Crop tool coming soon
-                  </p>
-                  <p className="text-muted-foreground/60 mt-1 text-xs">
-                    Use the rotate and flip tools above
-                  </p>
-                </div>
+              {activeTab === "crop" && imageData && (
+                <CropTool
+                  imageData={imageData}
+                  imageWidth={imageData.width}
+                  imageHeight={imageData.height}
+                  onApply={handleCropApply}
+                  onClose={() => {
+                    if (originalImageData) {
+                      setImageData(originalImageData);
+                      setAdjustments(DEFAULT_ADJUSTMENTS);
+                      setSelectedFilter("none");
+                    }
+                    setActiveTab("adjust");
+                  }}
+                />
               )}
             </div>
           </ScrollArea>

@@ -25,12 +25,12 @@ export const AgentContextDisplay = ({
   }
 
   return (
-    <div className="border-border bg-muted/30 border-b">
+    <div className="border-border bg-muted/30 dark:bg-muted/20 border-b">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className={cn(
           "flex w-full items-center justify-between px-3 py-2",
-          "text-muted-foreground hover:bg-muted/50 text-xs transition-colors",
+          "text-muted-foreground hover:bg-muted text-xs transition-colors",
         )}
       >
         <div className="flex items-center gap-2">
@@ -80,7 +80,7 @@ export const AgentContextDisplay = ({
               </div>
 
               {context.selectedElement && (
-                <div className="border-primary/20 bg-primary/5 col-span-2 mt-1 rounded-md border p-2">
+                <div className="border-primary/30 bg-primary/10 dark:bg-primary/15 col-span-2 mt-1 rounded-md border p-2">
                   <div className="mb-1 flex items-center gap-1.5">
                     <div className="bg-primary h-1.5 w-1.5 rounded-full" />
                     <span className="text-primary text-[10px] font-medium">
@@ -129,7 +129,7 @@ const ContextItem = ({
   label: string;
   value: string;
 }) => (
-  <div className="bg-background/50 flex items-center gap-2 rounded-md px-2 py-1.5">
+  <div className="bg-background/80 dark:bg-background/50 flex items-center gap-2 rounded-md px-2 py-1.5">
     <Icon className="text-muted-foreground h-3 w-3" />
     <div className="flex flex-col">
       <span className="text-muted-foreground text-[10px]">{label}</span>
@@ -145,7 +145,7 @@ const ContextTag = ({
   icon: React.ElementType;
   label: string;
 }) => (
-  <div className="bg-background/50 flex items-center gap-1 rounded px-1.5 py-0.5">
+  <div className="bg-background/80 dark:bg-background/50 flex items-center gap-1 rounded px-1.5 py-0.5">
     <Icon className="text-muted-foreground h-2.5 w-2.5" />
     <span className="text-muted-foreground text-[10px]">{label}</span>
   </div>

@@ -71,6 +71,10 @@ export const AgentPanel = ({
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isActiveSession, setIsActiveSession] = useState(false);
+  const [pendingMessageIds, setPendingMessageIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [activeMentions, setActiveMentions] = useState<Mention[]>([]);
   const [mentionSuggestions, setMentionSuggestions] = useState<
     MentionSuggestion[]
@@ -91,9 +95,9 @@ export const AgentPanel = ({
   const deleteConversation = useDeleteConversation();
   const aiResponse = useAIResponse();
 
-  // load messages when conversation changes
+  // load messages when conversation changes - only on initial load, not during active session
   useEffect(() => {
-    if (activeConversationData?.messages) {
+    if (activeConversationData?.messages && !isActiveSession) {
       const msgs = activeConversationData.messages.map((msg: ChatMessage) => ({
         id: msg.id,
         role: msg.role as "user" | "assistant" | "system",
@@ -107,7 +111,7 @@ export const AgentPanel = ({
         setMessages([createWelcomeMessage(), ...msgs]);
       }
     }
-  }, [activeConversationData]);
+  }, [activeConversationData, isActiveSession]);
 
   // calculate context stats
   useEffect(() => {
@@ -187,6 +191,8 @@ export const AgentPanel = ({
       setMessages([createWelcomeMessage()]);
       setActiveMentions([]);
       setShowHistory(false);
+      setIsActiveSession(false);
+      setPendingMessageIds(new Set());
       refetchConversations();
     } catch (error) {
       console.error("Failed to create conversation:", error);
@@ -195,13 +201,16 @@ export const AgentPanel = ({
       setMessages([createWelcomeMessage()]);
       setActiveMentions([]);
       setShowHistory(false);
+      setIsActiveSession(false);
+      setPendingMessageIds(new Set());
     }
   }, [projectId, createConversation, refetchConversations]);
 
   const handleSelectConversation = useCallback((id: string) => {
     setActiveConversationId(id);
-    setActiveMentions([]);
     setShowHistory(false);
+    setIsActiveSession(false);
+    setPendingMessageIds(new Set());
   }, []);
 
   const handleDeleteConversation = useCallback(
@@ -430,8 +439,9 @@ export const AgentPanel = ({
       );
     }
 
+    const userMessageId = generateId();
     const userMessage: AgentMessage = {
-      id: generateId(),
+      id: userMessageId,
       role: "user",
       content: inputValue.trim(),
       status: "complete",
@@ -455,6 +465,9 @@ export const AgentPanel = ({
             : undefined,
     };
 
+    // mark session as active to prevent DB reload overwriting
+    setIsActiveSession(true);
+    setPendingMessageIds((prev) => new Set(prev).add(userMessageId));
     setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
     setActiveMentions([]);
@@ -537,14 +550,16 @@ export const AgentPanel = ({
         conversationHistory,
       });
 
+      const assistantMessageId = generateId();
       const assistantMessage: AgentMessage = {
-        id: generateId(),
+        id: assistantMessageId,
         role: "assistant",
         content: response.response,
         status: "complete",
         timestamp: Date.now(),
       };
 
+      setPendingMessageIds((prev) => new Set(prev).add(assistantMessageId));
       setMessages((prev) => [...prev, assistantMessage]);
 
       // save assistant message to db

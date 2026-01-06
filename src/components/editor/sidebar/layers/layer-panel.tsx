@@ -69,41 +69,77 @@ const generateThumbnailAsync = (obj: fabric.Object): Promise<string | null> => {
       const size = 80;
 
       obj.clone((cloned: fabric.Object) => {
-        const tempCanvas = new (window as any).fabric.StaticCanvas(null, {
-          width: size,
-          height: size,
-          backgroundColor: "transparent",
-        });
+        try {
+          const bounds = cloned.getBoundingRect();
+          const objWidth = bounds.width || 1;
+          const objHeight = bounds.height || 1;
 
-        const bounds = cloned.getBoundingRect();
-        const objWidth = bounds.width || 1;
-        const objHeight = bounds.height || 1;
-        const scale = Math.min(size / objWidth, size / objHeight) * 0.7;
+          // calculate canvas size based on aspect ratio for better fit
+          const aspectRatio = objWidth / objHeight;
+          let canvasWidth = size;
+          let canvasHeight = size;
 
-        cloned.set({
-          left: size / 2,
-          top: size / 2,
-          originX: "center",
-          originY: "center",
-          scaleX: (cloned.scaleX || 1) * scale,
-          scaleY: (cloned.scaleY || 1) * scale,
-        });
-
-        tempCanvas.add(cloned);
-        tempCanvas.renderAll();
-
-        setTimeout(() => {
-          try {
-            const dataUrl = tempCanvas.toDataURL({
-              format: "png",
-              quality: 0.6,
-            });
-            tempCanvas.dispose();
-            resolve(dataUrl);
-          } catch {
-            resolve(null);
+          if (aspectRatio > 1) {
+            // landscape - full width, reduce height
+            canvasHeight = Math.round(size / aspectRatio);
+          } else if (aspectRatio < 1) {
+            // portrait - full height, reduce width
+            canvasWidth = Math.round(size * aspectRatio);
           }
-        }, 50);
+
+          const tempCanvas = new (window as any).fabric.StaticCanvas(null, {
+            width: canvasWidth,
+            height: canvasHeight,
+            backgroundColor: "transparent",
+          });
+
+          // maximize visible area while maintaining padding
+          const scale =
+            Math.min(canvasWidth / objWidth, canvasHeight / objHeight) * 0.85;
+
+          // skip objects with pattern/gradient fills that might cause issues
+          const fill = cloned.fill;
+          if (fill && typeof fill === "object" && "source" in fill) {
+            // pattern fill - check if source is valid
+            const pattern = fill as { source?: HTMLImageElement | null };
+            if (
+              !pattern.source ||
+              (pattern.source instanceof HTMLImageElement &&
+                (!pattern.source.complete || pattern.source.naturalWidth === 0))
+            ) {
+              // invalid pattern source, use placeholder color
+              cloned.set({ fill: "#e5e7eb" });
+            }
+          }
+
+          cloned.set({
+            left: canvasWidth / 2,
+            top: canvasHeight / 2,
+            originX: "center",
+            originY: "center",
+            scaleX: (cloned.scaleX || 1) * scale,
+            scaleY: (cloned.scaleY || 1) * scale,
+          });
+
+          tempCanvas.add(cloned);
+          tempCanvas.renderAll();
+
+          setTimeout(() => {
+            try {
+              const dataUrl = tempCanvas.toDataURL({
+                format: "png",
+                quality: 0.6,
+              });
+              tempCanvas.dispose();
+              resolve(dataUrl);
+            } catch {
+              tempCanvas.dispose();
+              resolve(null);
+            }
+          }, 50);
+        } catch {
+          resolve(null);
+        }
       });
     } catch {
       resolve(null);

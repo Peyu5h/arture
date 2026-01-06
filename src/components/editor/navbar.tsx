@@ -4,7 +4,13 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PresenceAvatars } from "~/components/editor/presence-avatars";
 import { Button } from "../ui/button";
@@ -73,6 +79,7 @@ import { authClient } from "~/lib/auth-client";
 import { useProject } from "~/hooks/projects.hooks";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
+import { generateThumbnail } from "~/lib/thumbnail";
 
 const ADMIN_EMAIL = "admin@gmail.com";
 
@@ -106,6 +113,9 @@ export const Navbar = ({
   const { toast } = useToast();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [templateThumbnail, setTemplateThumbnail] = useState<
+    string | undefined
+  >(undefined);
   const [isEditingName, setIsEditingName] = useState(false);
   const [projectName, setProjectName] = useState("");
   const [sharePermission, setSharePermission] = useState<"edit" | "view">(
@@ -679,7 +689,19 @@ export const Navbar = ({
           <Button
             variant="default"
             size="sm"
-            onClick={() => setSaveTemplateOpen(true)}
+            onClick={async () => {
+              // generate thumbnail before opening dialog
+              if (editor?.canvas) {
+                const thumbnail = await generateThumbnail(editor.canvas, {
+                  maxWidth: 400,
+                  maxHeight: 300,
+                  quality: 0.85,
+                  format: "jpeg",
+                });
+                setTemplateThumbnail(thumbnail || undefined);
+              }
+              setSaveTemplateOpen(true);
+            }}
           >
             <LayoutTemplate className="size-4" />
             <span className="text-xs">Save as Template</span>
@@ -737,7 +759,7 @@ export const Navbar = ({
             "src",
             "crossOrigin",
           ])}
-          thumbnailUrl={undefined}
+          thumbnailUrl={templateThumbnail}
           width={editor?.canvas?.getWidth() || 800}
           height={editor?.canvas?.getHeight() || 600}
         />

@@ -4,7 +4,6 @@ import { useEffect, useRef, memo } from "react";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { AgentMessage } from "./agent-message";
 import { AgentChatProps } from "./types";
-import { Shimmer } from "~/components/ai-elements/shimmer";
 import {
   Reasoning,
   ReasoningContent,
@@ -12,7 +11,7 @@ import {
 } from "~/components/ai-elements/reasoning";
 import { Spinner } from "~/components/kibo-ui/spinner";
 import { Lightbulb } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { ShimmeringText } from "~/components/ui/shimmering-text";
 
 interface ThinkingIndicatorProps {
@@ -37,10 +36,11 @@ const ThinkingIndicator = memo(function ThinkingIndicator({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.15 }}
       className="flex items-start gap-3"
     >
-      <div className="bg-primary/10 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg">
+      <div className="bg-primary/10 dark:bg-primary/20 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg">
         <Spinner variant="infinite" size="lg" className="text-primary" />
       </div>
 
@@ -77,7 +77,9 @@ export const AgentChat = memo(function AgentChat({
           <AgentMessage key={message.id} message={message} />
         ))}
 
-        {isLoading && <ThinkingIndicator isStreaming={true} />}
+        <AnimatePresence mode="wait">
+          {isLoading && <ThinkingIndicator key="thinking" isStreaming={true} />}
+        </AnimatePresence>
 
         <div ref={bottomRef} />
       </div>

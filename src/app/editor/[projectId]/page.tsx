@@ -589,23 +589,60 @@ function EditorContent() {
             canvas.requestRenderAll();
           };
 
-          // center immediately
-          centerWorkspace();
+          // fit workspace to screen with proper zoom
+          const fitWorkspaceToScreen = () => {
+            const ws = canvas.getObjects().find((obj) => obj.name === "clip");
+            if (!ws || !containerRef.current) return;
 
-          // force render immediately
+            const containerRect = containerRef.current.getBoundingClientRect();
+            if (containerRect.width === 0 || containerRect.height === 0) return;
+
+            const workspaceWidth = ws.width || 500;
+            const workspaceHeight = ws.height || 500;
+
+            // calculate zoom to fit with margin
+            const margin = 100;
+            const availableWidth = containerRect.width - margin * 2;
+            const availableHeight = containerRect.height - margin * 2;
+
+            const scaleX = availableWidth / workspaceWidth;
+            const scaleY = availableHeight / workspaceHeight;
+            const zoom = Math.min(scaleX, scaleY, 1);
+
+            // set zoom and center
+            const workspaceCenter = ws.getCenterPoint();
+            const containerCenterX = containerRect.width / 2;
+            const containerCenterY = containerRect.height / 2;
+
+            const vpt: [number, number, number, number, number, number] = [
+              zoom,
+              0,
+              0,
+              zoom,
+              containerCenterX - workspaceCenter.x * zoom,
+              containerCenterY - workspaceCenter.y * zoom,
+            ];
+
+            canvas.setViewportTransform(vpt);
+            canvas.requestRenderAll();
+          };
+
+          // fit immediately
+          fitWorkspaceToScreen();
+
+          // force render
           canvas.requestRenderAll();
-          canvas.renderAll();
 
-          // recenter after layout settles
+          // refit after layout settles
           setTimeout(() => {
-            centerWorkspace();
+            fitWorkspaceToScreen();
             editor?.initializeHistory?.();
             canvas.requestRenderAll();
           }, 50);
 
-          // final recenter after everything loads
+          // final fit after everything loads
           setTimeout(() => {
-            centerWorkspace();
+            fitWorkspaceToScreen();
           }, 200);
         });
       } catch (error) {

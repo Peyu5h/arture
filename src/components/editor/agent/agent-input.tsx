@@ -247,7 +247,7 @@ export const AgentInput = memo(function AgentInput({
   const canSubmit = value.trim().length > 0 && !isLoading && !disabled;
 
   return (
-    <div className="border-border/40 bg-background/95 relative border-t backdrop-blur-sm">
+    <div className="border-border/40 bg-background relative border-t backdrop-blur-sm">
       {/* mention popup */}
       <AnimatePresence>
         {showMentionPopup && filteredSuggestions.length > 0 && (
@@ -257,7 +257,7 @@ export const AgentInput = memo(function AgentInput({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.96 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="border-border/50 bg-popover/95 absolute right-3 bottom-full left-3 z-50 mb-2 max-h-[240px] overflow-hidden rounded-xl border shadow-xl backdrop-blur-sm"
+            className="border-border bg-popover absolute right-3 bottom-full left-3 z-50 mb-2 max-h-[240px] overflow-hidden rounded-xl border shadow-xl"
           >
             <ScrollArea className="max-h-[240px]">
               <div className="p-1.5">
@@ -269,8 +269,8 @@ export const AgentInput = memo(function AgentInput({
                     className={cn(
                       "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors",
                       index === selectedIndex
-                        ? "bg-secondary text-secondary-foreground"
-                        : "hover:bg-muted/50",
+                        ? "bg-accent text-accent-foreground"
+                        : "hover:bg-muted",
                     )}
                   >
                     <div
@@ -314,9 +314,9 @@ export const AgentInput = memo(function AgentInput({
       <div className="p-3">
         <div
           className={cn(
-            "bg-secondary/50 flex flex-col rounded-2xl",
+            "bg-muted/50 dark:bg-muted/30 flex flex-col rounded-2xl",
             "ring-1 ring-transparent transition-all duration-200",
-            isFocused && "bg-secondary/50 ring-border/60",
+            isFocused && "bg-muted/70 dark:bg-muted/50 ring-border",
           )}
         >
           {/* inline mentions display */}
@@ -345,9 +345,8 @@ export const AgentInput = memo(function AgentInput({
               disabled={disabled || isLoading}
               rows={1}
               className={cn(
-                "w-full resize-none border-none text-sm leading-relaxed shadow-none",
-                "placeholder:text-muted-foreground/50",
-                "",
+                "w-full resize-none border-none bg-transparent text-sm leading-relaxed shadow-none focus-visible:ring-0",
+                "placeholder:text-muted-foreground/60",
                 "disabled:cursor-not-allowed disabled:opacity-50",
               )}
               style={{ minHeight: "24px", maxHeight: "120px" }}
@@ -355,7 +354,7 @@ export const AgentInput = memo(function AgentInput({
           </div>
 
           {/* toolbar at bottom */}
-          <div className="border-border/30 flex items-center justify-between border-t px-2 py-2">
+          <div className="border-border/40 dark:border-border/20 flex items-center justify-between border-t px-2 py-2">
             <div className="flex items-center gap-1">
               <TooltipProvider delayDuration={300}>
                 {/* attach/asset button */}
@@ -433,8 +432,8 @@ export const AgentInput = memo(function AgentInput({
             <div className="flex items-center gap-2">
               {/* context stats */}
               {contextStats && (
-                <span className="text-muted-foreground/50 text-[10px]">
-                  ~{contextStats.formattedTokens}
+                <span className="text-muted-foreground text-[10px]">
+                  ~{contextStats.formattedTokens} tokens
                 </span>
               )}
 
@@ -473,12 +472,12 @@ export const AgentInput = memo(function AgentInput({
         </div>
 
         {/* footer hints */}
-        <div className="text-muted-foreground/40 mt-1.5 flex items-center justify-center gap-3 text-[10px]">
+        <div className="text-muted-foreground/60 mt-1.5 flex items-center justify-center gap-3 text-[10px]">
           <span>
-            <kbd className="text-muted-foreground/60">↵</kbd> send
+            <kbd className="text-muted-foreground">↵</kbd> send
           </span>
           <span>
-            <kbd className="text-muted-foreground/60">⇧↵</kbd> new line
+            <kbd className="text-muted-foreground">⇧↵</kbd> new line
           </span>
         </div>
       </div>

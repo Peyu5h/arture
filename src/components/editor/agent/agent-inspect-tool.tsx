@@ -343,7 +343,7 @@ export const AgentInspectTool = ({
               top: tooltipPosition.y,
             }}
           >
-            <div className="bg-popover/95 border-border/80 flex items-center gap-2.5 rounded-xl border px-3 py-2 shadow-xl backdrop-blur-sm">
+            <div className="bg-popover border-border flex items-center gap-2.5 rounded-xl border px-3 py-2 shadow-xl backdrop-blur-sm">
               {hoveredElement.thumbnail ? (
                 <img
                   src={hoveredElement.thumbnail}
@@ -351,7 +351,7 @@ export const AgentInspectTool = ({
                   className="ring-border/50 h-7 w-7 rounded-lg object-cover ring-1"
                 />
               ) : (
-                <div className="bg-primary/10 text-primary flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold">
+                <div className="bg-primary/10 dark:bg-primary/20 text-primary flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold">
                   {hoveredElement.type.charAt(0).toUpperCase()}
                 </div>
               )}
@@ -363,7 +363,7 @@ export const AgentInspectTool = ({
                   Click to add as context
                 </span>
               </div>
-              <div className="bg-primary/10 rounded-full p-1">
+              <div className="bg-primary/10 dark:bg-primary/20 rounded-full p-1">
                 <Plus className="text-primary h-3 w-3" />
               </div>
             </div>

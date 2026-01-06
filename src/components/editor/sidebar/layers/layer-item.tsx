@@ -94,12 +94,12 @@ export const LayerItem = ({
         disabled={layer.locked}
         className="flex flex-1 items-center gap-2 overflow-hidden"
       >
-        <div className="bg-muted flex size-8 shrink-0 items-center justify-center overflow-hidden rounded">
+        <div className="bg-muted flex h-8 w-10 shrink-0 items-center justify-center overflow-hidden rounded">
           {layer.thumbnail ? (
             <img
               src={layer.thumbnail}
               alt={layer.name}
-              className="size-full object-contain"
+              className="h-full w-full object-contain"
             />
           ) : (
             <span className="text-muted-foreground text-xs font-medium">

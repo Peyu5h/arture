@@ -87,7 +87,6 @@ export const TEXT_OPTIONS = {
   fontSize: FONT_SIZE,
   fontFamily: FONT_FAMILY,
   fontWeight: FONT_WEIGHT,
-  text: "Hello",
 };
 
 export type Editor = {
