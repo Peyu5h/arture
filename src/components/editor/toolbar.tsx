@@ -18,7 +18,12 @@ import {
   Pencil,
   Crop,
   RectangleHorizontal,
+  Lock,
+  Unlock,
+  Loader2,
+  Sparkles,
 } from "lucide-react";
+import { useBackgroundRemoval } from "~/hooks/useBackgroundRemoval";
 import { BsBorderWidth } from "react-icons/bs";
 import { RxTransparencyGrid } from "react-icons/rx";
 import {
@@ -47,6 +52,7 @@ export const Toolbar = ({
   onChangeActiveTool,
 }: ToolbarProps) => {
   const [opacity, setOpacity] = useState(editor?.getActiveOpacity() || 1);
+  const { isProcessing, progress, removeBackground } = useBackgroundRemoval();
   const fillColor = editor?.getActiveFillColor?.() || "#000000";
   const strokeColor = editor?.getActiveStrokeColor?.() || "#000000";
 
@@ -84,13 +90,18 @@ export const Toolbar = ({
 
   const selectedObject = editor?.canvas?.getActiveObject();
   const isTextObject = selectedObject?.type === "textbox";
-  const isSvgGroup = selectedObject?.type === "group" && (selectedObject as any).name === "svg-element";
+  const isSvgGroup =
+    selectedObject?.type === "group" &&
+    (selectedObject as any).name === "svg-element";
   const isImageObject = selectedObject?.type === "image";
   const hasSelection = !!selectedObject;
 
   // corner radius state for images
   const [cornerRadius, setCornerRadius] = useState(0);
-  
+
+  // lock state for selected object
+  const [isLocked, setIsLocked] = useState(false);
+
   // sync corner radius when selection changes
   useEffect(() => {
     if (isImageObject && selectedObject) {
@@ -98,6 +109,38 @@ export const Toolbar = ({
     }
   }, [selectedObject, isImageObject]);
 
+  // sync lock state when selection changes
+  useEffect(() => {
+    if (selectedObject) {
+      const locked = !!(
+        selectedObject.lockMovementX && selectedObject.lockMovementY
+      );
+      setIsLocked(locked);
+    }
+  }, [selectedObject]);
+
+  const toggleLock = () => {
+    if (!selectedObject || !editor?.canvas) return;
+
+    const newLocked = !isLocked;
+
+    selectedObject.set({
+      lockMovementX: newLocked,
+      lockMovementY: newLocked,
+      lockRotation: newLocked,
+      lockScalingX: newLocked,
+      lockScalingY: newLocked,
+      hasControls: !newLocked,
+    });
+
+    if (newLocked) {
+      editor.canvas.discardActiveObject();
+    }
+
+    editor.canvas.requestRenderAll();
+    editor.save?.();
+    setIsLocked(newLocked);
+  };
 
   const onChangeFontSize = (value: number) => {
     if (!selectedObject) {
@@ -203,8 +246,7 @@ export const Toolbar = ({
     activeTool === "text" ||
     activeTool === "images" ||
     activeTool === "draw" ||
-    activeTool === "settings" ||
-    activeTool === "ai" ||
+    activeTool === "uploads" ||
     activeTool === "templates";
 
   if (!hasSelection) {
@@ -486,6 +528,19 @@ export const Toolbar = ({
           </Hint>
         </div>
 
+        <div className="flex h-full items-center justify-between">
+          <Hint label={isLocked ? "Unlock" : "Lock"} side="bottom">
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={toggleLock}
+              className={ny(isLocked && "bg-accent/30 ring-accent ring-1")}
+            >
+              {isLocked ? <Lock size={20} /> : <Unlock size={20} />}
+            </Button>
+          </Hint>
+        </div>
+
         {isSvgGroup && (
           <div className="flex h-full items-center justify-between">
             <Hint label="Edit SVG" side="bottom">
@@ -497,7 +552,7 @@ export const Toolbar = ({
                   window.dispatchEvent(
                     new CustomEvent("open-svg-editor", {
                       detail: { svgGroup: selectedObject },
-                    })
+                    }),
                   );
                 }}
               >
@@ -511,6 +566,68 @@ export const Toolbar = ({
         {isImageObject && (
           <>
             <div className="flex h-full items-center justify-between">
+              <Hint label="AI Background Removal" side="bottom">
+                <Button
+                  variant="ghost"
+                  disabled={isProcessing}
+                  className="flex items-center gap-1.5 px-2"
+                  onClick={async () => {
+                    const img = selectedObject as any;
+                    if (!img || !editor?.canvas) return;
+
+                    const src = img._element?.src || img.getSrc?.();
+                    if (!src) return;
+
+                    // store original element reference
+                    const originalElement = img._element;
+
+                    // save state for undo
+                    editor.save?.();
+
+                    const result = await removeBackground(src);
+
+                    if (result) {
+                      const url = URL.createObjectURL(result);
+                      const htmlImg = new Image();
+                      htmlImg.crossOrigin = "anonymous";
+                      htmlImg.onload = () => {
+                        // update the image element immediately
+                        img.setElement(htmlImg);
+                        img._element = htmlImg;
+
+                        // force canvas update
+                        editor.canvas.requestRenderAll();
+
+                        // save the new state
+                        editor.save?.();
+
+                        // clean up
+                        URL.revokeObjectURL(url);
+                      };
+                      htmlImg.src = url;
+                    }
+                  }}
+                >
+                  {isProcessing ? (
+                    <div className="flex items-center gap-2">
+                      <div className="bg-muted relative h-4 w-16 overflow-hidden rounded-full">
+                        <div
+                          className="bg-primary absolute inset-y-0 left-0 transition-all duration-300 ease-out"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <span className="text-xs tabular-nums">{progress}%</span>
+                    </div>
+                  ) : (
+                    <>
+                      <Sparkles size={16} />
+                      <span className="text-xs font-medium">BG Remove</span>
+                    </>
+                  )}
+                </Button>
+              </Hint>
+            </div>
+            <div className="flex h-full items-center justify-between">
               <Hint label="Edit Image" side="bottom">
                 <Button
                   size="icon"
@@ -520,7 +637,7 @@ export const Toolbar = ({
                     window.dispatchEvent(
                       new CustomEvent("open-image-tools", {
                         detail: { imageElement: selectedObject },
-                      })
+                      }),
                     );
                   }}
                 >
@@ -537,8 +654,11 @@ export const Toolbar = ({
                     // dispatch custom event to open image tools dialog with crop tab
                     window.dispatchEvent(
                       new CustomEvent("open-image-tools", {
-                        detail: { imageElement: selectedObject, defaultTab: "crop" },
-                      })
+                        detail: {
+                          imageElement: selectedObject,
+                          defaultTab: "crop",
+                        },
+                      }),
                     );
                   }}
                 >
@@ -568,10 +688,10 @@ export const Toolbar = ({
                       onValueChange={(value) => {
                         const img = selectedObject as any;
                         if (!img || !editor?.canvas) return;
-                        
+
                         const radius = value[0];
                         setCornerRadius(radius);
-                        
+
                         // create rounded rectangle clip path
                         const clipRect = new (window as any).fabric.Rect({
                           width: img.width,
@@ -582,13 +702,13 @@ export const Toolbar = ({
                           top: -img.height / 2,
                           absolutePositioned: false,
                         });
-                        
+
                         img.set({
                           clipPath: clipRect,
                           rx: radius,
                           ry: radius,
                         });
-                        
+
                         editor.canvas.requestRenderAll();
                       }}
                       min={0}
@@ -596,7 +716,7 @@ export const Toolbar = ({
                       step={1}
                       className="[&_[role=slider]]:h-4 [&_[role=slider]]:w-4"
                     />
-                    <div className="flex justify-between text-xs text-muted-foreground">
+                    <div className="text-muted-foreground flex justify-between text-xs">
                       <span>Square</span>
                       <span>Rounded</span>
                     </div>

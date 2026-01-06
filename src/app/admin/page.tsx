@@ -9,10 +9,31 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { api } from "~/lib/api";
-import { Asset } from "@prisma/client";
-import { Upload, Search, Trash2, Edit, Eye } from "lucide-react";
+import { Asset, Template } from "@prisma/client";
+import {
+  Upload,
+  Search,
+  Trash2,
+  Edit,
+  Eye,
+  Star,
+  StarOff,
+  ArrowUp,
+  ArrowDown,
+  TrendingUp,
+} from "lucide-react";
 import { useToast } from "~/components/ui/use-toast";
 import { AuthGuard } from "~/components/auth-guard";
+import {
+  useTemplates,
+  useTrendingTemplates,
+  useUpdateTemplateTrending,
+} from "~/hooks/templates.hooks";
+
+interface TemplateWithTrending extends Template {
+  isTrending?: boolean;
+  displayOrder?: number;
+}
 
 interface AssetWithScore extends Asset {
   score?: number;
@@ -231,10 +252,11 @@ export default function AdminPage() {
         </div>
 
         <Tabs defaultValue="upload" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="upload">Upload Assets</TabsTrigger>
             <TabsTrigger value="search">Search & Browse</TabsTrigger>
             <TabsTrigger value="manage">Manage Assets</TabsTrigger>
+            <TabsTrigger value="trending">Trending Templates</TabsTrigger>
           </TabsList>
 
           <TabsContent value="upload" className="space-y-4">
@@ -383,9 +405,209 @@ export default function AdminPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="trending" className="space-y-4">
+            <TrendingTemplatesManager />
+          </TabsContent>
         </Tabs>
       </div>
     </AuthGuard>
+  );
+}
+
+function TrendingTemplatesManager() {
+  const { toast } = useToast();
+  const { data: allTemplates = [], isLoading: isLoadingAll } = useTemplates();
+  const { data: trendingTemplates = [], isLoading: isLoadingTrending } =
+    useTrendingTemplates();
+  const updateTrending = useUpdateTemplateTrending();
+
+  // cast to extended type that includes trending fields
+  const trendingList = trendingTemplates as TemplateWithTrending[];
+  const allList = allTemplates as TemplateWithTrending[];
+
+  const handleToggleTrending = async (
+    template: TemplateWithTrending,
+    isTrending: boolean,
+  ) => {
+    try {
+      await updateTrending.mutateAsync({
+        id: template.id,
+        isTrending,
+        displayOrder: isTrending ? trendingList.length : 0,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update template",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleMoveOrder = async (
+    template: TemplateWithTrending,
+    direction: "up" | "down",
+  ) => {
+    const currentIndex = trendingList.findIndex((t) => t.id === template.id);
+    const newOrder =
+      direction === "up"
+        ? Math.max(0, (template.displayOrder || 0) - 1)
+        : (template.displayOrder || 0) + 1;
+
+    try {
+      await updateTrending.mutateAsync({
+        id: template.id,
+        isTrending: true,
+        displayOrder: newOrder,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to reorder template",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const nonTrendingTemplates = allList.filter(
+    (t) => !trendingList.some((tr) => tr.id === t.id),
+  );
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Currently Trending ({trendingTemplates.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoadingTrending ? (
+            <div className="py-8 text-center text-gray-500">Loading...</div>
+          ) : trendingList.length === 0 ? (
+            <div className="py-8 text-center text-gray-500">
+              No trending templates. Add templates from the list below.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {trendingList.map((t, index) => {
+                const template = t as TemplateWithTrending;
+                return (
+                  <div
+                    key={template.id}
+                    className="flex items-center gap-4 rounded-lg border p-3"
+                  >
+                    <span className="text-muted-foreground w-6 text-sm font-medium">
+                      #{index + 1}
+                    </span>
+                    <div className="bg-muted relative h-12 w-16 overflow-hidden rounded">
+                      {template.thumbnailUrl ? (
+                        <NextImage
+                          src={template.thumbnailUrl}
+                          alt={template.name}
+                          fill
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-xs text-gray-400">
+                          No img
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">{template.name}</p>
+                      <p className="text-muted-foreground text-sm">
+                        {template.category} • {template.width}x{template.height}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleMoveOrder(template, "up")}
+                        disabled={index === 0}
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleMoveOrder(template, "down")}
+                        disabled={index === trendingList.length - 1}
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleToggleTrending(template, false)}
+                      >
+                        <StarOff className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>All Templates ({nonTrendingTemplates.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoadingAll ? (
+            <div className="py-8 text-center text-gray-500">Loading...</div>
+          ) : nonTrendingTemplates.length === 0 ? (
+            <div className="py-8 text-center text-gray-500">
+              All templates are trending or no templates available.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {nonTrendingTemplates.map((template) => (
+                <div
+                  key={template.id}
+                  className="flex items-center gap-3 rounded-lg border p-3"
+                >
+                  <div className="bg-muted relative h-12 w-16 flex-shrink-0 overflow-hidden rounded">
+                    {template.thumbnailUrl ? (
+                      <NextImage
+                        src={template.thumbnailUrl}
+                        alt={template.name}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-xs text-gray-400">
+                        No img
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{template.name}</p>
+                    <p className="text-muted-foreground text-sm">
+                      {template.category}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleToggleTrending(template, true)}
+                  >
+                    <Star className="mr-1 h-4 w-4" />
+                    Add
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

@@ -7,6 +7,7 @@ const createKyInstance = (config: ApiConfig = DEFAULT_CONFIG) => {
     prefixUrl: config.baseURL,
     timeout: config.timeout,
     headers: config.headers,
+    credentials: "include",
     hooks: {
       beforeError: [
         async (error: HTTPError) => {

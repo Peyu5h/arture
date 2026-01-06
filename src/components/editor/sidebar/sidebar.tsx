@@ -1,17 +1,17 @@
 "use client";
 
 import {
-  Layers3,
-  ImagePlus,
+  LayoutTemplate,
+  Layers,
+  Upload,
+  ImageIcon,
+  Type,
+  Pentagon,
   PenTool,
-  SlidersHorizontal,
-  Hexagon,
-  Sparkles,
-  TypeOutline,
-  Boxes,
 } from "lucide-react";
 
 import { SidebarItem } from "./sidebar-item";
+import { UserMenu } from "./user-menu";
 import { ActiveTool } from "../../../lib/types";
 
 interface SidebarProps {
@@ -24,34 +24,40 @@ export const Sidebar = ({ activeTool, onChangeActiveTool }: SidebarProps) => {
     <aside className="bg-card border-border z-45 flex w-20 flex-shrink-0 flex-col border-r shadow-sm">
       <nav className="flex flex-1 flex-col gap-0.5 px-1 py-2">
         <SidebarItem
-          icon={Layers3}
+          icon={LayoutTemplate}
           label="Design"
           isActive={activeTool === "templates"}
           onClick={() => onChangeActiveTool("templates")}
         />
         <SidebarItem
-          icon={ImagePlus}
-          label="Image"
+          icon={Layers}
+          label="Elements"
+          isActive={activeTool === "elements"}
+          onClick={() => onChangeActiveTool("elements")}
+        />
+        <SidebarItem
+          icon={Upload}
+          label="Uploads"
+          isActive={activeTool === "uploads"}
+          onClick={() => onChangeActiveTool("uploads")}
+        />
+        <SidebarItem
+          icon={ImageIcon}
+          label="Images"
           isActive={activeTool === "images"}
           onClick={() => onChangeActiveTool("images")}
         />
         <SidebarItem
-          icon={TypeOutline}
+          icon={Type}
           label="Text"
           isActive={activeTool === "text"}
           onClick={() => onChangeActiveTool("text")}
         />
         <SidebarItem
-          icon={Hexagon}
+          icon={Pentagon}
           label="Shapes"
           isActive={activeTool === "shapes"}
           onClick={() => onChangeActiveTool("shapes")}
-        />
-        <SidebarItem
-          icon={Boxes}
-          label="Elements"
-          isActive={activeTool === "elements"}
-          onClick={() => onChangeActiveTool("elements")}
         />
         <SidebarItem
           icon={PenTool}
@@ -59,19 +65,11 @@ export const Sidebar = ({ activeTool, onChangeActiveTool }: SidebarProps) => {
           isActive={activeTool === "draw"}
           onClick={() => onChangeActiveTool("draw")}
         />
-        <SidebarItem
-          icon={Sparkles}
-          label="AI"
-          isActive={activeTool === "ai"}
-          onClick={() => onChangeActiveTool("ai")}
-        />
-        <SidebarItem
-          icon={SlidersHorizontal}
-          label="Settings"
-          isActive={activeTool === "settings"}
-          onClick={() => onChangeActiveTool("settings")}
-        />
       </nav>
+
+      <div className="border-border border-t px-1 py-2">
+        <UserMenu />
+      </div>
     </aside>
   );
 };

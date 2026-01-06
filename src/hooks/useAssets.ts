@@ -75,7 +75,9 @@ async function fetchFuzzyAssets(params: {
   if (params.type) searchParams.set("type", params.type);
   if (params.limit) searchParams.set("limit", String(params.limit));
 
-  const res = await fetch(`/api/assets/fuzzy-search?${searchParams.toString()}`);
+  const res = await fetch(
+    `/api/assets/fuzzy-search?${searchParams.toString()}`,
+  );
   if (!res.ok) throw new Error("Failed to fetch fuzzy assets");
 
   const json: AssetsResponse = await res.json();
@@ -101,6 +103,7 @@ export const useGetAssets = (params: {
   type?: string;
   category?: string;
   limit?: number;
+  enabled?: boolean;
 }) =>
   useQuery({
     queryKey: ["assets", params],
@@ -111,6 +114,7 @@ export const useGetAssets = (params: {
         limit: params.limit || 30,
       }),
     staleTime,
+    enabled: params.enabled !== false,
   });
 
 export const useSearchAssets = (query: string) =>
@@ -143,7 +147,7 @@ export const useSimilarWords = (query: string) =>
 // enhanced search hook with parallel ai suggestions
 export const useEnhancedSearch = (
   query: string,
-  type: string = "DECORATION"
+  type: string = "DECORATION",
 ) => {
   const [allAssets, setAllAssets] = useState<Asset[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -179,8 +183,8 @@ export const useEnhancedSearch = (
       // fetch assets for each word in parallel
       const wordResults = await Promise.all(
         words.map((word) =>
-          fetchFuzzyAssets({ query: word, type, limit: 10 }).catch(() => [])
-        )
+          fetchFuzzyAssets({ query: word, type, limit: 10 }).catch(() => []),
+        ),
       );
 
       // flatten and dedupe
@@ -191,7 +195,7 @@ export const useEnhancedSearch = (
 
       // dedupe within new assets
       const uniqueNew = Array.from(
-        new Map(newAssets.map((a) => [a.id, a])).values()
+        new Map(newAssets.map((a) => [a.id, a])).values(),
       );
 
       setAllAssets((prev) => {

@@ -10,6 +10,7 @@ let currentConfig: ApiConfig = DEFAULT_CONFIG;
 const formDataInstance = ky.create({
   prefixUrl: process.env.NEXT_PUBLIC_API_URL,
   timeout: 30000,
+  credentials: "include",
   // No default headers for FormData
 });
 
@@ -90,6 +91,11 @@ export const api = {
   put: async <T>(url: string, data?: unknown): Promise<APIResponse<T>> => {
     const cleanUrl = url.replace(/^\//, "");
     return instance.put(cleanUrl, { json: data }).json<APIResponse<T>>();
+  },
+
+  patch: async <T>(url: string, data?: unknown): Promise<APIResponse<T>> => {
+    const cleanUrl = url.replace(/^\//, "");
+    return instance.patch(cleanUrl, { json: data }).json<APIResponse<T>>();
   },
 
   delete: async <T>(url: string): Promise<APIResponse<T>> => {

@@ -4,6 +4,51 @@ import { authServer } from "~/lib/auth-server";
 import { err } from "../utils/response";
 import { verify } from "jsonwebtoken";
 
+// optional auth - sets user if authenticated but doesn't block
+export const optionalAuthMiddleware = createMiddleware(async (c, next) => {
+  try {
+    const authHeader = c.req.header("Authorization");
+
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.substring(7);
+      try {
+        const secret = process.env.BETTER_AUTH_SECRET || "your-secret-key";
+        const decoded = verify(token, secret) as {
+          sub: string;
+          name?: string;
+          email?: string;
+        };
+        c.set("user", {
+          id: decoded.sub,
+          name: decoded.name || "User",
+          email: decoded.email || "",
+        });
+        c.set("authMethod", "jwt");
+        return next();
+      } catch (jwtError) {
+        // continue without auth
+      }
+    }
+
+    try {
+      const session = await authServer.api.getSession({
+        headers: c.req.raw.headers,
+      });
+      if (session) {
+        c.set("user", session.user);
+        c.set("session", session.session);
+        c.set("authMethod", "session");
+      }
+    } catch (sessionError) {
+      // continue without auth
+    }
+
+    return next();
+  } catch (error) {
+    return next();
+  }
+});
+
 export const authMiddleware = createMiddleware(async (c, next) => {
   try {
     const authHeader = c.req.header("Authorization");

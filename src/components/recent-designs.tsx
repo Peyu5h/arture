@@ -93,14 +93,22 @@ export const RecentDesigns = ({
 
   if (isLoading) {
     return (
-      <section className="border-border/40 bg-background border-b px-6 py-16">
+      <section className="border-border/40 bg-background border-b px-6 py-12">
         <div className="mx-auto max-w-[1400px]">
-          <div className="mb-8">
-            <div className="bg-muted h-8 w-48 animate-pulse rounded" />
+          <div className="mb-6">
+            <div className="bg-muted h-7 w-48 animate-pulse rounded" />
             <div className="bg-muted mt-2 h-4 w-64 animate-pulse rounded" />
           </div>
-          <div className="flex h-40 items-center justify-center">
-            <Loader2 className="text-primary h-6 w-6 animate-spin" />
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 lg:gap-6 xl:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="animate-pulse">
+                <div className="bg-muted/50 aspect-[4/3] rounded-xl" />
+                <div className="mt-2 px-1">
+                  <div className="bg-muted h-4 w-3/4 rounded" />
+                  <div className="bg-muted mt-1 h-3 w-1/2 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -219,27 +227,30 @@ const DesignCard = ({ design, index, formatDate }: DesignCardProps) => {
       <Link href={`/editor/${design.id}`} className="block">
         <div
           className={cn(
-            "border-border/50 bg-card relative aspect-[4/3] overflow-hidden rounded-xl border shadow-sm transition-all duration-200",
+            "border-border/50 relative aspect-[4/3] overflow-hidden rounded-xl border bg-white shadow-sm transition-all duration-200 dark:bg-gray-100",
             "hover:border-primary/30 hover:shadow-md",
           )}
         >
-          {design.thumbnailUrl && !imageError ? (
-            <Image
-              width={400}
-              height={300}
-              src={design.thumbnailUrl}
-              alt={design.name || "Untitled design"}
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-              onError={() => setImageError(true)}
-              priority={index < 5}
-            />
-          ) : (
-            <div className="bg-muted flex h-full w-full items-center justify-center">
-              <ImageIcon className="text-muted-foreground/50 h-10 w-10" />
-            </div>
-          )}
+          {/* centered thumbnail container */}
+          <div className="absolute inset-0 flex items-center justify-center bg-white p-2 dark:bg-gray-50">
+            {design.thumbnailUrl && !imageError ? (
+              <Image
+                width={400}
+                height={300}
+                src={design.thumbnailUrl}
+                alt={design.name || "Untitled design"}
+                className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                onError={() => setImageError(true)}
+                priority={index < 5}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <ImageIcon className="text-muted-foreground/50 h-10 w-10" />
+              </div>
+            )}
+          </div>
 
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
 
           <div className="absolute right-0 bottom-0 left-0 p-3 text-white">
             <p className="truncate text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100">

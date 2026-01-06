@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ActiveTool, STROKE_COLOR, STROKE_WIDTH } from "../../../../lib/types";
 import { ToolSidebarClose } from "../tool-sidebar/tool-sidebar-close";
 import { ScrollArea } from "~/components/ui/scroll-area";
@@ -23,51 +23,69 @@ export const DrawSidebar = ({
   editor,
 }: DrawSidebarProps) => {
   const [brushType, setBrushType] = useState<BrushType>("pen");
+  const [currentColor, setCurrentColor] = useState(STROKE_COLOR);
+  const [currentWidth, setCurrentWidth] = useState(STROKE_WIDTH);
+
+  // sync with editor on mount and when editor changes
+  useEffect(() => {
+    if (editor) {
+      const editorColor = editor.getActiveStrokeColor?.();
+      const editorWidth = editor.getActiveStrokeWidth?.();
+      if (editorColor) setCurrentColor(editorColor);
+      if (editorWidth) setCurrentWidth(editorWidth);
+    }
+  }, [editor]);
 
   const onClose = () => {
     onChangeActiveTool("select");
   };
 
-  const colorValue = editor?.getActiveStrokeColor() || STROKE_COLOR;
-  const widthValue = editor?.getActiveStrokeWidth() || STROKE_WIDTH;
-
   const onColorChange = (value: string) => {
+    setCurrentColor(value);
     editor?.changeStrokeColor(value);
-    // reapply brush type to update color in brush
     editor?.setBrushType(brushType);
   };
 
   const onWidthChange = (value: number) => {
+    setCurrentWidth(value);
     editor?.changeStrokeWidth(value);
-    // reapply brush type to update width in brush
     editor?.setBrushType(brushType);
   };
 
-  // brush type effects
   const handleBrushTypeChange = (type: BrushType) => {
     setBrushType(type);
     editor?.setBrushType(type);
 
-    // apply brush-specific default widths
     switch (type) {
       case "pen":
-        if (widthValue < 2) editor?.changeStrokeWidth(2);
+        if (currentWidth < 2) {
+          setCurrentWidth(2);
+          editor?.changeStrokeWidth(2);
+        }
         break;
       case "pencil":
-        if (widthValue < 1) editor?.changeStrokeWidth(1);
+        if (currentWidth < 1) {
+          setCurrentWidth(1);
+          editor?.changeStrokeWidth(1);
+        }
         break;
       case "marker":
-        if (widthValue < 8) editor?.changeStrokeWidth(8);
+        if (currentWidth < 8) {
+          setCurrentWidth(8);
+          editor?.changeStrokeWidth(8);
+        }
         break;
       case "highlighter":
-        if (widthValue < 16) editor?.changeStrokeWidth(16);
+        if (currentWidth < 16) {
+          setCurrentWidth(16);
+          editor?.changeStrokeWidth(16);
+        }
         break;
     }
   };
 
   return (
     <SidebarBase isVisible={activeTool === "draw"} onClose={onClose}>
-      {/* header */}
       <div className="border-border bg-card border-b select-none">
         <div className="flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-3">
@@ -95,7 +113,6 @@ export const DrawSidebar = ({
         </div>
       </div>
 
-      {/* content */}
       <ScrollArea className="flex-1">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -103,30 +120,25 @@ export const DrawSidebar = ({
           transition={{ duration: 0.2 }}
           className="space-y-6 p-4 select-none"
         >
-          {/* brush type selector */}
           <BrushToolSelector
             value={brushType}
             onChange={handleBrushTypeChange}
           />
 
-          {/* divider */}
           <div className="bg-border h-px" />
 
-          {/* stroke size control */}
           <StrokeSizeControl
-            value={widthValue}
+            value={currentWidth}
             onChange={onWidthChange}
             min={1}
             max={50}
-            color={colorValue}
+            color={currentColor}
           />
 
-          {/* divider */}
           <div className="bg-border h-px" />
 
-          {/* color palette */}
           <ColorPalette
-            value={colorValue}
+            value={currentColor}
             onChange={onColorChange}
             canvas={editor?.canvas}
           />

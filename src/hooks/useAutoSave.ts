@@ -26,7 +26,10 @@ interface CanvasState {
 
 export type SaveState = "Idle" | "Saving" | "Saved" | "Save failed";
 
-export const useAutoSave = (editor: Editor | undefined) => {
+export const useAutoSave = (
+  editor: Editor | undefined,
+  isViewOnly: boolean = false,
+) => {
   const { projectId } = useParams();
   const { data: project } = useProject(projectId as string);
   const updateProject = useUpdateProject();
@@ -41,6 +44,8 @@ export const useAutoSave = (editor: Editor | undefined) => {
 
   // generates and saves thumbnail
   const saveThumbnail = useCallback(async () => {
+    // skip if view only mode
+    if (isViewOnly) return;
     if (!editor?.canvas || !projectId) return;
 
     try {
@@ -69,10 +74,13 @@ export const useAutoSave = (editor: Editor | undefined) => {
     } catch (error) {
       console.error("Error saving thumbnail:", error);
     }
-  }, [editor, projectId, updateProject]);
+  }, [editor, projectId, updateProject, isViewOnly]);
 
   // capture initial thumbnail for projects without one
   useEffect(() => {
+    // skip if view only mode
+    if (isViewOnly) return;
+
     if (
       !editor?.canvas ||
       !projectId ||
@@ -93,9 +101,11 @@ export const useAutoSave = (editor: Editor | undefined) => {
     }
 
     initialThumbnailRef.current = true;
-  }, [editor, projectId, project, saveThumbnail]);
+  }, [editor, projectId, project, saveThumbnail, isViewOnly]);
 
   const handleAutoSave = useCallback(async () => {
+    // skip if view only mode
+    if (isViewOnly) return;
     if (!editor?.canvas || !projectId || savingRef.current) return;
 
     try {
@@ -186,9 +196,12 @@ export const useAutoSave = (editor: Editor | undefined) => {
     } finally {
       savingRef.current = false;
     }
-  }, [editor, projectId, updateProject, toast]);
+  }, [editor, projectId, updateProject, toast, isViewOnly]);
 
   const debouncedSave = useCallback(() => {
+    // skip if view only mode
+    if (isViewOnly) return;
+
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
@@ -203,7 +216,7 @@ export const useAutoSave = (editor: Editor | undefined) => {
       saveThumbnail,
       THUMBNAIL_DEBOUNCE_TIME,
     );
-  }, [handleAutoSave, saveThumbnail]);
+  }, [handleAutoSave, saveThumbnail, isViewOnly]);
 
   // save thumbnail on unmount
   useEffect(() => {

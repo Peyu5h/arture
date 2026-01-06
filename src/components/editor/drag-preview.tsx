@@ -4,9 +4,26 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { ny } from "~/lib/utils";
 import { DragItem } from "~/contexts/drag-context";
-import { FaCircle, FaSquare, FaSquareFull } from "react-icons/fa";
+import {
+  FaCircle,
+  FaSquare,
+  FaSquareFull,
+  FaRegCircle,
+  FaRegSquare,
+} from "react-icons/fa";
 import { IoTriangle } from "react-icons/io5";
 import { FaDiamond } from "react-icons/fa6";
+import {
+  Pentagon,
+  Hexagon,
+  Octagon,
+  Star,
+  Heart,
+  Minus,
+  ArrowRight,
+  MoveRight,
+  Triangle,
+} from "lucide-react";
 
 interface DragPreviewProps {
   item: DragItem | null;
@@ -17,6 +34,7 @@ interface DragPreviewProps {
 
 const ShapePreview = ({ shapeType }: { shapeType: string }) => {
   const baseStyle = "size-12 text-foreground drop-shadow-md";
+  const lucideStyle = "size-12 text-foreground drop-shadow-md";
 
   switch (shapeType) {
     case "circle":
@@ -31,6 +49,34 @@ const ShapePreview = ({ shapeType }: { shapeType: string }) => {
       return <IoTriangle className={ny(baseStyle, "rotate-180")} />;
     case "diamond":
       return <FaDiamond className={baseStyle} />;
+    case "pentagon":
+      return <Pentagon className={lucideStyle} fill="currentColor" />;
+    case "hexagon":
+      return <Hexagon className={lucideStyle} fill="currentColor" />;
+    case "octagon":
+      return <Octagon className={lucideStyle} fill="currentColor" />;
+    case "star":
+      return <Star className={lucideStyle} fill="currentColor" />;
+    case "heart":
+      return <Heart className={lucideStyle} fill="currentColor" />;
+    case "line":
+      return <Minus className={lucideStyle} strokeWidth={3} />;
+    case "arrow":
+      return <ArrowRight className={lucideStyle} strokeWidth={2} />;
+    case "doubleArrow":
+      return <MoveRight className={lucideStyle} strokeWidth={2} />;
+    case "circle-outline":
+      return <FaRegCircle className={baseStyle} />;
+    case "square-outline":
+      return <FaRegSquare className={baseStyle} />;
+    case "triangle-outline":
+      return <Triangle className={lucideStyle} />;
+    case "pentagon-outline":
+      return <Pentagon className={lucideStyle} strokeWidth={1.5} />;
+    case "hexagon-outline":
+      return <Hexagon className={lucideStyle} strokeWidth={1.5} />;
+    case "star-outline":
+      return <Star className={lucideStyle} strokeWidth={1.5} />;
     default:
       return <FaSquare className={baseStyle} />;
   }

@@ -1,45 +1,58 @@
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
-import { getPhotosByQuery, getRandomPhotos } from "~/lib/unsplash";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { getRandomPhotos, getPhotosByQuery } from "~/lib/unsplash";
+import { UnsplashImage } from "~/lib/types";
 
-const staleTime = 1000 * 60 * 60 * 2;
+const staleTime = 1000 * 60 * 5;
 
-export const useGetRandomPhotos = ({ count }: { count?: number } = {}) =>
-  useQuery({
-    queryKey: ["random-photos", count],
-    queryFn: () => getRandomPhotos({ count }),
-    staleTime,
-  });
+interface SearchResult {
+  results: UnsplashImage[];
+  totalPages: number;
+  total: number;
+}
 
-export const useGetPhotosByQuery = ({ query }: { query: string }) =>
-  useQuery({
-    queryKey: ["photos", query],
-    queryFn: () => getPhotosByQuery({ query }),
-    staleTime,
-    enabled: !!query,
-  });
-
-// infinite query versions for pagination
-export const useInfiniteRandomPhotos = ({ count = 20 }: { count?: number } = {}) =>
+// infinite random photos hook
+export const useInfiniteRandomPhotos = ({ count = 20 }: { count?: number }) =>
   useInfiniteQuery({
-    queryKey: ["infinite-photos", count],
-    queryFn: ({ pageParam = 1 }) => getRandomPhotos({ count, page: pageParam }),
-    getNextPageParam: (lastPage, allPages) => {
-      // unsplash has many pages, just keep going
-      return allPages.length + 1;
+    queryKey: ["unsplash-random", count],
+    queryFn: async ({ pageParam = 1 }) => {
+      const photos = await getRandomPhotos({ count, page: pageParam });
+      return photos;
     },
     initialPageParam: 1,
+    getNextPageParam: (
+      lastPage: UnsplashImage[],
+      allPages: UnsplashImage[][],
+    ) => {
+      if (lastPage.length < count) return undefined;
+      return allPages.length + 1;
+    },
     staleTime,
   });
 
-export const useInfinitePhotosByQuery = ({ query }: { query: string }) =>
+// infinite search photos hook
+export const useInfinitePhotosByQuery = ({
+  query,
+  perPage = 18,
+}: {
+  query: string;
+  perPage?: number;
+}) =>
   useInfiniteQuery({
-    queryKey: ["infinite-search-photos", query],
-    queryFn: ({ pageParam = 1 }) => getPhotosByQuery({ query, page: pageParam }),
-    getNextPageParam: (lastPage, allPages) => {
-      if (allPages.length >= lastPage.totalPages) return undefined;
-      return allPages.length + 1;
+    queryKey: ["unsplash-search", query, perPage],
+    queryFn: async ({ pageParam = 1 }) => {
+      if (!query || query.length < 2) {
+        return { results: [], totalPages: 0, total: 0 };
+      }
+      const data = await getPhotosByQuery({ query, page: pageParam, perPage });
+      return data;
     },
     initialPageParam: 1,
+    getNextPageParam: (lastPage: SearchResult, allPages: SearchResult[]) => {
+      if (!lastPage.totalPages || allPages.length >= lastPage.totalPages) {
+        return undefined;
+      }
+      return allPages.length + 1;
+    },
     staleTime,
-    enabled: !!query,
+    enabled: query.length >= 2,
   });

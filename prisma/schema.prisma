@@ -43,11 +43,33 @@ model Project {
   thumbnailUrl  String?
   isTemplate    Boolean        @default(false)
   isPro         Boolean        @default(false)
+  isPublic      Boolean        @default(false)
+  shareToken    String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @default(now())
   projectAssets ProjectAsset[]
+  shares        ProjectShare[]
 
   @@map("project")
+}
+
+model ProjectShare {
+  id         String          @id @default(cuid()) @map("_id")
+  projectId  String
+  project    Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId     String?
+  email      String?
+  permission SharePermission @default(VIEW)
+  token      String          @unique
+  createdAt  DateTime        @default(now())
+  expiresAt  DateTime?
+
+  @@map("projectShare")
+}
+
+enum SharePermission {
+  VIEW
+  EDIT
 }
 
 model Session {
@@ -191,4 +213,22 @@ enum AssetType {
   BACKGROUND
   TEXT_STYLE
   DECORATION
+}
+
+model Template {
+  id           String   @id @default(cuid()) @map("_id")
+  name         String
+  category     String   // resume, poster, events, cards, invitations
+  tags         String[] // semantic tags for search
+  json         Json     // Fabric.js canvas data
+  thumbnailUrl String?
+  height       Int
+  width        Int
+  isTrending   Boolean  @default(false)
+  displayOrder Int      @default(0)
+  createdBy    String   // admin user id
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("template")
 }

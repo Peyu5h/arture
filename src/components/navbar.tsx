@@ -22,8 +22,10 @@ import { AnimatedThemeToggler } from "./ui/animated-theme-toggler";
 
 export function Navbar({
   onAuthDialogOpen,
+  hideNavLinks = false,
 }: {
   onAuthDialogOpen?: () => void;
+  hideNavLinks?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -61,31 +63,33 @@ export function Navbar({
           <span className="text-lg font-semibold">Arture</span>
         </Link>
 
-        {/* Center Navigation */}
-        <nav className="hidden items-center gap-8 md:flex">
-          <Link
-            href="/"
-            className={ny(
-              "relative text-sm font-medium transition-colors",
-              pathname === "/"
-                ? "text-foreground after:bg-primary after:absolute after:right-0 after:-bottom-[21px] after:left-0 after:h-0.5"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            Home
-          </Link>
-          <Link
-            href="/templates"
-            className={ny(
-              "relative text-sm font-medium transition-colors",
-              pathname === "/templates"
-                ? "text-foreground after:bg-primary after:absolute after:right-0 after:-bottom-[21px] after:left-0 after:h-0.5"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            Templates
-          </Link>
-        </nav>
+        {/* Center Navigation - hidden when user is logged in */}
+        {!hideNavLinks && (
+          <nav className="hidden items-center gap-8 md:flex">
+            <Link
+              href="/"
+              className={ny(
+                "relative text-sm font-medium transition-colors",
+                pathname === "/"
+                  ? "text-foreground after:bg-primary after:absolute after:right-0 after:-bottom-[21px] after:left-0 after:h-0.5"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Home
+            </Link>
+            <Link
+              href="/templates"
+              className={ny(
+                "relative text-sm font-medium transition-colors",
+                pathname === "/templates"
+                  ? "text-foreground after:bg-primary after:absolute after:right-0 after:-bottom-[21px] after:left-0 after:h-0.5"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Templates
+            </Link>
+          </nav>
+        )}
 
         {/* Right Side - Auth */}
         <div className="flex items-center gap-4">

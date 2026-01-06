@@ -17,14 +17,13 @@ export type UseEditorProps = {
 
 export type ActiveTool =
   | "select"
-  | "shapes"
-  | "text"
-  | "images"
-  | "elements"
-  | "draw"
-  | "settings"
-  | "ai"
   | "templates"
+  | "elements"
+  | "uploads"
+  | "images"
+  | "text"
+  | "shapes"
+  | "draw"
   | "fill"
   | "strokeWidth"
   | "strokeColor"
@@ -105,6 +104,14 @@ export type Editor = {
   addTriangle: () => void;
   addInverseTriangle: () => void;
   addDiamond: () => void;
+  addLine: () => void;
+  addArrow: () => void;
+  addDoubleArrow: () => void;
+  addStar: () => void;
+  addHexagon: () => void;
+  addPentagon: () => void;
+  addHeart: () => void;
+  addOctagon: () => void;
   getActiveFillColor: () => string | fabric.Pattern | fabric.Gradient;
   getActiveStrokeColor: () => string | fabric.Pattern | fabric.Gradient;
   bringForward: () => void;
@@ -132,6 +139,21 @@ export type Editor = {
   disableDrawingMode: () => void;
   setBrushType: (type: "pen" | "pencil" | "marker" | "highlighter") => void;
   addImage: (value: string) => void;
+  addImageFrame?: (
+    shapeType:
+      | "circle"
+      | "rectangle"
+      | "rounded"
+      | "triangle"
+      | "hexagon"
+      | "star"
+      | "heart",
+    position?: { left: number; top: number },
+  ) => void;
+  clipImageToFrame?: (
+    imageObject: fabric.Image,
+    frameObject: fabric.Object,
+  ) => void;
   strokeType: "solid" | "dashed";
   changeStrokeType: (type: "solid" | "dashed") => void;
   getActiveOpacity: () => number;

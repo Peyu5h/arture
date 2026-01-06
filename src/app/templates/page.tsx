@@ -1,257 +1,131 @@
 "use client";
 
-import React, { useState, useEffect, useRef, Suspense } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  Suspense,
+  useCallback,
+} from "react";
 import {
   Search,
-  Sparkles,
   X,
-  ArrowRight,
-  Heart,
   FileText,
   Image as ImageIcon,
   Calendar,
   Mail,
   Award,
-  ChevronRight,
   Loader2,
+  Presentation,
+  LayoutGrid,
+  Sparkles,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
-import Link from "next/link";
 import { motion } from "framer-motion";
 
-import { ny } from "~/lib/utils";
+import { cn } from "~/lib/utils";
 import { Navbar } from "~/components/navbar";
-import { authClient } from "~/lib/auth-client";
-import { useProjects } from "~/hooks/projects.hooks";
-import { formatDistanceToNow } from "date-fns";
-import { Footer } from "~/components/footer";
-import { RecentDesigns } from "~/components/recent-designs";
+import { useTemplates } from "~/hooks/templates.hooks";
+import { TemplateCard } from "~/components/template-card";
+import { Input } from "~/components/ui/input";
 
-const TEMPLATE_COLLECTIONS = [
+const CATEGORIES = [
   {
-    category: "resume",
-    title: "Resume Templates",
-    templates: [
-      {
-        id: "resume-1",
-        name: "Professional Resume",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: false,
-      },
-      {
-        id: "resume-2",
-        name: "Creative CV",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: false,
-      },
-      {
-        id: "resume-3",
-        name: "Modern Resume",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: true,
-      },
-      {
-        id: "resume-4",
-        name: "Simple CV",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: false,
-      },
-      {
-        id: "resume-5",
-        name: "Academic CV",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: true,
-      },
-      {
-        id: "resume-6",
-        name: "Student Resume",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: false,
-      },
-    ],
+    id: "all",
+    name: "All Templates",
+    icon: LayoutGrid,
+    color: "bg-slate-100 dark:bg-slate-800",
   },
   {
-    category: "poster",
-    title: "Poster Templates",
-    templates: [
-      {
-        id: "poster-1",
-        name: "Event Poster",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: false,
-      },
-      {
-        id: "poster-2",
-        name: "Movie Poster",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: true,
-      },
-      {
-        id: "poster-3",
-        name: "Concert Poster",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: false,
-      },
-      {
-        id: "poster-4",
-        name: "Promotional Poster",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: false,
-      },
-    ],
+    id: "presentation",
+    name: "Presentation",
+    icon: Presentation,
+    color: "bg-orange-100 dark:bg-orange-900/30",
   },
   {
-    category: "events",
-    title: "Event Templates",
-    templates: [
-      {
-        id: "event-1",
-        name: "Wedding Invitation",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: true,
-      },
-      {
-        id: "event-2",
-        name: "Birthday Party",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: false,
-      },
-      {
-        id: "event-3",
-        name: "Conference Agenda",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: false,
-      },
-      {
-        id: "event-4",
-        name: "Festival Schedule",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: true,
-      },
-    ],
+    id: "poster",
+    name: "Poster",
+    icon: ImageIcon,
+    color: "bg-purple-100 dark:bg-purple-900/30",
   },
   {
-    category: "cards",
-    title: "Card Templates",
-    templates: [
-      {
-        id: "card-1",
-        name: "Business Card",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: false,
-      },
-      {
-        id: "card-2",
-        name: "Greeting Card",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: true,
-      },
-      {
-        id: "card-3",
-        name: "Thank You Card",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: false,
-      },
-      {
-        id: "card-4",
-        name: "Holiday Card",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: false,
-      },
-    ],
+    id: "resume",
+    name: "Resume",
+    icon: FileText,
+    color: "bg-blue-100 dark:bg-blue-900/30",
   },
   {
-    category: "invitations",
-    title: "Invitation Templates",
-    templates: [
-      {
-        id: "invitation-1",
-        name: "Wedding Invitation",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: false,
-      },
-      {
-        id: "invitation-2",
-        name: "Birthday Invitation",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: true,
-      },
-      {
-        id: "invitation-3",
-        name: "Baby Shower",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: false,
-      },
-      {
-        id: "invitation-4",
-        name: "Housewarming",
-        image:
-          "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-        premium: false,
-      },
-    ],
+    id: "invitations",
+    name: "Invitation",
+    icon: Mail,
+    color: "bg-yellow-100 dark:bg-yellow-900/30",
+  },
+  {
+    id: "events",
+    name: "Events",
+    icon: Calendar,
+    color: "bg-green-100 dark:bg-green-900/30",
+  },
+  {
+    id: "cards",
+    name: "Cards",
+    icon: Award,
+    color: "bg-pink-100 dark:bg-pink-900/30",
   },
 ];
+
+function TemplateCardSkeleton() {
+  return (
+    <div className="animate-pulse">
+      <div className="bg-muted/50 aspect-[4/3] rounded-xl" />
+      <div className="mt-2 px-1">
+        <div className="bg-muted h-4 w-3/4 rounded" />
+        <div className="bg-muted mt-1 h-3 w-1/2 rounded" />
+      </div>
+    </div>
+  );
+}
 
 function TemplatesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
+  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
   const [activeCategory, setActiveCategory] = useState(
     searchParams.get("category") || "all",
   );
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [visibleCount, setVisibleCount] = useState(20);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const { data: session } = authClient.useSession();
-  const { data: recentDesigns = [], isLoading: isProjectsLoading } =
-    useProjects();
+  const { data: templates = [], isLoading: isTemplatesLoading } = useTemplates({
+    q: debouncedQuery,
+    category: activeCategory === "all" ? undefined : activeCategory,
+  });
 
+  // debounce search
   useEffect(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
-    }
-  }, [activeCategory]);
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
+  // update URL params
   useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams();
+    if (searchQuery) params.set("q", searchQuery);
+    if (activeCategory !== "all") params.set("category", activeCategory);
 
-    if (searchQuery) {
-      params.set("q", searchQuery);
-    } else {
-      params.delete("q");
-    }
-
+    const paramString = params.toString();
     if (typeof window !== "undefined") {
-      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      const newUrl = paramString
+        ? `${window.location.pathname}?${paramString}`
+        : window.location.pathname;
       window.history.replaceState(null, "", newUrl);
     }
-  }, [searchQuery, searchParams]);
+  }, [searchQuery, activeCategory]);
 
+  // set category from URL
   useEffect(() => {
     const category = searchParams.get("category");
     if (category) {
@@ -264,134 +138,91 @@ function TemplatesContent() {
     }
   }, [searchParams]);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (searchQuery) {
-      params.set("q", searchQuery);
-    } else {
-      params.delete("q");
-    }
-
-    router.push(`/templates?${params.toString()}`);
-  };
-
-  const getFilteredTemplates = () => {
-    let filteredCollections = [...TEMPLATE_COLLECTIONS];
-
-    if (activeCategory !== "all") {
-      filteredCollections = filteredCollections.filter(
-        (collection) => collection.category === activeCategory,
-      );
-    }
-
-    if (searchQuery) {
-      filteredCollections = filteredCollections
-        .map((collection) => {
-          return {
-            ...collection,
-            templates: collection.templates.filter((template) =>
-              template.name.toLowerCase().includes(searchQuery.toLowerCase()),
-            ),
-          };
-        })
-        .filter((collection) => collection.templates.length > 0);
-    }
-
-    return filteredCollections;
-  };
-
-  const handleTemplateClick = (templateId: string) => {
-    router.push(`/editor/cm8d40lf80001wu38m5oyp8qj`);
-  };
-
-  const formatDate = (dateString: any) => {
-    if (!dateString) return "";
-    try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-    } catch (e) {
-      return "recently";
-    }
-  };
-
-  const filteredTemplates = getFilteredTemplates();
-  const categoryMap = CATEGORIES.reduce(
-    (acc, cat) => {
-      acc[cat.id] = cat;
-      return acc;
+  // infinite scroll
+  const handleIntersect = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      if (entries[0].isIntersecting && templates.length > visibleCount) {
+        setVisibleCount((prev) => Math.min(prev + 12, templates.length));
+      }
     },
-    {} as Record<string, (typeof CATEGORIES)[0]>,
+    [templates.length, visibleCount],
   );
 
+  useEffect(() => {
+    const observer = new IntersectionObserver(handleIntersect, {
+      threshold: 0.1,
+    });
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [handleIntersect]);
+
+  // reset count on filter change
+  useEffect(() => {
+    setVisibleCount(20);
+  }, [debouncedQuery, activeCategory]);
+
+  const handleCategoryChange = (categoryId: string) => {
+    setActiveCategory(categoryId);
+    setVisibleCount(20);
+  };
+
+  const visibleTemplates = templates.slice(0, visibleCount);
+  const activeCategoryData = CATEGORIES.find((c) => c.id === activeCategory);
+
   return (
-    <div className="bg-background flex min-h-screen flex-col">
+    <div className="bg-background min-h-screen">
       <Navbar />
 
-      {/* Hero Section */}
-      <section className="border-border/40 from-accent/5 to-background relative overflow-hidden border-b bg-gradient-to-b px-6 pt-32 pb-16">
-        {/* Background gradient orbs */}
+      {/* hero section */}
+      <section className="relative overflow-hidden px-6 pt-28 pb-8">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div
-            className="bg-gradient-radial from-primary/20 via-primary/5 absolute top-0 -left-60 h-[1000px] w-[1000px] animate-pulse rounded-full to-transparent blur-[100px]"
+            className="bg-gradient-radial from-primary/10 via-primary/5 absolute top-0 left-1/3 h-[500px] w-[500px] animate-pulse rounded-full to-transparent blur-[100px]"
             style={{ animationDuration: "4s" }}
           />
           <div
-            className="bg-gradient-radial from-accent/15 via-accent/5 absolute top-20 -right-40 h-[900px] w-[900px] animate-pulse rounded-full to-transparent blur-[90px]"
-            style={{ animationDelay: "1.5s", animationDuration: "5s" }}
+            className="bg-gradient-radial from-accent/10 via-accent/5 absolute right-1/4 bottom-0 h-[400px] w-[400px] animate-pulse rounded-full to-transparent blur-[80px]"
+            style={{ animationDelay: "2s", animationDuration: "5s" }}
           />
         </div>
 
-        <div className="relative z-10 mx-auto max-w-[1400px] text-center">
+        <div className="relative z-10 mx-auto max-w-[1400px]">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="mb-6 inline-flex"
+            transition={{ duration: 0.5 }}
+            className="mb-6 text-center"
           >
-            <div className="group border-accent/30 bg-accent/10 hover:bg-accent/20 inline-flex items-center gap-2 rounded-full border px-4 py-2 backdrop-blur-sm transition-all duration-300">
-              <Sparkles className="text-accent-foreground h-4 w-4" />
-              <span className="text-accent-foreground text-xs font-medium">
+            <div className="border-accent/30 bg-accent/10 mb-4 inline-flex items-center gap-2 rounded-full border px-4 py-2">
+              <Sparkles className="text-primary size-4" />
+              <span className="text-foreground text-sm font-medium">
                 Professional Templates
               </span>
             </div>
+            <h1 className="mb-3 text-4xl font-light tracking-tight md:text-5xl">
+              Discover Templates
+            </h1>
+            <p className="text-muted-foreground mx-auto max-w-xl">
+              Browse professionally designed templates for every occasion
+            </p>
           </motion.div>
 
-          <motion.h1
+          {/* search bar */}
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="mb-6 text-5xl font-light tracking-tight md:text-6xl"
-          >
-            Discover beautiful templates
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-muted-foreground mx-auto mb-8 max-w-2xl text-lg"
-          >
-            Choose from thousands of professionally designed templates for every
-            occasion. Customize and create stunning designs in minutes.
-          </motion.p>
-
-          {/* Search Bar */}
-          <motion.form
-            onSubmit={handleSearch}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="mx-auto max-w-2xl"
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="mx-auto mb-8 max-w-xl"
           >
             <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                <Search className="text-muted-foreground h-5 w-5" />
-              </div>
+              <Search className="text-muted-foreground absolute top-1/2 left-4 size-5 -translate-y-1/2" />
               <Input
                 type="text"
-                className="border-border/50 bg-background/80 focus:border-primary focus:ring-primary h-14 w-full rounded-xl pr-12 pl-12 backdrop-blur-sm"
+                className="border-border/50 bg-muted/30 focus:border-primary h-12 w-full rounded-xl pr-10 pl-12"
                 placeholder="Search templates..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -399,34 +230,34 @@ function TemplatesContent() {
               {searchQuery && (
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 flex items-center pr-4"
+                  className="absolute top-1/2 right-4 -translate-y-1/2"
                   onClick={() => setSearchQuery("")}
                 >
-                  <X className="text-muted-foreground hover:text-foreground h-5 w-5" />
+                  <X className="text-muted-foreground hover:text-foreground size-5" />
                 </button>
               )}
             </div>
-          </motion.form>
+          </motion.div>
 
-          {/* Categories */}
+          {/* category filters */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="mt-8 flex flex-wrap items-center justify-center gap-2"
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="flex flex-wrap justify-center gap-2"
           >
             {CATEGORIES.map((category) => (
               <button
                 key={category.id}
-                className={ny(
-                  "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium whitespace-nowrap transition-all",
+                onClick={() => handleCategoryChange(category.id)}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all",
                   activeCategory === category.id
                     ? "bg-primary text-primary-foreground shadow-md"
                     : "border-border/50 bg-card/50 text-muted-foreground hover:bg-accent/10 hover:text-foreground border backdrop-blur-sm",
                 )}
-                onClick={() => setActiveCategory(category.id)}
               >
-                <category.icon className="h-4 w-4" />
+                <category.icon className="size-4" />
                 {category.name}
               </button>
             ))}
@@ -434,119 +265,92 @@ function TemplatesContent() {
         </div>
       </section>
 
-      {/* User's Recent Designs Section */}
-      {session && recentDesigns && (
-        <RecentDesigns
-          designs={recentDesigns}
-          isLoading={isProjectsLoading}
-          title="Your Recent Designs"
-          description="Continue working on your projects"
-          initialCount={5}
-          incrementCount={20}
-          maxColumns={5}
-        />
-      )}
+      {/* templates grid */}
+      <section className="px-6 pb-20">
+        <div className="mx-auto max-w-[1400px]">
+          {/* section header */}
+          <div className="mb-6 flex items-center gap-2">
+            {activeCategoryData && (
+              <>
+                <activeCategoryData.icon className="text-primary size-5" />
+                <h2 className="text-xl font-semibold">
+                  {searchQuery
+                    ? `Search results for "${searchQuery}"`
+                    : activeCategoryData.name}
+                </h2>
+                {!isTemplatesLoading && (
+                  <span className="text-muted-foreground text-sm">
+                    ({templates.length} templates)
+                  </span>
+                )}
+              </>
+            )}
+          </div>
 
-      {/* Templates Grid */}
-      <div ref={scrollContainerRef} className="bg-background flex-1">
-        <div className="mx-auto max-w-[1400px] px-6 py-16">
-          {filteredTemplates.length > 0 ? (
-            <div className="space-y-16">
-              {filteredTemplates.map((collection) => (
-                <div key={collection.category}>
-                  <div className="mb-8 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {categoryMap[collection.category] &&
-                        React.createElement(
-                          categoryMap[collection.category].icon,
-                          {
-                            className: "h-6 w-6 text-primary",
-                          },
-                        )}
-                      <h2 className="text-2xl font-semibold">
-                        {collection.title}
-                      </h2>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-primary hover:bg-primary/10"
-                    >
-                      See all
-                      <ArrowRight className="ml-1 h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                    {collection.templates.map((template) => (
-                      <div
-                        key={template.id}
-                        className="group border-border/50 bg-card hover:border-primary/30 relative cursor-pointer overflow-hidden rounded-xl border transition-all hover:shadow-md"
-                        onClick={() => handleTemplateClick(template.id)}
-                      >
-                        <div className="relative aspect-[3/4] w-full overflow-hidden">
-                          <Image
-                            src={template.image}
-                            alt={template.name}
-                            width={300}
-                            height={400}
-                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          />
-
-                          {template.premium && (
-                            <Badge className="absolute top-2 right-2 bg-amber-500/90 px-2 py-0.5 text-[10px] text-white">
-                              PREMIUM
-                            </Badge>
-                          )}
-
-                          <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/70 via-black/30 to-transparent p-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                            <h3 className="w-full truncate text-base font-medium text-white">
-                              {template.name}
-                            </h3>
-                          </div>
-
-                          <div className="absolute top-2 right-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                            <button
-                              className="text-foreground rounded-full bg-white/80 p-2 backdrop-blur-sm hover:bg-white"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                              }}
-                            >
-                              <Heart className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+          {isTemplatesLoading ? (
+            <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {Array.from({ length: 15 }).map((_, i) => (
+                <TemplateCardSkeleton key={i} />
               ))}
             </div>
+          ) : visibleTemplates.length > 0 ? (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+              >
+                {visibleTemplates.map((template, index) => (
+                  <motion.div
+                    key={template.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.3,
+                      delay: Math.min(index * 0.03, 0.3),
+                    }}
+                  >
+                    <TemplateCard template={template} />
+                  </motion.div>
+                ))}
+              </motion.div>
+
+              {visibleCount < templates.length && (
+                <div
+                  ref={loadMoreRef}
+                  className="mt-10 flex justify-center py-6"
+                >
+                  <Loader2 className="text-muted-foreground size-6 animate-spin" />
+                </div>
+              )}
+            </>
           ) : (
-            <div className="flex flex-col items-center justify-center py-16">
+            <div className="flex flex-col items-center justify-center py-20">
               <div className="bg-muted rounded-full p-6">
-                <Search className="text-muted-foreground h-8 w-8" />
+                <Search className="text-muted-foreground size-8" />
               </div>
               <h3 className="mt-6 text-xl font-medium">No templates found</h3>
-              <p className="text-muted-foreground mt-2 text-center">
-                We couldn&apos;t find any templates matching your criteria.
+              <p className="text-muted-foreground mt-2 max-w-sm text-center">
+                {searchQuery
+                  ? `We couldn't find any templates matching "${searchQuery}". Try a different search term.`
+                  : "No templates available for this category yet."}
               </p>
-              <Button
-                variant="outline"
-                className="mt-6"
-                onClick={() => {
-                  setActiveCategory("all");
-                  setSearchQuery("");
-                }}
-              >
-                View all templates
-              </Button>
+              {(searchQuery || activeCategory !== "all") && (
+                <button
+                  onClick={() => {
+                    setSearchQuery("");
+                    setActiveCategory("all");
+                  }}
+                  className="text-primary mt-4 text-sm font-medium hover:underline"
+                >
+                  Clear all filters
+                </button>
+              )}
             </div>
           )}
         </div>
-      </div>
-
-      <Footer />
+      </section>
     </div>
   );
 }
@@ -556,7 +360,7 @@ export default function TemplatesPage() {
     <Suspense
       fallback={
         <div className="bg-background flex h-screen items-center justify-center">
-          <Loader2 className="text-primary h-8 w-8 animate-spin" />
+          <Loader2 className="text-primary size-8 animate-spin" />
         </div>
       }
     >
@@ -564,52 +368,3 @@ export default function TemplatesPage() {
     </Suspense>
   );
 }
-
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
-import { Badge } from "~/components/ui/badge";
-import { cn } from "~/lib/utils";
-
-const CATEGORIES = [
-  { id: "all", name: "All", icon: ImageIcon },
-  { id: "resume", name: "Resume", icon: FileText },
-  { id: "poster", name: "Poster", icon: ImageIcon },
-  { id: "events", name: "Events", icon: Calendar },
-  { id: "cards", name: "Cards", icon: Mail },
-  { id: "invitations", name: "Invitations", icon: Award },
-];
-
-const TRENDING_DESIGNS = [
-  {
-    id: "trending-1",
-    name: "Modern Resume Collection",
-    description: "Professional templates for job seekers",
-    image:
-      "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-    category: "resume",
-  },
-  {
-    id: "trending-2",
-    name: "Event Promotion Posters",
-    description: "Eye-catching designs for your next event",
-    image:
-      "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-    category: "poster",
-  },
-  {
-    id: "trending-3",
-    name: "Wedding Stationery Suite",
-    description: "Complete collection for your special day",
-    image:
-      "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-    category: "invitations",
-  },
-  {
-    id: "trending-4",
-    name: "Business Branding Package",
-    description: "Professional templates for your business",
-    image:
-      "https://res.cloudinary.com/dkysrpdi6/image/upload/v1710317497/ijkte1lttxyzroiop3dq.jpg",
-    category: "cards",
-  },
-];

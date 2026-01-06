@@ -24,6 +24,12 @@ export const autosaveSchema = z
     },
   );
 
+export const shareProjectSchema = z.object({
+  permission: z.enum(["edit", "view"]),
+});
+
 export type CreateProjectInput = z.infer<typeof projectsSchema>;
 
 export type AutosaveProjectInput = z.infer<typeof autosaveSchema>;
+
+export type ShareProjectInput = z.infer<typeof shareProjectSchema>;

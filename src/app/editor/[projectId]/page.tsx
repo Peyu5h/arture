@@ -1,6 +1,13 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+} from "react";
+import { useSearchParams } from "next/navigation";
 import { useEditor } from "~/hooks/useEditor";
 import { fabric } from "fabric";
 import { Navbar } from "~/components/editor/navbar";
@@ -10,14 +17,28 @@ import { ActiveTool, selectionDependentTool } from "~/lib/types";
 import { ShapeSidebar } from "~/components/editor/sidebar/shapes/shape-sidebar";
 import { FillColorSidebar } from "~/components/editor/sidebar/fillColor/fillColorSidebar";
 import { StrokeColorSidebar } from "~/components/editor/sidebar/fillColor/strokeColorSidebar";
-import { AISidebar } from "~/components/editor/sidebar/ai/ai-sidebar";
 import { DrawSidebar } from "~/components/editor/sidebar/draw/draw-sidebar";
-import { ImageSidebar } from "~/components/editor/sidebar/image/image-sidebar";
-import { SettingsSidebar } from "~/components/editor/sidebar/settings/settings-sidebar";
 import { TextSidebar } from "~/components/editor/sidebar/text/text-sidebar";
 import { FontSidebar } from "~/components/editor/sidebar/text/font-sidebar";
-import { DesignSidebar } from "~/components/editor/sidebar/design/design-sidebar";
+import { TemplatesSidebar } from "~/components/editor/sidebar/templates/templates-sidebar";
 import { ElementsSidebar } from "~/components/editor/sidebar/elements/elements-sidebar";
+import {
+  UploadsSidebar,
+  UploadedImage,
+} from "~/components/editor/sidebar/uploads/uploads-sidebar";
+
+// get uploads from localStorage
+const getStoredUploads = (projectId?: string): UploadedImage[] => {
+  if (typeof window === "undefined") return [];
+  try {
+    const key = projectId ? `arture-uploads-${projectId}` : "arture-uploads";
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+};
+import { ImagesSidebar } from "~/components/editor/sidebar/images/images-sidebar";
 import { ZoomControls } from "~/components/editor/zoom-controls";
 import { useParams } from "next/navigation";
 import { useProject } from "~/hooks/projects.hooks";
@@ -40,6 +61,9 @@ import { CanvasDropZone } from "~/components/editor/canvas-drop-zone";
 import { ImageToolsDialog } from "~/components/editor/image-tools/image-tools-dialog";
 import { useImageTools } from "~/hooks/useImageTools";
 import { SvgEditorDialog } from "~/components/editor/svg-editor/svg-editor-dialog";
+import { PresenceAvatars } from "~/components/editor/presence-avatars";
+import { AuthPromptDialog } from "~/components/editor/auth-prompt-dialog";
+import { authClient } from "~/lib/auth-client";
 
 function EditorContent() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -52,14 +76,74 @@ function EditorContent() {
     error: projectError,
   } = useProject(`${projectId}`);
 
+  const searchParams = useSearchParams();
+  const shareToken = searchParams.get("share");
+
   const [activeTool, setActiveTool] = React.useState<ActiveTool>("select");
   const [unsavedChanges, setUnsavedChanges] = React.useState(false);
   const [selectedObjects, setSelectedObjects] = React.useState<
     fabric.Object[] | null
   >(null);
   const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(true);
+  const [viewMode, setViewMode] = useState<"editing" | "viewOnly">("editing");
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+
+  const { data: session } = authClient.useSession();
+  const isLoggedIn = !!session?.user;
+
+  // set initial view mode based on share permission
+  useEffect(() => {
+    if (project && (project as any).isShared) {
+      if ((project as any).permission === "VIEW") {
+        setViewMode("viewOnly");
+      } else if ((project as any).permission === "EDIT") {
+        if (!isLoggedIn) {
+          setViewMode("viewOnly");
+          setShowAuthPrompt(true);
+        } else {
+          setViewMode("editing");
+        }
+      }
+    }
+  }, [project, isLoggedIn]);
+  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>(() =>
+    getStoredUploads(projectId as string),
+  );
   const [svgEditorOpen, setSvgEditorOpen] = useState(false);
-  const [selectedSvgGroup, setSelectedSvgGroup] = useState<fabric.Group | null>(null);
+  const [selectedSvgGroup, setSelectedSvgGroup] = useState<fabric.Group | null>(
+    null,
+  );
+
+  // determine if view only based on share token permission
+  const isViewOnly = useMemo(() => {
+    if (viewMode === "viewOnly") return true;
+    if (
+      project &&
+      (project as any).isShared &&
+      (project as any).permission === "VIEW"
+    ) {
+      return true;
+    }
+    return false;
+  }, [viewMode, project]);
+
+  const handleViewModeChange = useCallback(
+    (mode: "editing" | "viewOnly") => {
+      // if trying to switch to editing but not logged in on a shared editable project
+      if (
+        mode === "editing" &&
+        !isLoggedIn &&
+        project &&
+        (project as any).isShared &&
+        (project as any).permission === "EDIT"
+      ) {
+        setShowAuthPrompt(true);
+        return;
+      }
+      setViewMode(mode);
+    },
+    [isLoggedIn, project],
+  );
 
   const { dragState, setOnDrop, setWorkspaceBounds } = useDragContext();
   const setOnDropRef = useRef(setOnDrop);
@@ -76,15 +160,49 @@ function EditorContent() {
     onModified: () => setUnsavedChanges(true),
   });
 
+  // apply view mode to canvas
+  useEffect(() => {
+    if (!editor?.canvas) return;
+
+    const canvas = editor.canvas;
+    if (isViewOnly) {
+      canvas.selection = false;
+      canvas.forEachObject((obj) => {
+        if (obj.name !== "clip") {
+          obj.selectable = false;
+          obj.evented = false;
+        }
+      });
+    } else {
+      canvas.selection = true;
+      canvas.forEachObject((obj) => {
+        if (obj.name !== "clip") {
+          obj.selectable = true;
+          obj.evented = true;
+        }
+      });
+    }
+    canvas.renderAll();
+  }, [isViewOnly, editor?.canvas]);
+
   // svg editor event listener
   useEffect(() => {
-    const handleOpenSvgEditor = (e: CustomEvent<{ svgGroup: fabric.Group }>) => {
+    const handleOpenSvgEditor = (
+      e: CustomEvent<{ svgGroup: fabric.Group }>,
+    ) => {
       setSelectedSvgGroup(e.detail.svgGroup);
       setSvgEditorOpen(true);
     };
 
-    window.addEventListener("open-svg-editor", handleOpenSvgEditor as EventListener);
-    return () => window.removeEventListener("open-svg-editor", handleOpenSvgEditor as EventListener);
+    window.addEventListener(
+      "open-svg-editor",
+      handleOpenSvgEditor as EventListener,
+    );
+    return () =>
+      window.removeEventListener(
+        "open-svg-editor",
+        handleOpenSvgEditor as EventListener,
+      );
   }, []);
 
   // Initialize image tools with double-tap detection
@@ -115,39 +233,51 @@ function EditorContent() {
 
       if (item.type === "shape") {
         const shapeType = item.data.shapeType as string;
+        const dropPosition = { left: canvasX, top: canvasY };
 
         switch (shapeType) {
           case "circle":
-            editor.addCircle();
+            editor.addCircle(dropPosition);
             break;
           case "rectangle":
-            editor.addRectangle();
+            editor.addRectangle(dropPosition);
             break;
           case "softRectangle":
-            editor.addSoftRectangle();
+            editor.addSoftRectangle(dropPosition);
             break;
           case "triangle":
-            editor.addTriangle();
+            editor.addTriangle(dropPosition);
             break;
           case "inverseTriangle":
-            editor.addInverseTriangle();
+            editor.addInverseTriangle(dropPosition);
             break;
           case "diamond":
-            editor.addDiamond();
+            editor.addDiamond(dropPosition);
             break;
-        }
-
-        // move the newly added shape to drop position
-        const objects = canvas.getObjects();
-        const lastObject = objects[objects.length - 1];
-        if (lastObject && lastObject.name !== "clip") {
-          lastObject.set({
-            left: canvasX - (lastObject.width || 0) / 2,
-            top: canvasY - (lastObject.height || 0) / 2,
-          });
-          lastObject.setCoords();
-          canvas.setActiveObject(lastObject);
-          canvas.requestRenderAll();
+          case "pentagon":
+            editor.addPentagon?.();
+            break;
+          case "hexagon":
+            editor.addHexagon?.();
+            break;
+          case "octagon":
+            editor.addOctagon?.();
+            break;
+          case "star":
+            editor.addStar?.();
+            break;
+          case "heart":
+            editor.addHeart?.();
+            break;
+          case "line":
+            editor.addLine?.(dropPosition);
+            break;
+          case "arrow":
+            editor.addArrow?.();
+            break;
+          case "doubleArrow":
+            editor.addDoubleArrow?.();
+            break;
         }
       }
 
@@ -173,7 +303,9 @@ function EditorContent() {
         const imageUrl = item.data.url as string;
         if (imageUrl) {
           const currentCanvas = canvas;
-          const isSvg = imageUrl.toLowerCase().includes(".svg") || imageUrl.includes("/svg");
+          const isSvg =
+            imageUrl.toLowerCase().includes(".svg") ||
+            imageUrl.includes("/svg");
 
           if (isSvg) {
             // use proxy to bypass cors for r2 svgs
@@ -190,7 +322,10 @@ function EditorContent() {
                     return;
                   }
 
-                  const svgGroup = fabric.util.groupSVGElements(objects, options);
+                  const svgGroup = fabric.util.groupSVGElements(
+                    objects,
+                    options,
+                  );
                   svgGroup.set({
                     name: "svg-element",
                     selectable: true,
@@ -321,7 +456,10 @@ function EditorContent() {
   }, [dragState.isDragging, updateWorkspaceBounds]);
 
   //@ts-ignore
-  const { debouncedSave, saveState, saveThumbnail } = useAutoSave(editor);
+  const { debouncedSave, saveState, saveThumbnail } = useAutoSave(
+    editor,
+    isViewOnly,
+  );
 
   // capture thumbnail before user leaves
   useEffect(() => {
@@ -440,14 +578,34 @@ function EditorContent() {
               ];
 
               canvas.setViewportTransform(vpt);
-              canvas.requestRenderAll();
+            }
+          } else {
+            // center existing workspace in viewport
+            if (containerRef.current) {
+              const containerRect =
+                containerRef.current.getBoundingClientRect();
+              const workspaceCenter = workspace.getCenterPoint();
+              const containerCenter = new fabric.Point(
+                containerRect.width / 2,
+                containerRect.height / 2,
+              );
+
+              const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+              vpt[4] = containerCenter.x - workspaceCenter.x;
+              vpt[5] = containerCenter.y - workspaceCenter.y;
+              canvas.setViewportTransform(vpt);
             }
           }
+
+          // force render immediately
+          canvas.requestRenderAll();
           canvas.renderAll();
-          
+
           // initialize history with current state as base (prevents blank on undo)
           setTimeout(() => {
             editor?.initializeHistory?.();
+            // force another render to ensure visibility
+            canvas.requestRenderAll();
           }, 100);
         });
       } catch (error) {
@@ -507,12 +665,23 @@ function EditorContent() {
           activeTool={activeTool}
           onChangeActiveTool={onChangeActiveTool}
           saveState={saveState}
+          viewMode={isViewOnly ? "viewOnly" : "editing"}
+          onViewModeChange={handleViewModeChange}
+          isSharedView={
+            !!(
+              project &&
+              (project as any).isShared &&
+              (project as any).permission === "VIEW"
+            )
+          }
         />
         <div className="relative flex w-full flex-1 overflow-hidden">
-          <Sidebar
-            activeTool={activeTool}
-            onChangeActiveTool={onChangeActiveTool}
-          />
+          {!isViewOnly && (
+            <Sidebar
+              activeTool={activeTool}
+              onChangeActiveTool={onChangeActiveTool}
+            />
+          )}
           <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
             <div
               className="canvas-container absolute inset-0 overflow-hidden"
@@ -520,6 +689,10 @@ function EditorContent() {
               style={{
                 touchAction: "none",
                 userSelect: "none",
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                return false;
               }}
             >
               {!editor && <CanvasSkeleton />}
@@ -529,72 +702,77 @@ function EditorContent() {
               </div>
               <CanvasDropZone />
             </div>
-            <Toolbar
-              editor={editor}
-              activeTool={activeTool}
-              onChangeActiveTool={onChangeActiveTool}
-            />
+            {!isViewOnly && (
+              <Toolbar
+                editor={editor}
+                activeTool={activeTool}
+                onChangeActiveTool={onChangeActiveTool}
+              />
+            )}
           </main>
-          <DesignSidebar
-            editor={editor}
-            activeTool={activeTool}
-            onChangeActiveTool={onChangeActiveTool}
-          />
-          <ShapeSidebar
-            editor={editor}
-            activeTool={activeTool}
-            onChangeActiveTool={onChangeActiveTool}
-          />
-          <FillColorSidebar
-            editor={editor}
-            activeTool={activeTool}
-            onChangeActiveTool={onChangeActiveTool}
-          />
-          <StrokeColorSidebar
-            editor={editor}
-            activeTool={activeTool}
-            onChangeActiveTool={onChangeActiveTool}
-          />
-          <AISidebar
-            activeTool={activeTool}
-            onChangeActiveTool={onChangeActiveTool}
-          />
-          <DrawSidebar
-            editor={editor}
-            activeTool={activeTool}
-            onChangeActiveTool={onChangeActiveTool}
-          />
-          <ImageSidebar
-            editor={editor}
-            activeTool={activeTool}
-            onChangeActiveTool={onChangeActiveTool}
-          />
-          <ElementsSidebar
-            editor={editor}
-            activeTool={activeTool}
-            onChangeActiveTool={onChangeActiveTool}
-          />
-          <SettingsSidebar
-            editor={editor}
-            activeTool={activeTool}
-            onChangeActiveTool={onChangeActiveTool}
-          />
-          <TextSidebar
-            editor={editor}
-            activeTool={activeTool}
-            onChangeActiveTool={onChangeActiveTool}
-          />
-          <FontSidebar
-            editor={editor}
-            activeTool={activeTool}
-            onChangeActiveTool={onChangeActiveTool}
-          />
+          {!isViewOnly && (
+            <>
+              <TemplatesSidebar
+                editor={editor}
+                activeTool={activeTool}
+                onChangeActiveTool={onChangeActiveTool}
+              />
+              <ElementsSidebar
+                editor={editor}
+                activeTool={activeTool}
+                onChangeActiveTool={onChangeActiveTool}
+                uploadedImages={uploadedImages}
+              />
+              <UploadsSidebar
+                editor={editor}
+                activeTool={activeTool}
+                onChangeActiveTool={onChangeActiveTool}
+                projectId={projectId as string}
+                onUploadsChange={setUploadedImages}
+              />
+              <ImagesSidebar
+                editor={editor}
+                activeTool={activeTool}
+                onChangeActiveTool={onChangeActiveTool}
+              />
+              <TextSidebar
+                editor={editor}
+                activeTool={activeTool}
+                onChangeActiveTool={onChangeActiveTool}
+              />
+              <ShapeSidebar
+                editor={editor}
+                activeTool={activeTool}
+                onChangeActiveTool={onChangeActiveTool}
+              />
+              <DrawSidebar
+                editor={editor}
+                activeTool={activeTool}
+                onChangeActiveTool={onChangeActiveTool}
+              />
+              <FillColorSidebar
+                editor={editor}
+                activeTool={activeTool}
+                onChangeActiveTool={onChangeActiveTool}
+              />
+              <StrokeColorSidebar
+                editor={editor}
+                activeTool={activeTool}
+                onChangeActiveTool={onChangeActiveTool}
+              />
+              <FontSidebar
+                editor={editor}
+                activeTool={activeTool}
+                onChangeActiveTool={onChangeActiveTool}
+              />
 
-          <AgentPanel
-            editor={editor}
-            isOpen={isAgentPanelOpen}
-            onToggle={() => setIsAgentPanelOpen(!isAgentPanelOpen)}
-          />
+              <AgentPanel
+                editor={editor}
+                isOpen={isAgentPanelOpen}
+                onToggle={() => setIsAgentPanelOpen(!isAgentPanelOpen)}
+              />
+            </>
+          )}
         </div>
       </div>
 
@@ -623,6 +801,14 @@ function EditorContent() {
         }}
         svgGroup={selectedSvgGroup}
         canvas={editor?.canvas || null}
+      />
+
+      {/* Auth Prompt Dialog for non-logged users on editable shares */}
+      <AuthPromptDialog
+        isOpen={showAuthPrompt}
+        onClose={() => setShowAuthPrompt(false)}
+        projectId={projectId as string}
+        shareToken={shareToken || undefined}
       />
     </>
   );

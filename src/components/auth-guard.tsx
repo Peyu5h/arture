@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -13,8 +13,15 @@ export function AuthGuard({
   redirectTo = "/onboarding",
 }: AuthGuardProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const shareToken = searchParams.get("share");
 
   useEffect(() => {
+    // skip auth check if share token is present
+    if (shareToken) {
+      return;
+    }
+
     const checkAuth = async () => {
       try {
         // Use the session API endpoint directly
@@ -36,7 +43,7 @@ export function AuthGuard({
     };
 
     checkAuth();
-  }, [router, redirectTo]);
+  }, [router, redirectTo, shareToken]);
 
   return <>{children}</>;
 }
