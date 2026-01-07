@@ -1,8 +1,5 @@
-// json schemas for ai function calling (openai/gemini compatible)
-
 import { FunctionSchema } from "./types";
 
-// canvas manipulation tools
 export const spawnShapeSchema: FunctionSchema = {
   name: "spawn_shape",
   description: "Create and add a new shape to the canvas",
@@ -194,6 +191,26 @@ export const modifyElementSchema: FunctionSchema = {
         type: "number",
         description: "Rotation angle in degrees",
       },
+      rx: {
+        type: "number",
+        description: "Horizontal corner radius in pixels (for rectangles)",
+      },
+      ry: {
+        type: "number",
+        description: "Vertical corner radius in pixels (for rectangles)",
+      },
+      cornerRadius: {
+        type: "number",
+        description: "Corner radius in pixels (sets both rx and ry)",
+      },
+      borderWidth: {
+        type: "number",
+        description: "Border/stroke width in pixels",
+      },
+      borderColor: {
+        type: "string",
+        description: "Border/stroke color in hex format",
+      },
     },
     required: [],
   },
@@ -333,8 +350,7 @@ export const modifyTextSchema: FunctionSchema = {
 // asset search tools
 export const searchImagesSchema: FunctionSchema = {
   name: "search_images",
-  description:
-    "Search for images from stock photo libraries (Pixabay, Pexels)",
+  description: "Search for images from stock photo libraries (Pixabay, Pexels)",
   parameters: {
     type: "object",
     properties: {
@@ -447,7 +463,8 @@ export const removeBackgroundSchema: FunctionSchema = {
 // layer tools
 export const changeLayerOrderSchema: FunctionSchema = {
   name: "change_layer_order",
-  description: "Change the layer order of an element (bring forward/send backward)",
+  description:
+    "Change the layer order of an element (bring forward/send backward)",
   parameters: {
     type: "object",
     properties: {
@@ -462,7 +479,12 @@ export const changeLayerOrderSchema: FunctionSchema = {
       action: {
         type: "string",
         description: "Layer action to perform",
-        enum: ["bring_forward", "send_backward", "bring_to_front", "send_to_back"],
+        enum: [
+          "bring_forward",
+          "send_backward",
+          "bring_to_front",
+          "send_to_back",
+        ],
       },
     },
     required: ["action"],
@@ -564,7 +586,9 @@ export function generateToolsDescription(): string {
   sections.push("## Available Tools\n");
 
   sections.push("### Canvas Manipulation");
-  sections.push("- spawn_shape: Create shapes (rectangle, circle, triangle, etc.)");
+  sections.push(
+    "- spawn_shape: Create shapes (rectangle, circle, triangle, etc.)",
+  );
   sections.push("- add_text: Add text with customizable font properties");
   sections.push("- move_element: Move elements to positions");
   sections.push("- modify_element: Change fill, stroke, opacity, angle");
@@ -582,7 +606,9 @@ export function generateToolsDescription(): string {
   sections.push("- search_illustrations: Find vector illustrations\n");
 
   sections.push("### Smart Tools");
-  sections.push("- remove_background: AI-powered background removal from images\n");
+  sections.push(
+    "- remove_background: AI-powered background removal from images\n",
+  );
 
   return sections.join("\n");
 }

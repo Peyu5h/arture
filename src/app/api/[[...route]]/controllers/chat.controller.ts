@@ -23,9 +23,6 @@ const GEMINI_MODELS = [
   "gemini-2.5-pro", // High reasoning, stable version
   "gemini-2.0-flash", // Previous stable generation
   "gemini-2.0-flash-lite", // Previous lite generation
-
-  // --- SPECIALIZED MODELS ---
-  "gemini-2.5-flash-native-audio", // Optimized for real-time audio/Live API
 ] as const;
 
 // openrouter models for fallback - fast models first

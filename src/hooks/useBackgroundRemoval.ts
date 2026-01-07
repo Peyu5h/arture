@@ -19,26 +19,25 @@ export const useBackgroundRemoval = (): UseBackgroundRemovalReturn => {
   });
 
   const abortRef = useRef<AbortController | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const isCompleteRef = useRef<boolean>(false);
+  const rafRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number>(0);
 
   const reset = useCallback(() => {
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
     }
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     }
-    isCompleteRef.current = false;
     setState({ isProcessing: false, progress: 0, error: null });
   }, []);
 
   useEffect(() => {
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
       }
     };
   }, []);
@@ -49,36 +48,32 @@ export const useBackgroundRemoval = (): UseBackgroundRemovalReturn => {
         abortRef.current.abort();
       }
       abortRef.current = new AbortController();
-      isCompleteRef.current = false;
 
-      // reset progress
       setState({ isProcessing: true, progress: 0, error: null });
+      startTimeRef.current = Date.now();
 
-      // smooth progress simulation - increments steadily until complete
+      // smooth progress using requestAnimationFrame
       let currentProgress = 0;
-      const targetDuration = 8000; // estimated 8 seconds for processing
-      const updateInterval = 50; // update every 50ms
-      const maxProgress = 92; // cap at 92% until actually complete
+      let isComplete = false;
 
-      intervalRef.current = setInterval(() => {
-        if (isCompleteRef.current) {
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-          }
-          return;
-        }
+      const animateProgress = () => {
+        if (isComplete) return;
 
-        // easing function for smooth progress
-        const remainingProgress = maxProgress - currentProgress;
-        const increment = Math.max(0.3, remainingProgress * 0.02);
-        currentProgress = Math.min(maxProgress, currentProgress + increment);
+        const elapsed = Date.now() - startTimeRef.current;
+        // ease out to 90% over ~10 seconds
+        const targetProgress = Math.min(90, (elapsed / 10000) * 100);
+        currentProgress += (targetProgress - currentProgress) * 0.1;
+        currentProgress = Math.min(90, currentProgress);
 
         setState((prev) => ({
           ...prev,
           progress: Math.round(currentProgress),
         }));
-      }, updateInterval);
+
+        rafRef.current = requestAnimationFrame(animateProgress);
+      };
+
+      rafRef.current = requestAnimationFrame(animateProgress);
 
       try {
         const { removeBackground: imglyRemoveBackground } =
@@ -94,34 +89,33 @@ export const useBackgroundRemoval = (): UseBackgroundRemovalReturn => {
           },
         });
 
-        // mark as complete and animate to 100%
-        isCompleteRef.current = true;
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
+        // mark complete and animate to 100%
+        isComplete = true;
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
         }
 
-        // smooth finish animation
-        const finishAnimation = async () => {
-          for (let p = Math.round(currentProgress); p <= 100; p += 2) {
-            setState((prev) => ({ ...prev, progress: p }));
-            await new Promise((r) => setTimeout(r, 20));
+        // quick finish animation
+        const finishProgress = async () => {
+          for (let p = Math.round(currentProgress); p <= 100; p += 4) {
+            setState((prev) => ({ ...prev, progress: Math.min(100, p) }));
+            await new Promise((r) => setTimeout(r, 16));
           }
           setState({ isProcessing: false, progress: 100, error: null });
         };
 
-        await finishAnimation();
+        await finishProgress();
         return result;
       } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Failed to remove background";
-
-        isCompleteRef.current = true;
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
+        isComplete = true;
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
         }
 
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to remove background";
         setState({ isProcessing: false, progress: 0, error: errorMessage });
         console.error("Background removal failed:", err);
         return null;

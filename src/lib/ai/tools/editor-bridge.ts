@@ -465,6 +465,34 @@ export async function executeModifyElement(
       changes.push(`rotation to ${params.angle}°`);
     }
 
+    // handle corner radius (rx/ry) for rectangles
+    if (
+      params.rx !== undefined ||
+      params.ry !== undefined ||
+      params.cornerRadius !== undefined ||
+      params.roundness !== undefined
+    ) {
+      const radius = (params.cornerRadius ??
+        params.roundness ??
+        params.rx ??
+        params.ry ??
+        0) as number;
+      (element as fabric.Rect).set({ rx: radius, ry: radius });
+      changes.push(`corner radius to ${radius}px`);
+    }
+
+    // handle border style
+    if (params.borderWidth !== undefined) {
+      element.set({ strokeWidth: params.borderWidth as number });
+      changes.push(`border width to ${params.borderWidth}px`);
+    }
+
+    if (params.borderColor !== undefined) {
+      const borderColor = parseColor(params.borderColor as string);
+      element.set({ stroke: borderColor });
+      changes.push(`border color to ${borderColor}`);
+    }
+
     canvas.renderAll();
     editor?.save();
 

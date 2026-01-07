@@ -1,6 +1,6 @@
 // image context service for handling chat image attachments
 
-import { uploadDataUrlToCloudinary, uploadImageToCloudinary } from "./tools/asset-tools";
+import { uploadDataUrlToCloudinary } from "~/lib/cloudinary-upload";
 
 export interface ImageAttachment {
   id: string;
@@ -38,7 +38,7 @@ const generateId = () => Math.random().toString(36).substring(2, 10);
 export async function compressImage(
   dataUrl: string,
   maxWidth: number = 1200,
-  quality: number = 0.8
+  quality: number = 0.8,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -71,7 +71,9 @@ export async function compressImage(
 }
 
 // create image attachment from file
-export async function createImageAttachment(file: File): Promise<ImageAttachment> {
+export async function createImageAttachment(
+  file: File,
+): Promise<ImageAttachment> {
   const id = generateId();
 
   return new Promise((resolve, reject) => {
@@ -100,7 +102,7 @@ export async function createImageAttachment(file: File): Promise<ImageAttachment
 // create image attachment from data url
 export async function createImageAttachmentFromDataUrl(
   dataUrl: string,
-  name: string = "pasted-image.png"
+  name: string = "pasted-image.png",
 ): Promise<ImageAttachment> {
   const id = generateId();
   const compressed = await compressImage(dataUrl);
@@ -115,18 +117,17 @@ export async function createImageAttachmentFromDataUrl(
 
 // upload image attachment to cloudinary
 export async function uploadImageAttachment(
-  attachment: ImageAttachment
+  attachment: ImageAttachment,
 ): Promise<ImageAttachment> {
   if (!attachment.dataUrl) {
     return { ...attachment, uploadError: "No image data to upload" };
   }
 
   try {
-    const result = await uploadDataUrlToCloudinary(attachment.dataUrl, attachment.name);
-
-    if (!result) {
-      return { ...attachment, uploadError: "Upload failed" };
-    }
+    const result = await uploadDataUrlToCloudinary(
+      attachment.dataUrl,
+      attachment.name,
+    );
 
     return {
       ...attachment,
@@ -134,7 +135,6 @@ export async function uploadImageAttachment(
       publicId: result.publicId,
       thumbnail: result.thumbnail,
       uploaded: true,
-      // clear data url to save memory
       dataUrl: undefined,
     };
   } catch (error) {
@@ -147,7 +147,7 @@ export async function uploadImageAttachment(
 
 // upload multiple image attachments
 export async function uploadImageAttachments(
-  attachments: ImageAttachment[]
+  attachments: ImageAttachment[],
 ): Promise<ImageAttachment[]> {
   const results = await Promise.all(
     attachments.map((attachment) => {
@@ -155,20 +155,23 @@ export async function uploadImageAttachments(
         return Promise.resolve(attachment);
       }
       return uploadImageAttachment(attachment);
-    })
+    }),
   );
   return results;
 }
 
 // extract image info from canvas object
-export function extractCanvasImageInfo(obj: fabric.Object): CanvasImageInfo | null {
+export function extractCanvasImageInfo(
+  obj: fabric.Object,
+): CanvasImageInfo | null {
   if (obj.type !== "image") {
     return null;
   }
 
   const imageObj = obj as fabric.Image;
   const id = (obj as unknown as { id?: string }).id || "";
-  const src = imageObj.getSrc?.() || (imageObj as unknown as { src?: string }).src || "";
+  const src =
+    imageObj.getSrc?.() || (imageObj as unknown as { src?: string }).src || "";
 
   if (!src) {
     return null;
@@ -207,7 +210,7 @@ export function getCanvasImages(canvas: fabric.Canvas): CanvasImageInfo[] {
 // build image context for AI
 export function buildImageContext(
   attachments: ImageAttachment[],
-  canvas?: fabric.Canvas | null
+  canvas?: fabric.Canvas | null,
 ): ImageContext {
   const canvasImages = canvas ? getCanvasImages(canvas) : [];
 
@@ -233,10 +236,11 @@ export function formatImageContextForPrompt(context: ImageContext): string {
   if (context.canvasImages.length > 0) {
     parts.push(`\nIMAGES ON CANVAS (${context.canvasImages.length}):`);
     context.canvasImages.forEach((img, i) => {
-      const srcPreview = img.src.slice(0, 60) + (img.src.length > 60 ? "..." : "");
+      const srcPreview =
+        img.src.slice(0, 60) + (img.src.length > 60 ? "..." : "");
       parts.push(
         `${i + 1}. id=${img.id}: at (${img.position?.x || 0},${img.position?.y || 0}), ` +
-          `size ${img.size?.width || 0}x${img.size?.height || 0}px, src=${srcPreview}`
+          `size ${img.size?.width || 0}x${img.size?.height || 0}px, src=${srcPreview}`,
       );
     });
   }
@@ -245,7 +249,9 @@ export function formatImageContextForPrompt(context: ImageContext): string {
 }
 
 // convert image context to serializable format for storage
-export function serializeImageContext(context: ImageContext): Record<string, unknown> {
+export function serializeImageContext(
+  context: ImageContext,
+): Record<string, unknown> {
   return {
     attachments: context.attachments.map((a) => ({
       id: a.id,

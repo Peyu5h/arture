@@ -22,7 +22,8 @@ const allToolExecutors: Record<
   (
     params: Record<string, unknown>,
     context: ToolContext,
-    canvasIndex?: CanvasIndex
+    canvasIndex?: CanvasIndex,
+    bgRemovalFn?: (imageSource: string | Blob | File) => Promise<Blob | null>,
   ) => Promise<ToolResult>
 > = {
   ...toolExecutors,
@@ -37,7 +38,8 @@ export class ToolRegistry {
     (
       params: Record<string, unknown>,
       context: ToolContext,
-      canvasIndex?: CanvasIndex
+      canvasIndex?: CanvasIndex,
+      bgRemovalFn?: (imageSource: string | Blob | File) => Promise<Blob | null>,
     ) => Promise<ToolResult>
   > = new Map();
 
@@ -62,8 +64,9 @@ export class ToolRegistry {
     executor: (
       params: Record<string, unknown>,
       context: ToolContext,
-      canvasIndex?: CanvasIndex
-    ) => Promise<ToolResult>
+      canvasIndex?: CanvasIndex,
+      bgRemovalFn?: (imageSource: string | Blob | File) => Promise<Blob | null>,
+    ) => Promise<ToolResult>,
   ): void {
     this.tools.set(schema.name, schema);
     this.executors.set(schema.name, executor);
@@ -87,7 +90,9 @@ export class ToolRegistry {
   }
 
   // get tools by category
-  getToolsByCategory(category: "canvas" | "assets" | "smart"): FunctionSchema[] {
+  getToolsByCategory(
+    category: "canvas" | "assets" | "smart",
+  ): FunctionSchema[] {
     const canvasTools = [
       "spawn_shape",
       "add_text",
@@ -135,7 +140,8 @@ export class ToolRegistry {
     name: string,
     params: Record<string, unknown>,
     context: ToolContext,
-    canvasIndex?: CanvasIndex
+    canvasIndex?: CanvasIndex,
+    bgRemovalFn?: (imageSource: string | Blob | File) => Promise<Blob | null>,
   ): Promise<ToolResult> {
     const executor = this.executors.get(name);
     if (!executor) {
@@ -143,7 +149,7 @@ export class ToolRegistry {
     }
 
     try {
-      return await executor(params, context, canvasIndex);
+      return await executor(params, context, canvasIndex, bgRemovalFn);
     } catch (error) {
       return {
         success: false,
@@ -157,7 +163,8 @@ export class ToolRegistry {
   async executeToolCalls(
     calls: ToolCall[],
     context: ToolContext,
-    canvasIndex?: CanvasIndex
+    canvasIndex?: CanvasIndex,
+    bgRemovalFn?: (imageSource: string | Blob | File) => Promise<Blob | null>,
   ): Promise<ToolExecutionResult[]> {
     const results: ToolExecutionResult[] = [];
 
@@ -168,7 +175,8 @@ export class ToolRegistry {
         call.name,
         call.arguments,
         context,
-        canvasIndex
+        canvasIndex,
+        bgRemovalFn,
       );
 
       results.push({
@@ -196,12 +204,15 @@ export class ToolRegistry {
         // handle actions array format
         if (parsed.actions && Array.isArray(parsed.actions)) {
           parsed.actions.forEach((action: Record<string, unknown>) => {
-            const toolName = this.mapActionTypeToToolName(action.type as string);
+            const toolName = this.mapActionTypeToToolName(
+              action.type as string,
+            );
             if (toolName && this.tools.has(toolName)) {
               calls.push({
                 id: (action.id as string) || generateId(),
                 name: toolName,
-                arguments: (action.payload as Record<string, unknown>) || action,
+                arguments:
+                  (action.payload as Record<string, unknown>) || action,
               });
             }
           });

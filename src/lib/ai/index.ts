@@ -22,8 +22,6 @@ export {
   toolExecutors,
   // asset tools
   assetToolExecutors,
-  uploadImageToCloudinary,
-  uploadDataUrlToCloudinary,
 } from "./tools";
 
 // tool types (using distinct names to avoid conflicts with main types)

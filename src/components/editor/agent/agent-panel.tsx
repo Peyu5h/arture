@@ -647,10 +647,7 @@ export const AgentPanel = ({
         imageAttachments,
       });
 
-      console.log("============================:", response); // Added log
-
       const aiActions = (response as { actions?: AgentAction[] }).actions || [];
-      console.log("AI Actions received:", aiActions);
 
       if (editor?.canvas && !hasAskClarification && aiActions.length > 0) {
         const executableActions = aiActions.filter(
@@ -658,12 +655,7 @@ export const AgentPanel = ({
         );
         if (executableActions.length > 0) {
           try {
-            console.log("Executing actions:", executableActions);
-            const results = await executeActions(
-              editor.canvas,
-              executableActions,
-            );
-            console.log("Action results:", results);
+            await executeActions(editor.canvas, executableActions);
           } catch (actionError) {
             console.error("Action execution failed:", actionError);
           } finally {

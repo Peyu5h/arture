@@ -37,8 +37,4 @@ export {
   toGeminiFunctionDeclarations,
 } from "./schemas";
 export { executeTool, toolExecutors } from "./editor-bridge";
-export {
-  assetToolExecutors,
-  uploadImageToCloudinary,
-  uploadDataUrlToCloudinary,
-} from "./asset-tools";
+export { assetToolExecutors } from "./asset-tools";

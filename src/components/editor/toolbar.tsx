@@ -585,8 +585,16 @@ export const Toolbar = ({
                     const result = await removeBackground(src);
 
                     if (result) {
+                      // get original properties before replacement
+                      const origProps = {
+                        left: img.left,
+                        top: img.top,
+                        scaleX: img.scaleX,
+                        scaleY: img.scaleY,
+                        angle: img.angle,
+                      };
+
                       try {
-                        // upload to cloudinary for persistence
                         const cloudinaryResult = await uploadBlobToCloudinary(
                           result,
                           `bg-removed-${Date.now()}.png`,
@@ -595,33 +603,30 @@ export const Toolbar = ({
                         const htmlImg = new Image();
                         htmlImg.crossOrigin = "anonymous";
                         htmlImg.onload = () => {
-                          // update the image element with cloudinary url
                           img.setElement(htmlImg);
                           img._element = htmlImg;
-
-                          // update the src property for serialization
                           img.set("src", cloudinaryResult.url);
                           (img as any)._originalElement = htmlImg;
-
-                          // force canvas update
+                          // restore original transform
+                          img.set(origProps);
+                          img.setCoords();
+                          // force immediate redraw
+                          editor.canvas.renderAll();
                           editor.canvas.requestRenderAll();
-
-                          // save the new state with cloudinary url
                           editor.save?.();
                         };
                         htmlImg.src = cloudinaryResult.url;
                       } catch (uploadError) {
-                        console.error(
-                          "Failed to upload to Cloudinary:",
-                          uploadError,
-                        );
-                        // fallback to blob url (won't persist but works locally)
+                        console.error("Cloudinary upload failed:", uploadError);
                         const url = URL.createObjectURL(result);
                         const htmlImg = new Image();
                         htmlImg.crossOrigin = "anonymous";
                         htmlImg.onload = () => {
                           img.setElement(htmlImg);
                           img._element = htmlImg;
+                          img.set(origProps);
+                          img.setCoords();
+                          editor.canvas.renderAll();
                           editor.canvas.requestRenderAll();
                           editor.save?.();
                           URL.revokeObjectURL(url);

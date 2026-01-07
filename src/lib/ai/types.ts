@@ -98,6 +98,8 @@ export interface ShapeOptions {
   width?: number;
   height?: number;
   radius?: number;
+  rx?: number;
+  ry?: number;
   position?: Position | PositionPreset;
 }
 
@@ -154,6 +156,7 @@ export type ActionType =
   | "select_element"
   | "search_images"
   | "add_image_to_canvas"
+  | "add_image"
   | "remove_background"
   | "change_canvas_background"
   | "change_layer_order"

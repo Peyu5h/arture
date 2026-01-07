@@ -1,8 +1,5 @@
 import { useState, useCallback } from "react";
-import {
-  uploadDataUrlToCloudinary,
-  uploadImageToCloudinary,
-} from "~/lib/ai/tools/asset-tools";
+import { uploadDataUrlToCloudinary } from "~/lib/cloudinary-upload";
 
 export interface ImageAttachment {
   id: string;
@@ -156,14 +153,6 @@ export function useImageAttachments(): UseImageAttachmentsReturn {
         attachment.name,
       );
 
-      if (!result) {
-        return {
-          ...attachment,
-          uploadError: "Upload failed",
-          uploading: false,
-        };
-      }
-
       return {
         ...attachment,
         cloudinaryUrl: result.url,
@@ -171,7 +160,7 @@ export function useImageAttachments(): UseImageAttachmentsReturn {
         thumbnail: result.thumbnail,
         uploaded: true,
         uploading: false,
-        dataUrl: undefined, // clear to save memory
+        dataUrl: undefined,
       };
     } catch (error) {
       return {
