@@ -177,9 +177,17 @@ interface AIResponseInput {
     backgroundColor?: string;
     summary?: string;
   };
+  canvasIndex?: Record<string, unknown>;
   conversationHistory?: Array<{
     role: "user" | "assistant";
     content: string;
+  }>;
+  imageAttachments?: Array<{
+    id: string;
+    name: string;
+    cloudinaryUrl?: string;
+    thumbnail?: string;
+    dataUrl?: string;
   }>;
 }
 
@@ -187,6 +195,12 @@ interface AIResponseOutput {
   response: string;
   isConfigured: boolean;
   error?: boolean;
+  actions?: Array<{
+    id?: string;
+    type: string;
+    payload: Record<string, unknown>;
+    description?: string;
+  }>;
 }
 
 // generate ai response using gemini

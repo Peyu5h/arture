@@ -5,12 +5,17 @@ export interface ContextStats {
   elementTokens: number;
   messageTokens: number;
   mentionTokens: number;
+  systemPromptTokens: number;
 }
 
-// rough token estimation (1 token ≈ 4 chars for english)
+// system prompt base overhead (approximate)
+const SYSTEM_PROMPT_BASE_TOKENS = 450;
+
+// rough token estimation (1 token ≈ 3.5 chars for mixed content)
 function estimateTokens(text: string): number {
   if (!text || typeof text !== "string") return 0;
-  return Math.ceil(text.length / 4);
+  // use 3.5 chars per token for more accurate estimation with code/JSON
+  return Math.ceil(text.length / 3.5);
 }
 
 // safely convert any value to string for token estimation
@@ -45,7 +50,7 @@ export function formatTokenCount(tokens: number): string {
   return Math.round(tokens / 1000) + "k";
 }
 
-// calculates tokens for a canvas element
+// calculates tokens for a canvas element with full detail
 function calculateElementTokens(element: Record<string, unknown>): number {
   if (!element || typeof element !== "object") return 0;
 
@@ -60,23 +65,38 @@ function calculateElementTokens(element: Record<string, unknown>): number {
     tokens += estimateTokens(safeStringify(element.text));
   }
 
-  // position and dimensions - base cost
-  tokens += 20;
+  // position - including actual values sent to AI
+  const left =
+    element.left !== undefined ? Math.round(Number(element.left)) : 0;
+  const top = element.top !== undefined ? Math.round(Number(element.top)) : 0;
+  tokens += estimateTokens(`position=(${left},${top})`);
+
+  // dimensions - calculate actual size with scale
+  const width = Math.round(
+    (Number(element.width) || 100) * (Number(element.scaleX) || 1),
+  );
+  const height = Math.round(
+    (Number(element.height) || 100) * (Number(element.scaleY) || 1),
+  );
+  tokens += estimateTokens(`size=${width}x${height}px`);
 
   // style properties - safely serialize
   if (element.fill) {
     const fillStr =
       typeof element.fill === "string" ? element.fill : "gradient";
-    tokens += estimateTokens(fillStr);
+    tokens += estimateTokens(`fill=${fillStr}`);
   }
   if (element.stroke) {
     const strokeStr =
       typeof element.stroke === "string" ? element.stroke : "gradient";
-    tokens += estimateTokens(strokeStr);
+    tokens += estimateTokens(`stroke=${strokeStr}`);
   }
   if (element.fontFamily) {
     tokens += estimateTokens(safeStringify(element.fontFamily));
   }
+
+  // overhead for formatting in context
+  tokens += 15;
 
   // image source (abbreviated)
   if (element.src) {
@@ -143,6 +163,7 @@ export function calculateContext(input: CalculateContextInput): ContextStats {
       elementTokens: 0,
       messageTokens: 0,
       mentionTokens: 0,
+      systemPromptTokens: 0,
     };
   }
 
@@ -168,14 +189,23 @@ export function calculateContext(input: CalculateContextInput): ContextStats {
       typeof input.canvasBackground === "string"
         ? input.canvasBackground
         : "gradient";
-    metadataTokens += estimateTokens(bgStr);
+    metadataTokens += estimateTokens(`Background: ${bgStr}`);
   }
   if (input.canvasSize) {
-    metadataTokens += 10; // width x height
+    metadataTokens += estimateTokens(
+      `Canvas: ${input.canvasSize.width}x${input.canvasSize.height}px`,
+    );
   }
 
+  // include system prompt overhead
+  const systemPromptTokens = SYSTEM_PROMPT_BASE_TOKENS;
+
   const totalTokens =
-    elementTokens + messageTokens + mentionTokens + metadataTokens;
+    elementTokens +
+    messageTokens +
+    mentionTokens +
+    metadataTokens +
+    systemPromptTokens;
 
   return {
     totalTokens: totalTokens || 0,
@@ -183,6 +213,7 @@ export function calculateContext(input: CalculateContextInput): ContextStats {
     elementTokens: elementTokens || 0,
     messageTokens: messageTokens || 0,
     mentionTokens: mentionTokens || 0,
+    systemPromptTokens,
   };
 }
 

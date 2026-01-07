@@ -54,7 +54,7 @@ export function Navbar({
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
           <Image
-            src="https://res.cloudinary.com/dkysrpdi6/image/upload/v1728660806/Arture/arture-logo_oljtzy.png"
+            src="https://res.cloudinary.com/dkysrpdi6/image/upload/v1767779529/DoNotDelete/arture-logo_b0se1v.png"
             alt="Arture"
             width={36}
             height={36}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo } from "react";
-import type { ChatMessage } from "~/hooks/useChat";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "~/lib/utils";
 import { Sparkles } from "lucide-react";
@@ -19,6 +18,7 @@ import { AgentSuggestions } from "./agent-suggestions";
 import { AgentHistoryPanel } from "./agent-history-panel";
 import { AgentInspectTool } from "./agent-inspect-tool";
 import { useAgentContext } from "~/hooks/useAgentContext";
+import { useImageAttachments } from "~/hooks/useImageAttachments";
 import {
   useConversations,
   useConversation,
@@ -27,9 +27,9 @@ import {
   useDeleteConversation,
   useAIResponse,
 } from "~/hooks/useChat";
+import type { ChatMessage } from "~/hooks/useChat";
 import {
   calculateContext,
-  formatTokenCount,
   generateContextSummary,
   extractElementContext,
 } from "~/lib/context-calculator";
@@ -42,7 +42,10 @@ import {
   MentionSuggestion,
   ContextStats,
   ElementReference,
+  AgentAction as LocalAgentAction,
 } from "./types";
+import { executeActions, parseUserMessage, AgentAction } from "~/lib/ai";
+import { ImageAttachment } from "./agent-input";
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
@@ -83,9 +86,19 @@ export const AgentPanel = ({
   const [isInspectMode, setIsInspectMode] = useState(false);
   const [contextStats, setContextStats] = useState<ContextStats | null>(null);
 
-  const { context, isAnalyzing } = useAgentContext(editor);
+  // image attachments with cloudinary upload
+  const {
+    attachments: attachedImages,
+    isUploading: isUploadingImages,
+    addAttachment: addImageAttachment,
+    addAttachmentFromDataUrl: addImageFromDataUrl,
+    removeAttachment: removeImageAttachment,
+    uploadAllPending: uploadAllImages,
+    clearAll: clearAllImages,
+  } = useImageAttachments();
 
-  // db hooks
+  const { context, isAnalyzing, canvasIndex } = useAgentContext(editor);
+
   const { data: conversations = [], refetch: refetchConversations } =
     useConversations(projectId);
   const { data: activeConversationData } =
@@ -98,15 +111,23 @@ export const AgentPanel = ({
   // load messages when conversation changes - only on initial load, not during active session
   useEffect(() => {
     if (activeConversationData?.messages && !isActiveSession) {
-      const msgs = activeConversationData.messages.map((msg: ChatMessage) => ({
-        id: msg.id,
-        role: msg.role as "user" | "assistant" | "system",
-        content: msg.content,
-        status: "complete" as const,
-        timestamp: msg.timestamp,
-        actions: msg.actions as AgentMessage["actions"],
-        context: msg.context as AgentMessage["context"],
-      }));
+      const msgs = activeConversationData.messages.map((msg: ChatMessage) => {
+        const msgContext = msg.context as AgentMessage["context"];
+        // extract imageAttachments from context for display
+        const imageAttachments = msgContext?.imageAttachments || [];
+
+        return {
+          id: msg.id,
+          role: msg.role as "user" | "assistant" | "system",
+          content: msg.content,
+          status: "complete" as const,
+          timestamp: msg.timestamp,
+          actions: msg.actions as AgentMessage["actions"],
+          context: msgContext,
+          imageAttachments:
+            imageAttachments.length > 0 ? imageAttachments : undefined,
+        };
+      });
       if (msgs.length > 0) {
         setMessages([createWelcomeMessage(), ...msgs]);
       }
@@ -422,7 +443,17 @@ export const AgentPanel = ({
   );
 
   const handleSubmit = useCallback(async () => {
-    if (!inputValue.trim() || isLoading) return;
+    if (!inputValue.trim() || isLoading || isUploadingImages) return;
+
+    // upload any pending images to cloudinary first
+    let uploadedImages: typeof attachedImages = [];
+    if (attachedImages.length > 0) {
+      try {
+        uploadedImages = await uploadAllImages();
+      } catch (error) {
+        console.error("Failed to upload images:", error);
+      }
+    }
 
     // generate context summary if no specific mentions
     let contextSummary: string | undefined;
@@ -439,6 +470,17 @@ export const AgentPanel = ({
       );
     }
 
+    // build image attachment refs for display in message
+    const messageImageAttachments = uploadedImages
+      .filter((img) => img.cloudinaryUrl || img.dataUrl)
+      .map((img) => ({
+        id: img.id,
+        name: img.name,
+        url: img.cloudinaryUrl,
+        thumbnail: img.thumbnail,
+        dataUrl: img.dataUrl,
+      }));
+
     const userMessageId = generateId();
     const userMessage: AgentMessage = {
       id: userMessageId,
@@ -447,6 +489,10 @@ export const AgentPanel = ({
       status: "complete",
       timestamp: Date.now(),
       mentions: activeMentions.length > 0 ? [...activeMentions] : undefined,
+      imageAttachments:
+        messageImageAttachments.length > 0
+          ? messageImageAttachments
+          : undefined,
       context:
         activeMentions.length > 0
           ? {
@@ -459,10 +505,22 @@ export const AgentPanel = ({
                   text: m.elementRef?.text,
                   imageSrc: m.elementRef?.imageSrc,
                 })),
+              imageAttachments:
+                messageImageAttachments.length > 0
+                  ? messageImageAttachments
+                  : undefined,
             }
           : contextSummary
-            ? { summary: contextSummary }
-            : undefined,
+            ? {
+                summary: contextSummary,
+                imageAttachments:
+                  messageImageAttachments.length > 0
+                    ? messageImageAttachments
+                    : undefined,
+              }
+            : messageImageAttachments.length > 0
+              ? { imageAttachments: messageImageAttachments }
+              : undefined,
     };
 
     // mark session as active to prevent DB reload overwriting
@@ -471,6 +529,7 @@ export const AgentPanel = ({
     setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
     setActiveMentions([]);
+    clearAllImages();
     setIsLoading(true);
 
     // ensure we have an active conversation
@@ -490,14 +549,23 @@ export const AgentPanel = ({
       }
     }
 
-    // save user message to db
+    // save user message to db with image attachments in context
     if (convId) {
       try {
+        // ensure imageAttachments are included in context for persistence
+        const messageContext = {
+          ...userMessage.context,
+          imageAttachments:
+            messageImageAttachments.length > 0
+              ? messageImageAttachments
+              : undefined,
+        };
+
         await createMessage.mutateAsync({
           conversationId: convId,
           role: "USER",
           content: userMessage.content,
-          context: userMessage.context,
+          context: messageContext,
         });
       } catch (error) {
         console.error("Failed to save message:", error);
@@ -512,6 +580,7 @@ export const AgentPanel = ({
         canvasSize?: { width: number; height: number };
         backgroundColor?: string;
         summary?: string;
+        selectedElementIds?: string[];
       } = {};
 
       if (context?.canvasSize) {
@@ -533,6 +602,14 @@ export const AgentPanel = ({
             extractElementContext(obj as unknown as Record<string, unknown>),
           );
         aiContext.elements = canvasElements;
+
+        // capture selected element IDs for context
+        const activeObjects = editor.canvas.getActiveObjects();
+        if (activeObjects && activeObjects.length > 0) {
+          aiContext.selectedElementIds = activeObjects
+            .map((obj: fabric.Object) => (obj as unknown as { id?: string }).id)
+            .filter(Boolean) as string[];
+        }
       }
 
       // build conversation history
@@ -544,11 +621,68 @@ export const AgentPanel = ({
           content: m.content,
         }));
 
+      // parse user message for direct actions (but don't execute clarification requests)
+      const userActions = parseUserMessage(userMessage.content);
+      const hasAskClarification = userActions.some(
+        (a) => a.type === "ask_clarification",
+      );
+
+      // prepare image attachments for AI
+      const imageAttachments = uploadedImages
+        .filter((img) => img.cloudinaryUrl || img.dataUrl)
+        .map((img) => ({
+          id: img.id,
+          name: img.name,
+          cloudinaryUrl: img.cloudinaryUrl,
+          thumbnail: img.thumbnail,
+          dataUrl: img.dataUrl,
+        }));
+
+      // get AI response first (it provides feedback)
       const response = await aiResponse.mutateAsync({
         message: userMessage.content,
         context: aiContext,
         conversationHistory,
+        canvasIndex: canvasIndex as unknown as Record<string, unknown>,
+        imageAttachments,
       });
+
+      console.log("============================:", response); // Added log
+
+      const aiActions = (response as { actions?: AgentAction[] }).actions || [];
+      console.log("AI Actions received:", aiActions);
+
+      if (editor?.canvas && !hasAskClarification && aiActions.length > 0) {
+        const executableActions = aiActions.filter(
+          (a) => a.type !== "ask_clarification",
+        );
+        if (executableActions.length > 0) {
+          try {
+            console.log("Executing actions:", executableActions);
+            const results = await executeActions(
+              editor.canvas,
+              executableActions,
+            );
+            console.log("Action results:", results);
+          } catch (actionError) {
+            console.error("Action execution failed:", actionError);
+          } finally {
+            // ensure canvas remains interactive after action execution
+            if (editor.canvas) {
+              editor.canvas.selection = true;
+              editor.canvas.interactive = true;
+              editor.canvas.getObjects().forEach((obj: fabric.Object) => {
+                const objWithName = obj as fabric.Object & { name?: string };
+                if (objWithName.name !== "clip") {
+                  obj.selectable = true;
+                  obj.evented = true;
+                }
+              });
+              editor.canvas.requestRenderAll();
+            }
+          }
+        }
+      }
 
       const assistantMessageId = generateId();
       const assistantMessage: AgentMessage = {
@@ -557,22 +691,29 @@ export const AgentPanel = ({
         content: response.response,
         status: "complete",
         timestamp: Date.now(),
+        actions:
+          aiActions.length > 0
+            ? (aiActions as unknown as LocalAgentAction[])
+            : undefined,
       };
 
       setPendingMessageIds((prev) => new Set(prev).add(assistantMessageId));
       setMessages((prev) => [...prev, assistantMessage]);
 
-      // save assistant message to db
+      // stop loading immediately after message is displayed
+      setIsLoading(false);
+
+      // save assistant message to db (non-blocking)
       if (convId) {
-        try {
-          await createMessage.mutateAsync({
+        createMessage
+          .mutateAsync({
             conversationId: convId,
             role: "ASSISTANT",
             content: assistantMessage.content,
+          })
+          .catch((error) => {
+            console.error("Failed to save assistant message:", error);
           });
-        } catch (error) {
-          console.error("Failed to save assistant message:", error);
-        }
       }
     } catch (error) {
       console.error("AI response error:", error);
@@ -591,6 +732,7 @@ export const AgentPanel = ({
   }, [
     inputValue,
     isLoading,
+    isUploadingImages,
     activeMentions,
     activeConversationId,
     projectId,
@@ -599,13 +741,53 @@ export const AgentPanel = ({
     refetchConversations,
     editor,
     context,
+    canvasIndex,
     messages,
     aiResponse,
+    attachedImages,
+    uploadAllImages,
+    clearAllImages,
   ]);
 
   const handleRemoveMention = useCallback((id: string) => {
     setActiveMentions((prev) => prev.filter((m) => m.id !== id));
   }, []);
+
+  // handle image attachment from agent input
+  const handleImagesChange = useCallback(
+    (images: ImageAttachment[]) => {
+      // convert old format to new format via add
+      images.forEach((img) => {
+        if (img.dataUrl && !attachedImages.find((a) => a.id === img.id)) {
+          addImageFromDataUrl(img.dataUrl, img.name);
+        }
+      });
+    },
+    [attachedImages, addImageFromDataUrl],
+  );
+
+  // handles position selection from inline position selector
+  const handlePositionSelect = useCallback(
+    (position: string) => {
+      if (!editor?.canvas) return;
+
+      // import and use moveElement directly
+      import("~/lib/ai").then(({ moveElement }) => {
+        const success = moveElement(editor.canvas, "selected", position as any);
+        if (success) {
+          const confirmMessage: AgentMessage = {
+            id: generateId(),
+            role: "assistant",
+            content: `Done! I've moved the element to the ${position.replace("-", " ")}.`,
+            status: "complete",
+            timestamp: Date.now(),
+          };
+          setMessages((prev) => [...prev, confirmMessage]);
+        }
+      });
+    },
+    [editor],
+  );
 
   const handleClearHistory = useCallback(() => {
     setMessages([createWelcomeMessage()]);
@@ -675,7 +857,8 @@ export const AgentPanel = ({
               }}
               className={cn(
                 "absolute inset-0 flex flex-col",
-                "border-border bg-card border-l",
+                "border-border border-l",
+                "bg-card dark:bg-zinc-900",
               )}
               style={{ width: PANEL_WIDTH }}
             >
@@ -689,7 +872,11 @@ export const AgentPanel = ({
               />
 
               <div className="relative flex min-h-0 flex-1 flex-col">
-                <AgentChat messages={messages} isLoading={isLoading} />
+                <AgentChat
+                  messages={messages}
+                  isLoading={isLoading}
+                  onPositionSelect={handlePositionSelect}
+                />
 
                 {showSuggestions && (
                   <AgentSuggestions
@@ -713,6 +900,13 @@ export const AgentPanel = ({
                   onInspectToggle={() => setIsInspectMode(!isInspectMode)}
                   isInspectMode={isInspectMode}
                   onRemoveMention={handleRemoveMention}
+                  images={attachedImages.map((img) => ({
+                    id: img.id,
+                    dataUrl: img.dataUrl || img.cloudinaryUrl || "",
+                    name: img.name,
+                    size: img.size || 0,
+                  }))}
+                  onImagesChange={handleImagesChange}
                 />
 
                 {/* inspect tool overlay - only active when inspect mode is on */}

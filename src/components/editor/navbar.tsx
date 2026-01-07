@@ -314,13 +314,16 @@ export const Navbar = ({
       className="bg-background flex h-[68px] min-w-full items-center gap-x-8 overflow-hidden border-b p-4 lg:pl-8"
     >
       <div className="flex items-center gap-x-3">
-        <div className="select-none">
+        <div
+          className="flex-shrink-0 select-none"
+          style={{ width: 40, height: 40 }}
+        >
           <Image
             priority
             className="cursor-pointer"
-            src="https://res.cloudinary.com/dkysrpdi6/image/upload/v1728660806/Arture/arture-logo_oljtzy.png"
-            width={56}
-            height={56}
+            src="https://res.cloudinary.com/dkysrpdi6/image/upload/v1767779529/DoNotDelete/arture-logo_b0se1v.png"
+            width={40}
+            height={40}
             alt="logo"
             draggable={false}
             unoptimized={true}
@@ -332,13 +335,13 @@ export const Navbar = ({
           />
         </div>
 
-        {/* project name input */}
+        {/* project name input - fixed width to prevent menu shifting */}
         <div className="relative flex items-center">
-          <div className="relative max-w-[180px]">
+          <div className="relative w-[180px]">
             <span
               onDoubleClick={handleNameDoubleClick}
               className={ny(
-                "block truncate rounded px-2 py-1 text-sm font-medium transition-colors",
+                "block w-full truncate rounded px-2 py-1 text-sm font-medium transition-colors",
                 viewMode === "editing"
                   ? "hover:bg-muted cursor-text"
                   : "cursor-default",

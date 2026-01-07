@@ -9,7 +9,10 @@ interface UseAutoResizeProps {
 }
 
 export const useAutoResize = ({ canvas, container }: UseAutoResizeProps) => {
-  const calculateScale = (object: fabric.Object, container: { width: number; height: number }) => {
+  const calculateScale = (
+    object: fabric.Object,
+    container: { width: number; height: number },
+  ) => {
     if (!object.width || !object.height) return 1;
     const scaleX = container.width / object.width;
     const scaleY = container.height / object.height;
@@ -68,6 +71,9 @@ export const useAutoResize = ({ canvas, container }: UseAutoResizeProps) => {
 
   useEffect(() => {
     if (!canvas || !container) return;
+
+    // call autoZoom initially to set clipPath
+    autoZoom();
 
     let resizeObserver: ResizeObserver | null = null;
 

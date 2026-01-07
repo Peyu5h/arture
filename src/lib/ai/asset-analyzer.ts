@@ -234,7 +234,7 @@ export class AssetAnalyzer {
   async generateAssetDescription(asset: any): Promise<string> {
     const prompt = `
     Generate a comprehensive description for this design asset:
-    
+
     Name: ${asset.name}
     Type: ${asset.type}
     Category: ${asset.category}
@@ -242,7 +242,7 @@ export class AssetAnalyzer {
     Theme: ${asset.theme.join(", ")}
     Color: ${asset.color || "N/A"}
     Description: ${asset.description}
-    
+
     Create a detailed description that would be useful for semantic search and AI-powered asset selection.
     `;
 

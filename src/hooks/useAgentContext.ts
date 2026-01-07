@@ -1,13 +1,19 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { fabric } from "fabric";
 import { CanvasContext } from "~/components/editor/agent/types";
+import {
+  CanvasIndex,
+  indexCanvas,
+  generateContextSummary,
+  getMinimalContext,
+  resetImageRefs,
+} from "~/lib/ai";
 
 // safely serializes fill/stroke to string
 function serializeFillOrStroke(value: unknown): string | undefined {
   if (!value) return undefined;
   if (typeof value === "string") return value;
   if (typeof value === "object") {
-    // gradient or pattern
     if ("colorStops" in (value as object)) return "gradient";
     if ("source" in (value as object)) return "pattern";
     return "complex";
@@ -15,15 +21,28 @@ function serializeFillOrStroke(value: unknown): string | undefined {
   return String(value);
 }
 
+interface UseAgentContextReturn {
+  context: CanvasContext | null;
+  canvasIndex: CanvasIndex | null;
+  isAnalyzing: boolean;
+  analyzeCanvas: () => void;
+  getCanvasJson: () => unknown | null;
+  getSelectedObjectJson: () => unknown | null;
+  getMinimalContextString: () => string;
+  getSummary: () => string;
+}
+
 // extracts canvas context for ai agent
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const useAgentContext = (editor: any) => {
+export const useAgentContext = (editor: any): UseAgentContextReturn => {
   const [context, setContext] = useState<CanvasContext | null>(null);
+  const [canvasIndex, setCanvasIndex] = useState<CanvasIndex | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const analyzeCanvas = useCallback(() => {
     if (!editor?.canvas) {
       setContext(null);
+      setCanvasIndex(null);
       return;
     }
 
@@ -31,6 +50,11 @@ export const useAgentContext = (editor: any) => {
 
     try {
       const canvas = editor.canvas;
+
+      // use new indexer
+      const index = indexCanvas(canvas);
+      setCanvasIndex(index);
+
       const objects = canvas
         .getObjects()
         .filter((obj: fabric.Object) => obj.name !== "clip");
@@ -60,16 +84,18 @@ export const useAgentContext = (editor: any) => {
         selectedElement = {
           type: activeObject.type || "unknown",
           properties: {
-            left: activeObject.left,
-            top: activeObject.top,
-            width: activeObject.width,
-            height: activeObject.height,
+            left: Math.round(activeObject.left || 0),
+            top: Math.round(activeObject.top || 0),
+            width: Math.round(
+              (activeObject.width || 0) * (activeObject.scaleX || 1),
+            ),
+            height: Math.round(
+              (activeObject.height || 0) * (activeObject.scaleY || 1),
+            ),
             fill: serializeFillOrStroke(activeObject.fill),
             stroke: serializeFillOrStroke(activeObject.stroke),
             opacity: activeObject.opacity,
-            angle: activeObject.angle,
-            scaleX: activeObject.scaleX,
-            scaleY: activeObject.scaleY,
+            angle: activeObject.angle ? Math.round(activeObject.angle) : 0,
             // @ts-ignore
             text: activeObject.text || undefined,
             // @ts-ignore
@@ -97,8 +123,8 @@ export const useAgentContext = (editor: any) => {
         hasShapes,
         selectedElement,
         canvasSize: {
-          width: workspace?.width || 500,
-          height: workspace?.height || 500,
+          width: Math.round(workspace?.width || 500),
+          height: Math.round(workspace?.height || 500),
         },
         backgroundColor: bgColor,
       };
@@ -114,6 +140,8 @@ export const useAgentContext = (editor: any) => {
   useEffect(() => {
     if (!editor?.canvas) return;
 
+    // reset image refs on new canvas
+    resetImageRefs();
     analyzeCanvas();
 
     const canvas = editor.canvas;
@@ -173,11 +201,24 @@ export const useAgentContext = (editor: any) => {
     }
   }, [editor]);
 
+  const getMinimalContextString = useCallback(() => {
+    if (!canvasIndex) return "{}";
+    return getMinimalContext(canvasIndex);
+  }, [canvasIndex]);
+
+  const getSummary = useCallback(() => {
+    if (!canvasIndex) return "Empty canvas";
+    return canvasIndex.summary;
+  }, [canvasIndex]);
+
   return {
     context,
+    canvasIndex,
     isAnalyzing,
     analyzeCanvas,
     getCanvasJson,
     getSelectedObjectJson,
+    getMinimalContextString,
+    getSummary,
   };
 };

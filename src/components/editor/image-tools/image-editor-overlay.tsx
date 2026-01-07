@@ -397,9 +397,6 @@ export function ImageEditorOverlay({
           {/* header */}
           <div className="border-border flex items-center justify-between border-b px-4 py-3">
             <div className="flex items-center gap-2">
-              <div className="bg-primary/10 flex h-8 w-8 items-center justify-center rounded-lg">
-                <Sparkles className="text-primary h-4 w-4" />
-              </div>
               <div>
                 <h3 className="text-sm font-semibold">Edit Image</h3>
                 <p className="text-muted-foreground text-xs">

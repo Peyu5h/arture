@@ -3,13 +3,20 @@ export type MessageRole = "user" | "assistant" | "system";
 export type MessageStatus = "pending" | "streaming" | "complete" | "error";
 
 export type ActionType =
+  | "spawn_shape"
+  | "add_text"
+  | "move_element"
   | "modify_element"
-  | "add_element"
-  | "remove_element"
-  | "change_style"
-  | "fetch_assets"
-  | "analyze_canvas"
-  | "generate_suggestion";
+  | "resize_element"
+  | "delete_element"
+  | "select_element"
+  | "search_images"
+  | "add_image_to_canvas"
+  | "remove_background"
+  | "change_canvas_background"
+  | "change_layer_order"
+  | "duplicate_element"
+  | "ask_clarification";
 
 export type MentionType =
   | "element"
@@ -24,10 +31,11 @@ export type MentionType =
 
 export interface AgentAction {
   id: string;
-  type: ActionType;
-  description: string;
-  status: "pending" | "running" | "complete" | "error";
-  timestamp: number;
+  type: ActionType | string;
+  description?: string;
+  status?: "pending" | "running" | "complete" | "error";
+  timestamp?: number;
+  payload?: Record<string, unknown>;
 }
 
 export interface ElementReference {
@@ -61,6 +69,14 @@ export interface MentionSuggestion {
   elementRef?: ElementReference;
 }
 
+export interface ImageAttachmentRef {
+  id: string;
+  name: string;
+  url?: string;
+  thumbnail?: string;
+  dataUrl?: string;
+}
+
 export interface AgentMessage {
   id: string;
   role: MessageRole;
@@ -70,6 +86,7 @@ export interface AgentMessage {
   actions?: AgentAction[];
   mentions?: Mention[];
   context?: MessageContext;
+  imageAttachments?: ImageAttachmentRef[];
 }
 
 export interface MessageContext {
@@ -82,6 +99,7 @@ export interface MessageContext {
   }>;
   canvasSnapshot?: string;
   summary?: string;
+  imageAttachments?: ImageAttachmentRef[];
 }
 
 export interface Suggestion {
@@ -124,6 +142,7 @@ export interface ContextStats {
   elementTokens: number;
   messageTokens: number;
   mentionTokens: number;
+  systemPromptTokens?: number;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

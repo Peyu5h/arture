@@ -9,10 +9,30 @@ let currentConfig: ApiConfig = DEFAULT_CONFIG;
 // Create a separate Ky instance for FormData requests without default headers
 const formDataInstance = ky.create({
   prefixUrl: process.env.NEXT_PUBLIC_API_URL,
-  timeout: 30000,
+  timeout: 60000,
   credentials: "include",
-  // No default headers for FormData
 });
+
+// Create a separate instance for AI endpoints with longer timeout
+const aiInstance = ky.create({
+  prefixUrl: process.env.NEXT_PUBLIC_API_URL,
+  timeout: 120000,
+  credentials: "include",
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+// AI endpoints that need longer timeout
+const AI_ENDPOINTS = [
+  "api/chat/ai-response",
+  "api/chat/generate-title",
+  "api/chat/messages",
+];
+
+function isAIEndpoint(url: string): boolean {
+  return AI_ENDPOINTS.some((endpoint) => url.includes(endpoint));
+}
 
 export const configureApi = (config: Partial<ApiConfig> = {}) => {
   currentConfig = {
@@ -42,26 +62,15 @@ export const setAuthToken = (token?: string) => {
 export const api = {
   get: async <T>(url: string): Promise<APIResponse<T>> => {
     const cleanUrl = url.replace(/^\//, "");
-    return instance.get(cleanUrl).json<APIResponse<T>>();
+    const kyInstance = isAIEndpoint(cleanUrl) ? aiInstance : instance;
+    return kyInstance.get(cleanUrl).json<APIResponse<T>>();
   },
 
   post: async <T>(url: string, data?: unknown): Promise<APIResponse<T>> => {
     const cleanUrl = url.replace(/^\//, "");
-
-    // Check if data is FormData
     const isFormData = data instanceof FormData;
 
-    console.log("API post - URL:", cleanUrl);
-    console.log("API post - Data type:", typeof data);
-    console.log("API post - Is FormData:", isFormData);
-    console.log(
-      "API post - Data instanceof FormData:",
-      data instanceof FormData,
-    );
-
     if (isFormData) {
-      console.log("Sending as FormData using formDataInstance");
-      // Use the separate instance without default headers for FormData
       return formDataInstance
         .post(cleanUrl, {
           body: data as FormData,
@@ -69,8 +78,8 @@ export const api = {
         .json<APIResponse<T>>();
     }
 
-    console.log("Sending as JSON");
-    return instance.post(cleanUrl, { json: data }).json<APIResponse<T>>();
+    const kyInstance = isAIEndpoint(cleanUrl) ? aiInstance : instance;
+    return kyInstance.post(cleanUrl, { json: data }).json<APIResponse<T>>();
   },
 
   postForm: async <T>(
@@ -78,9 +87,6 @@ export const api = {
     formData: FormData,
   ): Promise<APIResponse<T>> => {
     const cleanUrl = url.replace(/^\//, "");
-    console.log("API postForm - URL:", cleanUrl);
-    console.log("API postForm - FormData:", formData);
-    // Use the separate instance without default headers for FormData
     return formDataInstance
       .post(cleanUrl, {
         body: formData,
@@ -90,7 +96,8 @@ export const api = {
 
   put: async <T>(url: string, data?: unknown): Promise<APIResponse<T>> => {
     const cleanUrl = url.replace(/^\//, "");
-    return instance.put(cleanUrl, { json: data }).json<APIResponse<T>>();
+    const kyInstance = isAIEndpoint(cleanUrl) ? aiInstance : instance;
+    return kyInstance.put(cleanUrl, { json: data }).json<APIResponse<T>>();
   },
 
   patch: async <T>(url: string, data?: unknown): Promise<APIResponse<T>> => {

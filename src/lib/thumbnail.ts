@@ -37,14 +37,13 @@ const getWorkspace = (canvas: fabric.Canvas): fabric.Rect | null => {
   }
 };
 
-// generates thumbnail from fabric canvas
+// generates thumbnail from fabric canvas - captures only workspace content
 export const generateThumbnail = async (
   canvas: fabric.Canvas | null | undefined,
   options: ThumbnailOptions = {},
 ): Promise<string | null> => {
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
-  // validate canvas
   if (!isCanvasReady(canvas)) {
     console.warn("Canvas is not ready for thumbnail generation");
     return null;
@@ -60,12 +59,16 @@ export const generateThumbnail = async (
       return null;
     }
 
-    const workspaceWidth = workspace.width || 500;
-    const workspaceHeight = workspace.height || 500;
+    // get workspace bounds with scale applied
+    const workspaceScaleX = workspace.scaleX || 1;
+    const workspaceScaleY = workspace.scaleY || 1;
+    const workspaceWidth = (workspace.width || 500) * workspaceScaleX;
+    const workspaceHeight = (workspace.height || 500) * workspaceScaleY;
     const workspaceLeft = workspace.left || 0;
     const workspaceTop = workspace.top || 0;
+    const workspaceFill = workspace.fill;
 
-    // calculate scale to fit within max dimensions
+    // calculate thumbnail size preserving aspect ratio
     const scaleX = (opts.maxWidth || 400) / workspaceWidth;
     const scaleY = (opts.maxHeight || 300) / workspaceHeight;
     const scale = Math.min(scaleX, scaleY, 1);
@@ -73,105 +76,176 @@ export const generateThumbnail = async (
     const thumbnailWidth = Math.round(workspaceWidth * scale);
     const thumbnailHeight = Math.round(workspaceHeight * scale);
 
-    // create offscreen canvas
-    const offscreenCanvas = document.createElement("canvas");
-    offscreenCanvas.width = thumbnailWidth;
-    offscreenCanvas.height = thumbnailHeight;
+    // save current canvas state
+    const originalVpt = safeCanvas.viewportTransform
+      ? [...safeCanvas.viewportTransform]
+      : [1, 0, 0, 1, 0, 0];
+    const originalZoom = safeCanvas.getZoom();
+    const originalWidth = safeCanvas.getWidth();
+    const originalHeight = safeCanvas.getHeight();
 
-    const ctx = offscreenCanvas.getContext("2d");
-    if (!ctx) {
-      console.error("Failed to get offscreen canvas context");
-      return null;
-    }
+    // reset viewport to identity (no zoom, no pan)
+    safeCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    safeCanvas.setZoom(1);
 
-    // fill background
-    const workspaceFill = workspace.fill;
-    ctx.fillStyle =
-      typeof workspaceFill === "string"
-        ? workspaceFill
-        : opts.backgroundColor || "#ffffff";
-    ctx.fillRect(0, 0, thumbnailWidth, thumbnailHeight);
-
-    // check if there are objects to render
-    const objects = safeCanvas
-      .getObjects()
-      .filter((obj) => obj.name !== "clip" && obj.visible !== false);
-
-    if (objects.length === 0) {
-      // no objects, return empty workspace thumbnail
-      return offscreenCanvas.toDataURL(`image/${opts.format}`, opts.quality);
-    }
-
-    // export canvas to data url
+    // use fabric's toDataURL with explicit clipping to workspace area
+    // this captures exactly what's in the workspace bounds
     let dataUrl: string;
     try {
       dataUrl = safeCanvas.toDataURL({
         format: opts.format === "jpeg" ? "jpeg" : "png",
-        quality: 1,
+        quality: opts.quality,
         left: workspaceLeft,
         top: workspaceTop,
         width: workspaceWidth,
         height: workspaceHeight,
+        multiplier: scale,
       });
     } catch (exportError) {
-      console.warn(
-        "Canvas export failed, returning background only:",
-        exportError,
+      console.warn("Canvas toDataURL failed:", exportError);
+      // restore viewport
+      safeCanvas.setViewportTransform(
+        originalVpt as [number, number, number, number, number, number],
       );
-      return offscreenCanvas.toDataURL(`image/${opts.format}`, opts.quality);
+      safeCanvas.setZoom(originalZoom);
+      return null;
     }
 
-    // validate data url
-    if (!dataUrl || !dataUrl.startsWith("data:image")) {
-      console.warn("Invalid data URL from canvas export");
-      return offscreenCanvas.toDataURL(`image/${opts.format}`, opts.quality);
+    // restore original viewport state
+    safeCanvas.setViewportTransform(
+      originalVpt as [number, number, number, number, number, number],
+    );
+    safeCanvas.setZoom(originalZoom);
+
+    // if export succeeded and starts with data:image, we're done
+    if (dataUrl && dataUrl.startsWith("data:image")) {
+      return dataUrl;
     }
 
-    // load and draw scaled image
+    // fallback: create canvas manually and render
     return new Promise((resolve) => {
-      const img = new Image();
+      const offscreenCanvas = document.createElement("canvas");
+      offscreenCanvas.width = thumbnailWidth;
+      offscreenCanvas.height = thumbnailHeight;
 
-      const timeoutId = setTimeout(() => {
-        console.warn("Thumbnail image load timeout");
-        resolve(
-          offscreenCanvas.toDataURL(`image/${opts.format}`, opts.quality),
-        );
-      }, 5000);
+      const ctx = offscreenCanvas.getContext("2d");
+      if (!ctx) {
+        resolve(null);
+        return;
+      }
 
-      img.onload = () => {
-        clearTimeout(timeoutId);
+      // fill background
+      const bgColor =
+        typeof workspaceFill === "string"
+          ? workspaceFill
+          : opts.backgroundColor || "#ffffff";
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0, 0, thumbnailWidth, thumbnailHeight);
 
-        // redraw background
-        ctx.fillStyle =
-          typeof workspaceFill === "string"
-            ? workspaceFill
-            : opts.backgroundColor || "#ffffff";
-        ctx.fillRect(0, 0, thumbnailWidth, thumbnailHeight);
-
-        // draw scaled content
-        ctx.drawImage(img, 0, 0, thumbnailWidth, thumbnailHeight);
-
-        const result = offscreenCanvas.toDataURL(
-          `image/${opts.format}`,
-          opts.quality,
-        );
-        resolve(result);
-      };
-
-      img.onerror = () => {
-        clearTimeout(timeoutId);
-        console.warn("Failed to load canvas export image");
-        resolve(
-          offscreenCanvas.toDataURL(`image/${opts.format}`, opts.quality),
-        );
-      };
-
-      img.src = dataUrl;
+      resolve(offscreenCanvas.toDataURL(`image/${opts.format}`, opts.quality));
     });
   } catch (error) {
     console.error("Error generating thumbnail:", error);
     return null;
   }
+};
+
+// alternative implementation using manual rendering
+export const generateThumbnailManual = async (
+  canvas: fabric.Canvas | null | undefined,
+  options: ThumbnailOptions = {},
+): Promise<string | null> => {
+  const opts = { ...DEFAULT_OPTIONS, ...options };
+
+  if (!isCanvasReady(canvas)) {
+    return null;
+  }
+
+  const safeCanvas = canvas as fabric.Canvas;
+
+  try {
+    const workspace = getWorkspace(safeCanvas);
+    if (!workspace) {
+      return null;
+    }
+
+    const workspaceScaleX = workspace.scaleX || 1;
+    const workspaceScaleY = workspace.scaleY || 1;
+    const workspaceWidth = (workspace.width || 500) * workspaceScaleX;
+    const workspaceHeight = (workspace.height || 500) * workspaceScaleY;
+    const workspaceLeft = workspace.left || 0;
+    const workspaceTop = workspace.top || 0;
+    const workspaceFill = workspace.fill;
+
+    const scaleX = (opts.maxWidth || 400) / workspaceWidth;
+    const scaleY = (opts.maxHeight || 300) / workspaceHeight;
+    const scale = Math.min(scaleX, scaleY, 1);
+
+    const thumbnailWidth = Math.round(workspaceWidth * scale);
+    const thumbnailHeight = Math.round(workspaceHeight * scale);
+
+    // create a temporary fabric canvas for rendering
+    const tempCanvasEl = document.createElement("canvas");
+    tempCanvasEl.width = thumbnailWidth;
+    tempCanvasEl.height = thumbnailHeight;
+
+    const ctx = tempCanvasEl.getContext("2d");
+    if (!ctx) {
+      return null;
+    }
+
+    // fill background
+    const bgColor =
+      typeof workspaceFill === "string"
+        ? workspaceFill
+        : opts.backgroundColor || "#ffffff";
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, thumbnailWidth, thumbnailHeight);
+
+    // set up transformation to map workspace to thumbnail
+    ctx.scale(scale, scale);
+    ctx.translate(-workspaceLeft, -workspaceTop);
+
+    // get all objects except workspace clip
+    const objects = safeCanvas
+      .getObjects()
+      .filter((obj) => obj.name !== "clip" && obj.visible !== false);
+
+    // render each object manually
+    for (const obj of objects) {
+      try {
+        obj.render(ctx);
+      } catch (renderError) {
+        // skip objects that fail to render
+        console.warn("Object render failed:", renderError);
+      }
+    }
+
+    return tempCanvasEl.toDataURL(`image/${opts.format}`, opts.quality);
+  } catch (error) {
+    console.error("Error generating manual thumbnail:", error);
+    return null;
+  }
+};
+
+// robust thumbnail generation with multiple fallback strategies
+export const generateThumbnailRobust = async (
+  canvas: fabric.Canvas | null | undefined,
+  options: ThumbnailOptions = {},
+): Promise<string | null> => {
+  // try primary method first
+  const result = await generateThumbnail(canvas, options);
+  if (result && result.startsWith("data:image")) {
+    return result;
+  }
+
+  // fallback to manual rendering
+  const manualResult = await generateThumbnailManual(canvas, options);
+  if (manualResult && manualResult.startsWith("data:image")) {
+    return manualResult;
+  }
+
+  return null;
 };
 
 // converts data url to blob
@@ -262,15 +336,37 @@ export const generateQuickPreview = (
     const workspace = getWorkspace(safeCanvas);
     if (!workspace) return null;
 
-    return safeCanvas.toDataURL({
+    const workspaceScaleX = workspace.scaleX || 1;
+    const workspaceScaleY = workspace.scaleY || 1;
+    const workspaceWidth = (workspace.width || 500) * workspaceScaleX;
+    const workspaceHeight = (workspace.height || 500) * workspaceScaleY;
+
+    // save and reset viewport
+    const originalVpt = safeCanvas.viewportTransform
+      ? [...safeCanvas.viewportTransform]
+      : [1, 0, 0, 1, 0, 0];
+    const originalZoom = safeCanvas.getZoom();
+
+    safeCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    safeCanvas.setZoom(1);
+
+    const result = safeCanvas.toDataURL({
       format: "jpeg",
       quality: 0.4,
       left: workspace.left || 0,
       top: workspace.top || 0,
-      width: workspace.width || 500,
-      height: workspace.height || 500,
+      width: workspaceWidth,
+      height: workspaceHeight,
       multiplier: 0.15,
     });
+
+    // restore viewport
+    safeCanvas.setViewportTransform(
+      originalVpt as [number, number, number, number, number, number],
+    );
+    safeCanvas.setZoom(originalZoom);
+
+    return result;
   } catch (error) {
     console.error("Error generating quick preview:", error);
     return null;

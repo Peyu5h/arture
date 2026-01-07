@@ -3,7 +3,7 @@
 import { useEffect, useRef, memo } from "react";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { AgentMessage } from "./agent-message";
-import { AgentChatProps } from "./types";
+import { AgentChatProps, AgentMessage as AgentMessageType } from "./types";
 import {
   Reasoning,
   ReasoningContent,
@@ -57,10 +57,15 @@ const ThinkingIndicator = memo(function ThinkingIndicator({
   );
 });
 
+interface ExtendedAgentChatProps extends AgentChatProps {
+  onPositionSelect?: (position: string) => void;
+}
+
 export const AgentChat = memo(function AgentChat({
   messages,
   isLoading,
-}: AgentChatProps) {
+  onPositionSelect,
+}: ExtendedAgentChatProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -73,8 +78,14 @@ export const AgentChat = memo(function AgentChat({
   return (
     <ScrollArea className="flex-1" ref={scrollRef}>
       <div className="flex flex-col gap-4 p-4">
-        {messages.map((message) => (
-          <AgentMessage key={message.id} message={message} />
+        {messages.map((message, index) => (
+          <AgentMessage
+            key={message.id}
+            message={message}
+            onPositionSelect={
+              index === messages.length - 1 ? onPositionSelect : undefined
+            }
+          />
         ))}
 
         <AnimatePresence mode="wait">

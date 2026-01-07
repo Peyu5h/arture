@@ -172,8 +172,8 @@ export const AgentSuggestions = memo(function AgentSuggestions({
       </div>
 
       {/* fade edges */}
-      <div className="from-card pointer-events-none absolute top-0 bottom-0 left-0 w-8 bg-gradient-to-r to-transparent" />
-      <div className="from-card pointer-events-none absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l to-transparent" />
+      <div className="from-card pointer-events-none absolute top-0 bottom-0 left-0 w-8 bg-gradient-to-r to-transparent dark:from-zinc-900" />
+      <div className="from-card pointer-events-none absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l to-transparent dark:from-zinc-900" />
     </div>
   );
 });

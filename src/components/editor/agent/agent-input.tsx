@@ -8,6 +8,8 @@ import {
   useMemo,
   memo,
   useCallback,
+  ClipboardEvent,
+  DragEvent,
 } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -15,10 +17,11 @@ import {
   Square,
   AtSign,
   Type,
-  Image,
+  Image as ImageIcon,
   Paperclip,
   MousePointer2,
   X,
+  ImagePlus,
 } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
@@ -31,6 +34,14 @@ import {
 } from "~/components/ui/tooltip";
 import { AgentInputProps, MentionSuggestion, Mention } from "./types";
 import { Textarea } from "~/components/ui/textarea";
+
+// image attachment type
+export interface ImageAttachment {
+  id: string;
+  dataUrl: string;
+  name: string;
+  size: number;
+}
 
 const getMentionIcon = (type: string, thumbnail?: string) => {
   if (thumbnail) {
@@ -47,7 +58,7 @@ const getMentionIcon = (type: string, thumbnail?: string) => {
     case "text":
       return <Type className="h-3.5 w-3.5" />;
     case "image":
-      return <Image className="h-3.5 w-3.5" />;
+      return <ImageIcon className="h-3.5 w-3.5" />;
     case "shape":
     case "element":
       return <Square className="h-3.5 w-3.5" />;
@@ -55,6 +66,37 @@ const getMentionIcon = (type: string, thumbnail?: string) => {
       return <Square className="h-3.5 w-3.5" />;
   }
 };
+
+// generates unique id
+const generateId = () => Math.random().toString(36).substring(2, 9);
+
+// compresses image to reduce size
+async function compressImage(
+  dataUrl: string,
+  maxWidth = 800,
+  quality = 0.7,
+): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      let width = img.width;
+      let height = img.height;
+
+      if (width > maxWidth) {
+        height = (height * maxWidth) / width;
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx?.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.src = dataUrl;
+  });
+}
 
 interface MentionChipProps {
   mention: Mention;
@@ -98,6 +140,8 @@ interface ExtendedAgentInputProps extends AgentInputProps {
   onInspectToggle?: () => void;
   isInspectMode?: boolean;
   onRemoveMention?: (id: string) => void;
+  images?: ImageAttachment[];
+  onImagesChange?: (images: ImageAttachment[]) => void;
 }
 
 export const AgentInput = memo(function AgentInput({
@@ -114,14 +158,18 @@ export const AgentInput = memo(function AgentInput({
   onInspectToggle,
   isInspectMode,
   onRemoveMention,
+  images = [],
+  onImagesChange,
 }: ExtendedAgentInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showMentionPopup, setShowMentionPopup] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   // auto resize textarea
   useEffect(() => {
@@ -192,6 +240,97 @@ export const AgentInput = memo(function AgentInput({
     [value, cursorPosition, onChange, onMentionSelect],
   );
 
+  // handle image file processing
+  const processImageFile = useCallback(
+    async (file: File) => {
+      if (!file.type.startsWith("image/")) return;
+      if (file.size > 10 * 1024 * 1024) {
+        console.warn("Image too large, max 10MB");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const dataUrl = e.target?.result as string;
+        const compressed = await compressImage(dataUrl);
+        const newImage: ImageAttachment = {
+          id: generateId(),
+          dataUrl: compressed,
+          name: file.name,
+          size: file.size,
+        };
+        onImagesChange?.([...images, newImage]);
+      };
+      reader.readAsDataURL(file);
+    },
+    [images, onImagesChange],
+  );
+
+  // handle file input change
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (files) {
+        Array.from(files).forEach(processImageFile);
+      }
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    },
+    [processImageFile],
+  );
+
+  // handle paste
+  const handlePaste = useCallback(
+    (e: ClipboardEvent<HTMLTextAreaElement>) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith("image/")) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) {
+            processImageFile(file);
+          }
+          break;
+        }
+      }
+    },
+    [processImageFile],
+  );
+
+  // handle drag and drop
+  const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const files = e.dataTransfer?.files;
+      if (files) {
+        Array.from(files).forEach(processImageFile);
+      }
+    },
+    [processImageFile],
+  );
+
+  // remove image
+  const handleRemoveImage = useCallback(
+    (id: string) => {
+      onImagesChange?.(images.filter((img) => img.id !== id));
+    },
+    [images, onImagesChange],
+  );
+
   const handleRemoveMention = useCallback(
     (id: string) => {
       onRemoveMention?.(id);
@@ -247,8 +386,24 @@ export const AgentInput = memo(function AgentInput({
   const canSubmit = value.trim().length > 0 && !isLoading && !disabled;
 
   return (
-    <div className="border-border/40 bg-background relative border-t backdrop-blur-sm">
-      {/* mention popup */}
+    <div
+      className={cn(
+        "border-border/40 bg-background relative border-t backdrop-blur-sm dark:bg-zinc-900",
+        isDragging && "ring-primary ring-2 ring-inset",
+      )}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={handleFileChange}
+      />
       <AnimatePresence>
         {showMentionPopup && filteredSuggestions.length > 0 && (
           <motion.div
@@ -314,11 +469,36 @@ export const AgentInput = memo(function AgentInput({
       <div className="p-3">
         <div
           className={cn(
-            "bg-muted/50 dark:bg-muted/30 flex flex-col rounded-2xl",
+            "bg-muted/40 flex flex-col rounded-2xl dark:bg-zinc-800/60",
             "ring-1 ring-transparent transition-all duration-200",
-            isFocused && "bg-muted/70 dark:bg-muted/50 ring-border",
+            isFocused &&
+              "bg-muted/60 ring-border/50 dark:bg-zinc-800/80 dark:ring-zinc-700",
           )}
         >
+          {/* image attachments display */}
+          {images.length > 0 && (
+            <div className="flex flex-wrap gap-2 px-3 pt-3">
+              {images.map((img) => (
+                <div
+                  key={img.id}
+                  className="group relative h-16 w-16 overflow-hidden rounded-lg"
+                >
+                  <img
+                    src={img.dataUrl}
+                    alt={img.name}
+                    className="h-full w-full object-cover"
+                  />
+                  <button
+                    onClick={() => handleRemoveImage(img.id)}
+                    className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* inline mentions display */}
           {mentions.length > 0 && (
             <div className="flex flex-wrap gap-1.5 px-3 pt-3">
@@ -341,7 +521,10 @@ export const AgentInput = memo(function AgentInput({
               onSelect={handleSelect}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
-              placeholder="Send message..."
+              onPaste={handlePaste}
+              placeholder={
+                isDragging ? "Drop image here..." : "Send message..."
+              }
               disabled={disabled || isLoading}
               rows={1}
               className={cn(
@@ -354,10 +537,10 @@ export const AgentInput = memo(function AgentInput({
           </div>
 
           {/* toolbar at bottom */}
-          <div className="border-border/40 dark:border-border/20 flex items-center justify-between border-t px-2 py-2">
+          <div className="border-border/30 flex items-center justify-between px-2 pt-1 pb-2 dark:border-zinc-700/50">
             <div className="flex items-center gap-1">
               <TooltipProvider delayDuration={300}>
-                {/* attach/asset button */}
+                {/* attach image button */}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -366,12 +549,13 @@ export const AgentInput = memo(function AgentInput({
                       variant="ghost"
                       className="text-muted-foreground hover:text-foreground h-8 w-8 rounded-lg"
                       disabled={disabled || isLoading}
+                      onClick={() => fileInputRef.current?.click()}
                     >
-                      <Paperclip className="h-4 w-4" />
+                      <ImagePlus className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="top" variant="outline">
-                    Attach asset
+                    Add image
                   </TooltipContent>
                 </Tooltip>
 
@@ -419,7 +603,7 @@ export const AgentInput = memo(function AgentInput({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="top" variant="outline">
-                      <span>Select element to add context</span>
+                      <span>Select element</span>
                       <kbd className="bg-muted text-muted-foreground ml-2 rounded px-1 py-0.5 text-[10px]">
                         Ctrl+Shift+I
                       </kbd>

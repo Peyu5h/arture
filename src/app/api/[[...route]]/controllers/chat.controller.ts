@@ -9,32 +9,286 @@ import {
 } from "../schemas/chat.schema";
 import { err, success, validationErr } from "../utils/response";
 import { prisma } from "~/lib/prisma";
+import { generateToolsDescription } from "~/lib/ai/tools/schemas";
+
+// available gemini models - updated to working models
+const GEMINI_MODELS = [
+  // --- MOST RELIABLE FREE TIER MODELS ---
+  "gemini-3-flash-preview", // Latest 3.0 series, fast and highly intelligent
+  "gemini-2.5-flash", // Stable, high rate limits, great for production
+  "gemini-2.5-flash-lite", // Most cost-efficient, extremely fast
+
+  // --- CAPABILITY-SPECIFIC / EXPERIMENTAL ---
+  "gemini-3-pro-preview", // Most powerful reasoning, limited free access
+  "gemini-2.5-pro", // High reasoning, stable version
+  "gemini-2.0-flash", // Previous stable generation
+  "gemini-2.0-flash-lite", // Previous lite generation
+
+  // --- SPECIALIZED MODELS ---
+  "gemini-2.5-flash-native-audio", // Optimized for real-time audio/Live API
+] as const;
+
+// openrouter models for fallback - fast models first
+const OPENROUTER_MODELS = [
+  "anthropic/claude-3-haiku",
+  "google/gemini-flash-1.5-8b",
+] as const;
+
+// shorter timeout for faster fallback
+const GEMINI_TIMEOUT_MS = 12000;
+const OPENROUTER_TIMEOUT_MS = 10000;
+
+// get all available gemini api keys
+function getGeminiApiKeys(): string[] {
+  const keys: string[] = [];
+  const primary = process.env.GEMINI_API_KEY;
+  if (primary) keys.push(primary);
+
+  for (let i = 2; i <= 5; i++) {
+    const key = process.env[`GEMINI_API_KEY_${i}`];
+    if (key) keys.push(key);
+  }
+  return keys;
+}
+
+// get openrouter api keys
+function getOpenRouterApiKeys(): string[] {
+  const keys: string[] = [];
+  const primary = process.env.OPENROUTER_API_KEY;
+  if (primary) keys.push(primary);
+
+  for (let i = 2; i <= 5; i++) {
+    const key = process.env[`OPENROUTER_API_KEY_${i}`];
+    if (key) keys.push(key);
+  }
+  return keys;
+}
+
+// track rate limited keys with expiry
+const rateLimitedKeys = new Map<string, number>();
+const rateLimitedModels = new Map<string, number>();
+
+// get next available gemini api key
+function getAvailableGeminiKey(): string | null {
+  const keys = getGeminiApiKeys();
+  const now = Date.now();
+
+  for (const key of keys) {
+    const expiry = rateLimitedKeys.get(key);
+    if (!expiry || now > expiry) {
+      rateLimitedKeys.delete(key);
+      return key;
+    }
+  }
+  return null;
+}
+
+// get next available openrouter key
+function getAvailableOpenRouterKey(): string | null {
+  const keys = getOpenRouterApiKeys();
+  const now = Date.now();
+
+  for (const key of keys) {
+    const expiry = rateLimitedKeys.get(key);
+    if (!expiry || now > expiry) {
+      rateLimitedKeys.delete(key);
+      return key;
+    }
+  }
+  return null;
+}
+
+// get next available model
+function getAvailableModel(): string {
+  const now = Date.now();
+
+  for (const model of GEMINI_MODELS) {
+    const expiry = rateLimitedModels.get(model);
+    if (!expiry || now > expiry) {
+      rateLimitedModels.delete(model);
+      return model;
+    }
+  }
+  return GEMINI_MODELS[0];
+}
+
+// mark key as rate limited
+function markKeyRateLimited(key: string, retryAfterMs: number = 60000) {
+  rateLimitedKeys.set(key, Date.now() + retryAfterMs);
+}
+
+// mark model as rate limited
+function markModelRateLimited(model: string, retryAfterMs: number = 60000) {
+  rateLimitedModels.set(model, Date.now() + retryAfterMs);
+}
+
+// check if error is rate limit
+function isRateLimitError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    return msg.includes("rate") || msg.includes("429") || msg.includes("quota");
+  }
+  return false;
+}
+
+// extract retry delay from error
+function extractRetryDelay(error: unknown): number {
+  if (error instanceof Error) {
+    const match = error.message.match(/retry in (\d+\.?\d*)/i);
+    if (match) {
+      return Math.ceil(parseFloat(match[1]) * 1000);
+    }
+  }
+  return 15000; // default 15s for faster retry
+}
+
+// try gemini with direct fetch and timeout
+async function tryGeminiDirect(
+  apiKey: string,
+  modelName: string,
+  systemPrompt: string,
+  userContent: string,
+  timeoutMs: number = GEMINI_TIMEOUT_MS,
+): Promise<string> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: `${systemPrompt}\n\n${userContent}` }],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 512,
+            topP: 0.8,
+          },
+        }),
+        signal: controller.signal,
+      },
+    );
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error("No response from Gemini");
+    return text.trim();
+  } catch (e) {
+    clearTimeout(timeoutId);
+    throw e;
+  }
+}
+
+// call openrouter api with timeout - optimized
+async function callOpenRouter(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  userContent:
+    | string
+    | Array<{ type: string; text?: string; image_url?: string }>,
+  timeoutMs: number = 15000,
+): Promise<string> {
+  const messages = [
+    { role: "system", content: systemPrompt },
+    {
+      role: "user",
+      content:
+        typeof userContent === "string"
+          ? userContent
+          : userContent.map((part) => {
+              if (part.type === "text") {
+                return { type: "text", text: part.text };
+              }
+              if (part.type === "image_url" && part.image_url) {
+                return {
+                  type: "image_url",
+                  image_url: { url: part.image_url },
+                };
+              }
+              return part;
+            }),
+    },
+  ];
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer":
+            process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+          "X-Title": "Arture Design Editor",
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          max_tokens: 2048,
+          temperature: 0.7,
+        }),
+        signal: controller.signal,
+      },
+    );
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`OpenRouter error: ${response.status} - ${error}`);
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || "";
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === "AbortError") {
+      throw new Error(`OpenRouter timeout after ${timeoutMs}ms`);
+    }
+    throw error;
+  }
+}
 
 async function generateTitleWithAI(query: string): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = getAvailableGeminiKey();
   if (!apiKey) {
     return generateTitleFallback(query);
   }
 
   try {
     const { ChatGoogleGenerativeAI } = await import("@langchain/google-genai");
+    const modelName = getAvailableModel();
 
     const model = new ChatGoogleGenerativeAI({
-      model: "gemini-1.5-flash",
+      model: modelName,
       apiKey,
       temperature: 0.3,
       maxOutputTokens: 50,
     });
 
-    const prompt = `Generate a very short, concise title (2-5 words max) for a design assistant conversation that starts with this message: "${query.slice(0, 200)}".
+    const prompt = `Generate a very short title (3-5 words) for a design conversation that starts with this message. Only output the title, nothing else.
 
-Rules:
-- Maximum 5 words
-- No quotes or punctuation at the end
-- Be descriptive but brief
-- Focus on the main topic/action
+Message: "${query.slice(0, 100)}"
 
-Respond with only the title, nothing else.`;
+Title:`;
 
     const result = await model.invoke(prompt);
     const title = result.content
@@ -45,22 +299,22 @@ Respond with only the title, nothing else.`;
 
     return title || generateTitleFallback(query);
   } catch (error) {
-    console.error("AI title generation failed:", error);
+    console.error("Title generation error:", error);
     return generateTitleFallback(query);
   }
 }
 
 // fallback title generation
 function generateTitleFallback(query: string): string {
-  const words = query.trim().split(/\s+/).slice(0, 6);
+  const words = query.split(" ").slice(0, 5);
   let title = words.join(" ");
-  if (title.length > 50) {
-    title = title.slice(0, 47) + "...";
+  if (query.split(" ").length > 5) {
+    title += "...";
   }
   return title || "New Chat";
 }
 
-// get all conversations for user
+// get conversations
 export const getConversations = async (c: Context) => {
   try {
     const user = c.get("user");
@@ -74,9 +328,11 @@ export const getConversations = async (c: Context) => {
     const conversations = await prisma.chatConversation.findMany({
       where: {
         userId,
-        ...(projectId && { projectId }),
+        ...(projectId ? { projectId } : {}),
       },
-      orderBy: { updatedAt: "desc" },
+      orderBy: {
+        updatedAt: "desc",
+      },
       include: {
         messages: {
           take: 1,
@@ -87,14 +343,14 @@ export const getConversations = async (c: Context) => {
       },
     });
 
-    const formatted = conversations.map((conv) => ({
-      id: conv.id,
-      title: conv.title,
-      projectId: conv.projectId,
-      createdAt: conv.createdAt.getTime(),
-      updatedAt: conv.updatedAt.getTime(),
-      messageCount: conv._count.messages,
-      preview: conv.messages[0]?.content?.slice(0, 100),
+    const formatted = conversations.map((c) => ({
+      id: c.id,
+      title: c.title,
+      projectId: c.projectId,
+      createdAt: c.createdAt.getTime(),
+      updatedAt: c.updatedAt.getTime(),
+      messageCount: c._count.messages,
+      preview: c.messages[0]?.content?.slice(0, 100),
     }));
 
     return c.json(success(formatted));
@@ -136,13 +392,13 @@ export const getConversation = async (c: Context) => {
         context: conversation.context,
         createdAt: conversation.createdAt.getTime(),
         updatedAt: conversation.updatedAt.getTime(),
-        messages: conversation.messages.map((msg) => ({
-          id: msg.id,
-          role: msg.role.toLowerCase(),
-          content: msg.content,
-          actions: msg.actions,
-          context: msg.context,
-          timestamp: msg.createdAt.getTime(),
+        messages: conversation.messages.map((m) => ({
+          id: m.id,
+          role: m.role.toLowerCase(),
+          content: m.content,
+          actions: m.actions,
+          context: m.context,
+          timestamp: m.createdAt.getTime(),
         })),
       }),
     );
@@ -256,7 +512,9 @@ export const deleteConversation = async (c: Context) => {
       return c.json(err("Conversation not found"), 404);
     }
 
-    await prisma.chatConversation.delete({ where: { id } });
+    await prisma.chatConversation.delete({
+      where: { id },
+    });
 
     return c.json(success({ deleted: true }));
   } catch (error) {
@@ -348,7 +606,7 @@ export const generateTitle = async (c: Context) => {
   }
 };
 
-// ai chat response schema
+// ai chat response schema with canvas context and image attachments
 const aiChatSchema = z.object({
   message: z.string().min(1),
   context: z
@@ -372,9 +630,46 @@ const aiChatSchema = z.object({
       }),
     )
     .optional(),
+  canvasIndex: z.record(z.unknown()).optional(),
+  imageAttachments: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        cloudinaryUrl: z.string().optional(),
+        thumbnail: z.string().optional(),
+        dataUrl: z.string().optional(),
+      }),
+    )
+    .optional(),
 });
 
-// generate ai response using gemini 2.5 flash
+// builds compact action-aware system prompt
+function buildActionSystemPrompt(
+  contextInfo: string,
+  historyContext: string,
+  imageContext: string,
+): string {
+  return `You are Arture AI. Return ONLY JSON.
+
+FORMAT: \`\`\`json
+{"message":"Done","actions":[{"type":"...","payload":{...}}]}
+\`\`\`
+
+ACTIONS:
+spawn_shape: {"type":"spawn_shape","payload":{"shapeType":"circle|rectangle|triangle","options":{"fill":"#hex","position":"center|top-left|top-right|bottom-left|bottom-right","width":100,"height":100}}}
+add_text: {"type":"add_text","payload":{"text":"Hi","position":"center"}}
+delete_element: {"type":"delete_element","payload":{"elementQuery":"selected"}}
+move_element: {"type":"move_element","payload":{"elementQuery":"selected","position":"top-left"}}
+modify_element: {"type":"modify_element","payload":{"elementQuery":"selected","properties":{"fill":"#hex"}}}
+search_images: {"type":"search_images","payload":{"query":"cat","count":1}}
+change_canvas_background: {"type":"change_canvas_background","payload":{"color":"#fff"}}
+
+RULES: JSON only, no text outside. Use "selected" for current element.
+${contextInfo ? `\nCONTEXT: ${contextInfo.slice(0, 500)}` : ""}${historyContext ? `\nHISTORY: ${historyContext.slice(0, 200)}` : ""}`;
+}
+
+// parallel ai response - tries gemini and openrouter simultaneously
 export const generateAIResponse = async (c: Context) => {
   try {
     const user = c.get("user");
@@ -388,107 +683,289 @@ export const generateAIResponse = async (c: Context) => {
       return c.json(validationErr(result.error), 400);
     }
 
-    const { message, context, conversationHistory } = result.data;
+    const {
+      message,
+      context,
+      conversationHistory,
+      canvasIndex,
+      imageAttachments,
+    } = result.data;
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
+    const geminiKeys = getGeminiApiKeys();
+    const openRouterKeys = getOpenRouterApiKeys();
+
+    if (geminiKeys.length === 0 && openRouterKeys.length === 0) {
       return c.json(
         success({
           response:
-            "I'm here to help with your design! However, the AI service is not configured yet. Please add your GEMINI_API_KEY to enable full AI capabilities.",
+            "I'm here to help with your design! However, the AI service is not configured yet. Please add your API keys to enable AI capabilities.",
           isConfigured: false,
+          actions: [],
         }),
       );
     }
 
-    try {
-      const { ChatGoogleGenerativeAI } =
-        await import("@langchain/google-genai");
-
-      const model = new ChatGoogleGenerativeAI({
-        model: "gemini-2.5-flash",
-        apiKey,
-        temperature: 0.7,
-        maxOutputTokens: 1024,
-      });
-
-      // build context string
-      let contextInfo = "";
-      if (context) {
-        if (context.canvasSize) {
-          contextInfo += `Canvas size: ${context.canvasSize.width}x${context.canvasSize.height}px. `;
-        }
-        if (context.backgroundColor) {
-          contextInfo += `Background: ${context.backgroundColor}. `;
-        }
-        if (context.summary) {
-          contextInfo += `Design summary: ${context.summary}. `;
-        }
-        if (context.elements && context.elements.length > 0) {
-          const elementCount = context.elements.length;
-          const textElements = context.elements.filter(
-            (e) => e.type === "textbox" || e.type === "text",
-          ).length;
-          const imageElements = context.elements.filter(
-            (e) => e.type === "image",
-          ).length;
-          const shapeElements = elementCount - textElements - imageElements;
-          contextInfo += `Elements: ${elementCount} total (${textElements} text, ${imageElements} images, ${shapeElements} shapes). `;
-        }
+    // build context
+    let contextInfo = "";
+    const selectedElementIds = (context as { selectedElementIds?: string[] })
+      ?.selectedElementIds;
+    if (context) {
+      if (context.canvasSize) {
+        contextInfo += `Canvas: ${context.canvasSize.width}x${context.canvasSize.height}px. `;
       }
-
-      // build conversation history
-      let historyContext = "";
-      if (conversationHistory && conversationHistory.length > 0) {
-        const recentHistory = conversationHistory.slice(-6);
-        historyContext = recentHistory
-          .map(
-            (h) => `${h.role === "user" ? "User" : "Assistant"}: ${h.content}`,
-          )
-          .join("\n");
+      if (context.backgroundColor) {
+        contextInfo += `Background: ${context.backgroundColor}. `;
       }
-
-      const systemPrompt = `You are a helpful design assistant for a canvas-based design editor called Arture. You help users with:
-- Design suggestions and feedback
-- Color scheme recommendations
-- Layout and composition advice
-- Typography guidance
-- Creative ideas for their projects
-
-Current design context:
-${contextInfo || "No specific design context provided."}
-
-${historyContext ? `Recent conversation:\n${historyContext}\n` : ""}
-
-Important notes:
-- Be concise and helpful
-- Give practical, actionable suggestions
-- If asked to edit the canvas directly, explain that direct editing is coming soon but you can guide them on how to make changes manually
-- Be encouraging and supportive of their creative work
-- Use simple, clear language
-
-User message: ${message}`;
-
-      const response = await model.invoke(systemPrompt);
-      const responseText = response.content.toString().trim();
-
-      return c.json(
-        success({
-          response: responseText,
-          isConfigured: true,
-        }),
-      );
-    } catch (aiError) {
-      console.error("Gemini API error:", aiError);
-      return c.json(
-        success({
-          response:
-            "I encountered an issue processing your request. Please try again, or check if your GEMINI_API_KEY is valid.",
-          isConfigured: true,
-          error: true,
-        }),
-      );
+      if (selectedElementIds && selectedElementIds.length > 0) {
+        contextInfo += `SELECTED: ${selectedElementIds.join(",")}. `;
+      }
+      // simplified element list - only include essential info
+      if (context.elements && context.elements.length > 0) {
+        const elements = context.elements.slice(0, 8).map((e) => {
+          const type = String(e.type || "?");
+          const sel = e.isSelected ? "*" : "";
+          return `${type}${sel}`;
+        });
+        contextInfo += `Elements: ${elements.join(", ")}. `;
+      }
     }
+
+    // skip detailed indexed context for speed - already have basic info
+    if (canvasIndex) {
+      const idx = canvasIndex as {
+        elementCount?: number;
+        canvas?: { width: number; height: number };
+      };
+      if (idx.canvas && !context?.canvasSize) {
+        contextInfo += `Canvas: ${idx.canvas.width}x${idx.canvas.height}. `;
+      }
+    }
+
+    // build image attachments context
+    let imageContext = "";
+    if (imageAttachments && imageAttachments.length > 0) {
+      imageContext = imageAttachments
+        .map((img, i) => {
+          const url = img.cloudinaryUrl || img.dataUrl?.slice(0, 50) + "...";
+          return `${i + 1}. ${img.name}: ${url}`;
+        })
+        .join("\n");
+    }
+
+    // build conversation history
+    let historyContext = "";
+    if (conversationHistory && conversationHistory.length > 0) {
+      const recentHistory = conversationHistory.slice(-6);
+      historyContext = recentHistory
+        .map((h) => `${h.role === "user" ? "User" : "Assistant"}: ${h.content}`)
+        .join("\n");
+    }
+
+    const systemPrompt = buildActionSystemPrompt(
+      contextInfo,
+      historyContext,
+      imageContext,
+    );
+
+    // build user content
+    let userContent:
+      | string
+      | Array<{ type: string; text?: string; image_url?: string }>;
+
+    if (imageAttachments && imageAttachments.length > 0) {
+      const contentParts: Array<{
+        type: string;
+        text?: string;
+        image_url?: string;
+      }> = [{ type: "text", text: message }];
+
+      for (const img of imageAttachments) {
+        const imageUrl = img.cloudinaryUrl || img.dataUrl;
+        if (imageUrl) {
+          contentParts.push({
+            type: "image_url",
+            image_url: imageUrl,
+          });
+        }
+      }
+      userContent = contentParts;
+    } else {
+      userContent = message;
+    }
+
+    let lastError: unknown = null;
+
+    const normalizeAction = (a: unknown): unknown => {
+      const action = a as Record<string, unknown>;
+      if (action.type === "spawn_shape" && action.payload) {
+        const p = action.payload as Record<string, unknown>;
+        if (!p.options) {
+          const { shapeType, ...rest } = p;
+          return { ...action, payload: { shapeType, options: rest } };
+        }
+      }
+      return action;
+    };
+
+    const tryParseJson = (
+      jsonStr: string,
+    ): { message?: string; actions?: unknown[] } | null => {
+      try {
+        return JSON.parse(jsonStr);
+      } catch {
+        // try to fix incomplete json
+        let fixed = jsonStr.trim();
+        if (!fixed.endsWith("}")) {
+          const lastBrace = fixed.lastIndexOf("}");
+          if (lastBrace > 0) {
+            fixed = fixed.slice(0, lastBrace + 1);
+            // ensure array is closed
+            const openBrackets = (fixed.match(/\[/g) || []).length;
+            const closeBrackets = (fixed.match(/\]/g) || []).length;
+            if (openBrackets > closeBrackets) {
+              fixed += "]".repeat(openBrackets - closeBrackets);
+            }
+            fixed += "}";
+          }
+        }
+        try {
+          return JSON.parse(fixed);
+        } catch {
+          return null;
+        }
+      }
+    };
+
+    const parseResponse = (
+      text: string,
+    ): { message: string; actions: unknown[] } => {
+      let parsedMessage = text;
+      let actions: unknown[] = [];
+
+      // try code block json first
+      const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        const parsed = tryParseJson(jsonMatch[1].trim());
+        if (parsed) {
+          if (parsed.message) parsedMessage = parsed.message;
+          if (parsed.actions && Array.isArray(parsed.actions)) {
+            actions = parsed.actions.map(normalizeAction);
+          }
+          return { message: parsedMessage, actions };
+        }
+        parsedMessage = text.replace(/```(?:json)?\s*[\s\S]*?```/g, "").trim();
+      }
+
+      // try raw json
+      const rawJsonMatch = text.match(/\{[\s\S]*"message"[\s\S]*\}/);
+      if (rawJsonMatch) {
+        const parsed = tryParseJson(rawJsonMatch[0]);
+        if (parsed) {
+          if (parsed.message) parsedMessage = parsed.message;
+          if (parsed.actions && Array.isArray(parsed.actions)) {
+            actions = parsed.actions.map(normalizeAction);
+          }
+          return { message: parsedMessage, actions };
+        }
+      }
+
+      // fallback: clean up any json artifacts
+      parsedMessage = text
+        .replace(/```(?:json)?[\s\S]*$/g, "")
+        .replace(/\{[\s\S]*$/g, "")
+        .trim();
+
+      if (!parsedMessage) {
+        parsedMessage = "Action completed.";
+      }
+
+      return { message: parsedMessage, actions };
+    };
+
+    // try gemini with first available key (fast)
+    const userContentStr =
+      typeof userContent === "string"
+        ? userContent
+        : JSON.stringify(userContent);
+
+    for (const geminiKey of geminiKeys) {
+      const expiry = rateLimitedKeys.get(geminiKey);
+      if (expiry && Date.now() < expiry) continue;
+
+      const modelName = getAvailableModel();
+      try {
+        console.log(`Trying Gemini ${modelName}`);
+        const responseText = await tryGeminiDirect(
+          geminiKey,
+          modelName,
+          systemPrompt,
+          userContentStr,
+          GEMINI_TIMEOUT_MS,
+        );
+        console.log(`✓ Gemini ${modelName} success`);
+        const { message, actions } = parseResponse(responseText);
+        return c.json(
+          success({
+            response: message,
+            isConfigured: true,
+            actions,
+            model: `gemini:${modelName}`,
+          }),
+        );
+      } catch (e) {
+        lastError = e;
+        const errMsg = e instanceof Error ? e.message : String(e);
+        console.warn(`Gemini ${modelName} failed: ${errMsg.slice(0, 100)}`);
+        if (isRateLimitError(e)) {
+          const delay = extractRetryDelay(e);
+          markKeyRateLimited(geminiKey, delay);
+          markModelRateLimited(modelName, delay);
+        }
+        // try next model for same key
+        markModelRateLimited(modelName, 5000);
+      }
+    }
+
+    // fallback to openrouter with faster timeout
+    const openRouterKey = getAvailableOpenRouterKey();
+    if (openRouterKey) {
+      for (const modelName of OPENROUTER_MODELS) {
+        try {
+          console.log(`Trying OpenRouter: ${modelName}`);
+          const responseText = await callOpenRouter(
+            openRouterKey,
+            modelName,
+            systemPrompt,
+            userContent,
+            OPENROUTER_TIMEOUT_MS,
+          );
+          console.log(`✓ OpenRouter ${modelName} success`);
+          const { message, actions } = parseResponse(responseText);
+          return c.json(
+            success({
+              response: message,
+              isConfigured: true,
+              actions,
+              model: `openrouter:${modelName}`,
+            }),
+          );
+        } catch (e: unknown) {
+          lastError = e;
+          console.warn(`OpenRouter ${modelName} failed`);
+          continue;
+        }
+      }
+    }
+
+    console.error("All AI providers failed:", lastError);
+    return c.json(
+      success({
+        response: "Request failed. Please try again.",
+        isConfigured: true,
+        error: true,
+        actions: [],
+      }),
+    );
   } catch (error) {
     console.error("GenerateAIResponse error:", error);
     return c.json(err("Failed to generate AI response"), 500);
