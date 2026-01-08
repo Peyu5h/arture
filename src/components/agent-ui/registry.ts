@@ -1,14 +1,23 @@
 // component registry for agent ui components
 
-import type { UIComponentType, ComponentRegistryEntry, UIComponentProps } from "./types";
+import type {
+  UIComponentType,
+  ComponentRegistryEntry,
+  UIComponentProps,
+} from "./types";
 import { AgentDatePicker } from "./date-picker";
 import { AgentVenueSelector } from "./venue-selector";
 import { AgentStyleCarousel } from "./style-carousel";
 import { AgentWizardForm } from "./wizard-form";
 import { AgentChoiceSelector } from "./choice-selector";
+import { AgentTemplateGallery } from "./template-gallery";
+import { AgentDesignWizard } from "./design-wizard";
 
 // registry of all available agent ui components
-export const componentRegistry: Record<UIComponentType, ComponentRegistryEntry> = {
+export const componentRegistry: Record<
+  UIComponentType,
+  ComponentRegistryEntry
+> = {
   date_picker: {
     type: "date_picker",
     displayName: "Date Picker",
@@ -79,10 +88,26 @@ export const componentRegistry: Record<UIComponentType, ComponentRegistryEntry> 
     icon: "image",
     component: AgentChoiceSelector as React.ComponentType<UIComponentProps>,
   },
+  template_gallery: {
+    type: "template_gallery",
+    displayName: "Template Gallery",
+    description: "Browse and select from available templates",
+    icon: "layout-template",
+    component: AgentTemplateGallery as React.ComponentType<UIComponentProps>,
+  },
+  design_wizard: {
+    type: "design_wizard",
+    displayName: "Design Wizard",
+    description: "Multi-step wizard for collecting design requirements",
+    icon: "sparkles",
+    component: AgentDesignWizard as React.ComponentType<UIComponentProps>,
+  },
 };
 
 // gets component from registry
-export function getComponent(type: UIComponentType): ComponentRegistryEntry | undefined {
+export function getComponent(
+  type: UIComponentType,
+): ComponentRegistryEntry | undefined {
   return componentRegistry[type];
 }
 
@@ -117,37 +142,68 @@ To request a UI component, include in your response:
   }
 }
 
-Example - asking for a date:
+Example - Template Gallery (for showing templates or starting from scratch):
 {
-  "message": "I'd be happy to help plan your event!",
+  "message": "I found some wedding invitation templates for you!",
   "ui_component_request": {
-    "componentType": "date_picker",
+    "componentType": "template_gallery",
     "props": {
-      "title": "When is the event?",
-      "description": "Select the date for your party",
-      "showTime": true,
-      "required": true
+      "title": "Choose a Template",
+      "templates": [{"id": "t1", "name": "Elegant Gold", "thumbnail": "..."}],
+      "category": "invitations",
+      "allowScratch": true
     },
-    "context": "Need event date to create invitation",
-    "followUpPrompt": "Great! Now setting the date to {value}..."
+    "followUpPrompt": "Using template {templateName}..."
   }
 }
 
-Example - asking for style selection:
+Example - Design Wizard (for collecting design requirements from scratch):
 {
-  "message": "Let me help you choose a visual style.",
+  "message": "Let's create your wedding invitation! I'll need a few details.",
+  "ui_component_request": {
+    "componentType": "design_wizard",
+    "props": {
+      "title": "Wedding Invitation Details",
+      "designType": "wedding",
+      "description": "Fill in the details for your invitation"
+    },
+    "followUpPrompt": "Creating your wedding invitation with these details..."
+  }
+}
+
+Example - Date Picker:
+{
+  "message": "When is your event?",
+  "ui_component_request": {
+    "componentType": "date_picker",
+    "props": {
+      "title": "Event Date",
+      "showTime": true,
+      "required": true
+    }
+  }
+}
+
+Example - Style Carousel (for theme selection):
+{
+  "message": "Choose a visual style for your design.",
   "ui_component_request": {
     "componentType": "style_carousel",
     "props": {
       "title": "Choose a theme",
       "options": [
-        { "id": "modern", "name": "Modern", "colors": ["#1a1a2e", "#16213e", "#0f3460", "#e94560"] },
-        { "id": "minimal", "name": "Minimal", "colors": ["#ffffff", "#f5f5f5", "#333333", "#000000"] },
-        { "id": "vibrant", "name": "Vibrant", "colors": ["#ff6b6b", "#feca57", "#48dbfb", "#ff9ff3"] }
+        { "id": "modern", "name": "Modern", "colors": ["#1a1a2e", "#e94560"], "preview": "" },
+        { "id": "minimal", "name": "Minimal", "colors": ["#ffffff", "#333333"], "preview": "" }
       ],
       "required": true
     }
   }
 }
+
+IMPORTANT - Design Flow:
+1. For design requests (invitations, posters, etc.), first use search_templates action
+2. If templates found, show template_gallery UI component
+3. If no templates or user chooses "Start from Scratch", show design_wizard
+4. After wizard completion, execute canvas actions to build the design
 `.trim();
 }

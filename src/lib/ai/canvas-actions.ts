@@ -8,6 +8,15 @@ import {
   ResizeElementPayload,
 } from "./types";
 import { indexCanvas, findElementByQuery } from "./canvas-indexer";
+import {
+  generatePalette,
+  auditDesign,
+  getAutoFixes,
+  suggestFontPairing,
+  suggestFontPairingByKeyword,
+  type HarmonyType,
+  type FontMood,
+} from "~/lib/design";
 
 // loads image from url
 function loadImageFromUrl(url: string): Promise<fabric.Image> {
@@ -827,6 +836,221 @@ export async function executeAction(
         return { success: false, message: `Workspace not found` };
       }
 
+      case "apply_gradient_background": {
+        const payload = action.payload as {
+          colors: string[];
+          direction?: "horizontal" | "vertical" | "diagonal";
+        };
+        const colors = payload.colors || ["#1a1a2e", "#16213e"];
+        const direction = payload.direction || "vertical";
+
+        const workspace = canvas
+          .getObjects()
+          .find((obj) => (obj as unknown as { name?: string }).name === "clip");
+        if (!workspace) {
+          return { success: false, message: "Workspace not found" };
+        }
+
+        const width = workspace.width || 800;
+        const height = workspace.height || 600;
+
+        let coords;
+        switch (direction) {
+          case "horizontal":
+            coords = { x1: 0, y1: 0, x2: width, y2: 0 };
+            break;
+          case "diagonal":
+            coords = { x1: 0, y1: 0, x2: width, y2: height };
+            break;
+          case "vertical":
+          default:
+            coords = { x1: 0, y1: 0, x2: 0, y2: height };
+        }
+
+        const colorStops: Array<{ offset: number; color: string }> = colors.map(
+          (color, i) => ({
+            offset: i / (colors.length - 1),
+            color,
+          }),
+        );
+
+        const gradient = new fabric.Gradient({
+          type: "linear",
+          coords,
+          colorStops,
+        });
+
+        workspace.set({ fill: gradient });
+        canvas.fire("object:modified", { target: workspace });
+        canvas.requestRenderAll();
+        return {
+          success: true,
+          message: `Applied ${direction} gradient with ${colors.length} colors`,
+        };
+      }
+
+      case "set_image_background": {
+        const payload = action.payload as {
+          imageUrl?: string;
+          query?: string;
+        };
+
+        if (!payload.imageUrl && !payload.query) {
+          return {
+            success: false,
+            message: "Image URL or search query required",
+          };
+        }
+
+        const workspace = canvas
+          .getObjects()
+          .find((obj) => (obj as unknown as { name?: string }).name === "clip");
+        if (!workspace) {
+          return { success: false, message: "Workspace not found" };
+        }
+
+        let imageUrl = payload.imageUrl;
+
+        // search for image if no url provided
+        if (!imageUrl && payload.query) {
+          try {
+            const pixabayRes = await fetch(
+              `/api/pixabay/search?q=${encodeURIComponent(payload.query)}&per_page=1`,
+            );
+            const data = await pixabayRes.json();
+            const img = data.data?.images?.[0];
+            if (img) {
+              imageUrl = img.url;
+            }
+          } catch {
+            return {
+              success: false,
+              message: "Failed to search for background image",
+            };
+          }
+        }
+
+        if (!imageUrl) {
+          return { success: false, message: "No image found" };
+        }
+
+        try {
+          const fabricImg = await loadImageFromUrl(imageUrl);
+          const wsWidth = workspace.width || 800;
+          const wsHeight = workspace.height || 600;
+          const imgWidth = fabricImg.width || 1;
+          const imgHeight = fabricImg.height || 1;
+
+          // scale to cover workspace
+          const scaleX = wsWidth / imgWidth;
+          const scaleY = wsHeight / imgHeight;
+          const scale = Math.max(scaleX, scaleY);
+
+          fabricImg.set({
+            scaleX: scale,
+            scaleY: scale,
+            left: workspace.left || 0,
+            top: workspace.top || 0,
+            selectable: true,
+            evented: true,
+          });
+
+          // add image right after workspace (as background)
+          const wsIndex = canvas.getObjects().indexOf(workspace);
+          canvas.insertAt(fabricImg, wsIndex + 1, false);
+          canvas.requestRenderAll();
+
+          return { success: true, message: "Set image as background" };
+        } catch {
+          return { success: false, message: "Failed to load background image" };
+        }
+      }
+
+      case "take_canvas_screenshot": {
+        // returns base64 of canvas for visual feedback
+        try {
+          const dataUrl = canvas.toDataURL({
+            format: "png",
+            quality: 0.8,
+            multiplier: 0.5,
+          });
+          return {
+            success: true,
+            message: "Canvas screenshot captured",
+            data: { screenshot: dataUrl },
+          } as { success: boolean; message: string };
+        } catch {
+          return { success: false, message: "Failed to capture screenshot" };
+        }
+      }
+
+      case "bring_to_front": {
+        const payload = action.payload as {
+          elementQuery?: string;
+          elementId?: string;
+        };
+        const query = payload.elementQuery || payload.elementId || "selected";
+        const obj = findFabricObject(canvas, query);
+        if (!obj) {
+          return { success: false, message: "Element not found" };
+        }
+        canvas.bringToFront(obj);
+        canvas.requestRenderAll();
+        return { success: true, message: "Brought element to front" };
+      }
+
+      case "send_to_back": {
+        const payload = action.payload as {
+          elementQuery?: string;
+          elementId?: string;
+        };
+        const query = payload.elementQuery || payload.elementId || "selected";
+        const obj = findFabricObject(canvas, query);
+        if (!obj) {
+          return { success: false, message: "Element not found" };
+        }
+        // find workspace to ensure element stays above it
+        const workspace = canvas
+          .getObjects()
+          .find((o) => (o as unknown as { name?: string }).name === "clip");
+        canvas.sendToBack(obj);
+        if (workspace) {
+          canvas.sendToBack(workspace);
+        }
+        canvas.requestRenderAll();
+        return { success: true, message: "Sent element to back" };
+      }
+
+      case "bring_forward": {
+        const payload = action.payload as {
+          elementQuery?: string;
+          elementId?: string;
+        };
+        const query = payload.elementQuery || payload.elementId || "selected";
+        const obj = findFabricObject(canvas, query);
+        if (!obj) {
+          return { success: false, message: "Element not found" };
+        }
+        canvas.bringForward(obj);
+        canvas.requestRenderAll();
+        return { success: true, message: "Brought element forward" };
+      }
+
+      case "send_backward": {
+        const payload = action.payload as {
+          elementQuery?: string;
+          elementId?: string;
+        };
+        const query = payload.elementQuery || payload.elementId || "selected";
+        const obj = findFabricObject(canvas, query);
+        if (!obj) {
+          return { success: false, message: "Element not found" };
+        }
+        canvas.sendBackwards(obj);
+        canvas.requestRenderAll();
+        return { success: true, message: "Sent element backward" };
+      }
+
       case "search_images": {
         const payload = action.payload as {
           query?: string;
@@ -834,44 +1058,109 @@ export async function executeAction(
           position?: PositionPreset;
           width?: number;
           height?: number;
+          image_type?: string;
         } & {
           query: string;
           count?: number;
           position?: PositionPreset;
+          image_type?: "photo" | "vector" | "illustration" | "all";
         };
         const query = payload.query;
         if (!query) return { success: false, message: "No search query" };
 
         const count = payload.count || 1;
+        const imageType = payload.image_type || "all";
         let imageUrl: string | null = null;
 
-        // try pexels first
-        try {
-          const pexelsRes = await fetch(
-            `/api/pexels/search?q=${encodeURIComponent(query)}&per_page=${count}`,
-          );
-          const data = await pexelsRes.json();
-          if (data?.success && data?.data?.images?.length) {
-            const img = data.data.images[0];
-            imageUrl = img.url || img.thumbnail;
-          }
-        } catch {}
-
-        // fallback to pixabay
-        if (!imageUrl) {
+        // for vectors/illustrations/stickers, use pixabay with fallback chain
+        if (imageType === "vector" || imageType === "illustration") {
+          // try requested type first
           try {
             const pixabayRes = await fetch(
-              `/api/pixabay/search?q=${encodeURIComponent(query)}&per_page=${count}`,
+              `/api/pixabay/search?q=${encodeURIComponent(query)}&per_page=${count}&image_type=${imageType}`,
             );
             const data = await pixabayRes.json();
             if (data?.success && data?.data?.images?.length) {
               const img = data.data.images[0];
               imageUrl = img.url || img.thumbnail;
+              console.log(`[SEARCH_IMAGES] Found ${imageType}: ${query}`);
+            }
+          } catch (e) {
+            console.error(`[SEARCH_IMAGES] ${imageType} search failed:`, e);
+          }
+
+          // fallback to other type if original failed
+          if (!imageUrl) {
+            const fallbackType =
+              imageType === "vector" ? "illustration" : "vector";
+            try {
+              const pixabayRes = await fetch(
+                `/api/pixabay/search?q=${encodeURIComponent(query)}&per_page=${count}&image_type=${fallbackType}`,
+              );
+              const data = await pixabayRes.json();
+              if (data?.success && data?.data?.images?.length) {
+                const img = data.data.images[0];
+                imageUrl = img.url || img.thumbnail;
+                console.log(
+                  `[SEARCH_IMAGES] Found ${fallbackType} (fallback): ${query}`,
+                );
+              }
+            } catch (e) {
+              console.error(
+                `[SEARCH_IMAGES] ${fallbackType} fallback failed:`,
+                e,
+              );
+            }
+          }
+
+          // final fallback to all types
+          if (!imageUrl) {
+            try {
+              const pixabayRes = await fetch(
+                `/api/pixabay/search?q=${encodeURIComponent(query)}&per_page=${count}`,
+              );
+              const data = await pixabayRes.json();
+              if (data?.success && data?.data?.images?.length) {
+                const img = data.data.images[0];
+                imageUrl = img.url || img.thumbnail;
+                console.log(
+                  `[SEARCH_IMAGES] Found all types (final fallback): ${query}`,
+                );
+              }
+            } catch (e) {
+              console.error(`[SEARCH_IMAGES] All fallback failed:`, e);
+            }
+          }
+        } else {
+          // for photos, try pexels first
+          try {
+            const pexelsRes = await fetch(
+              `/api/pexels/search?q=${encodeURIComponent(query)}&per_page=${count}`,
+            );
+            const data = await pexelsRes.json();
+            if (data?.success && data?.data?.images?.length) {
+              const img = data.data.images[0];
+              imageUrl = img.url || img.thumbnail;
             }
           } catch {}
+
+          // fallback to pixabay
+          if (!imageUrl) {
+            try {
+              const pixabayRes = await fetch(
+                `/api/pixabay/search?q=${encodeURIComponent(query)}&per_page=${count}`,
+              );
+              const data = await pixabayRes.json();
+              if (data?.success && data?.data?.images?.length) {
+                const img = data.data.images[0];
+                imageUrl = img.url || img.thumbnail;
+              }
+            } catch {}
+          }
         }
 
         if (!imageUrl) {
+          console.warn(`[SEARCH_IMAGES] No images found for: ${query}`);
           return { success: false, message: `No images found for "${query}"` };
         }
 
@@ -1035,6 +1324,147 @@ export async function executeAction(
             resolve({ success: true, message: "Duplicated element" });
           });
         });
+      }
+
+      case "suggest_palette": {
+        const payload = action.payload as {
+          baseColor?: string;
+          harmony?: string;
+        };
+        const baseColor = payload.baseColor || "#3B82F6";
+        const harmony = (payload.harmony || "complementary") as HarmonyType;
+
+        const palette = generatePalette(baseColor, harmony);
+
+        // return palette info - UI will display this
+        return {
+          success: true,
+          message: `Generated ${palette.name}: ${palette.colors.join(", ")}`,
+          data: { palette },
+        } as { success: boolean; message: string };
+      }
+
+      case "suggest_fonts": {
+        const payload = action.payload as {
+          mood?: string;
+          keyword?: string;
+        };
+
+        let pairings;
+        if (payload.keyword) {
+          pairings = suggestFontPairingByKeyword(payload.keyword);
+        } else {
+          const mood = (payload.mood || "modern") as FontMood;
+          pairings = suggestFontPairing(mood);
+        }
+
+        const suggestion = pairings[0];
+        return {
+          success: true,
+          message: `Suggested: ${suggestion.name} - ${suggestion.heading.family} (heading) + ${suggestion.body.family} (body)`,
+          data: { pairings },
+        } as { success: boolean; message: string };
+      }
+
+      case "search_templates": {
+        const payload = action.payload as {
+          category?: string;
+          query?: string;
+        };
+
+        // this action returns template search params - UI will fetch and display
+        return {
+          success: true,
+          message:
+            `Searching templates: ${payload.category || "all"} ${payload.query || ""}`.trim(),
+          data: {
+            searchParams: {
+              category: payload.category,
+              query: payload.query,
+            },
+          },
+        } as { success: boolean; message: string };
+      }
+
+      case "load_template": {
+        const payload = action.payload as {
+          templateId?: string;
+        };
+
+        if (!payload.templateId) {
+          return { success: false, message: "Template ID required" };
+        }
+
+        // this action returns template load request - UI will handle loading
+        return {
+          success: true,
+          message: `Loading template: ${payload.templateId}`,
+          data: { templateId: payload.templateId },
+        } as { success: boolean; message: string };
+      }
+
+      case "audit_design": {
+        // gather design info from canvas
+        const objects = canvas.getObjects();
+        const workspace = objects.find(
+          (obj) => (obj as unknown as { name?: string }).name === "clip",
+        );
+        const canvasBg =
+          (workspace?.fill as string) ||
+          (canvas.backgroundColor as string) ||
+          "#FFFFFF";
+
+        const texts = objects
+          .filter((obj) => obj.type === "textbox" || obj.type === "i-text")
+          .map((obj) => ({
+            fill: (obj.fill as string) || "#000000",
+            fontSize: (obj as unknown as { fontSize?: number }).fontSize,
+            background: undefined as string | undefined,
+          }));
+
+        const shapes = objects
+          .filter(
+            (obj) =>
+              obj.type !== "textbox" &&
+              obj.type !== "i-text" &&
+              (obj as unknown as { name?: string }).name !== "clip",
+          )
+          .map((obj) => ({
+            fill: (obj.fill as string) || "#CCCCCC",
+          }));
+
+        const fonts = objects
+          .filter((obj) => obj.type === "textbox" || obj.type === "i-text")
+          .map(
+            (obj) =>
+              (obj as unknown as { fontFamily?: string }).fontFamily || "Arial",
+          );
+
+        const auditResult = auditDesign({
+          texts,
+          shapes,
+          canvasBackground: canvasBg,
+          fonts,
+        });
+
+        if (auditResult.passed) {
+          return {
+            success: true,
+            message: `Design audit passed! Score: ${auditResult.score}/100`,
+            data: { audit: auditResult },
+          } as { success: boolean; message: string };
+        }
+
+        const issueMessages = auditResult.issues
+          .slice(0, 3)
+          .map((i) => i.message)
+          .join("; ");
+
+        return {
+          success: true,
+          message: `Design audit: ${auditResult.issues.length} issues found. ${issueMessages}`,
+          data: { audit: auditResult, fixes: getAutoFixes(auditResult.issues) },
+        } as { success: boolean; message: string };
       }
 
       default:

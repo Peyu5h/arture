@@ -8,7 +8,6 @@ import pexelsRoutes from "./pexels.route";
 import templatesRoutes from "./templates.route";
 import pusherRoutes from "./pusher.route";
 import chatRoutes from "./chat.route";
-import streamingRoutes from "./streaming.route";
 
 const indexRoute = new Hono();
 
@@ -27,6 +26,5 @@ indexRoute.route("/pexels", pexelsRoutes);
 indexRoute.route("/templates", templatesRoutes);
 indexRoute.route("/pusher", pusherRoutes);
 indexRoute.route("/chat", chatRoutes);
-indexRoute.route("/streaming", streamingRoutes);
 
 export default indexRoute;

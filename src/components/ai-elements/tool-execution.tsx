@@ -21,6 +21,10 @@ import {
   Copy,
   Scissors,
   Wand2,
+  Sparkles,
+  FileText,
+  LayoutTemplate,
+  ScanEye,
 } from "lucide-react";
 
 export type ToolStatus = "pending" | "running" | "complete" | "error";
@@ -58,35 +62,36 @@ const getToolIcon = (name: string) => {
     add_image_to_canvas: <Image className="h-3.5 w-3.5" />,
     remove_background: <Scissors className="h-3.5 w-3.5" />,
     change_canvas_background: <Palette className="h-3.5 w-3.5" />,
+    suggest_palette: <Sparkles className="h-3.5 w-3.5" />,
+    suggest_fonts: <FileText className="h-3.5 w-3.5" />,
+    search_templates: <LayoutTemplate className="h-3.5 w-3.5" />,
+    load_template: <LayoutTemplate className="h-3.5 w-3.5" />,
+    audit_design: <ScanEye className="h-3.5 w-3.5" />,
   };
   return iconMap[name] || <Wand2 className="h-3.5 w-3.5" />;
 };
 
 // formats tool name for display
 const formatToolName = (name: string): string => {
-  return name
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (l) => l.toUpperCase());
+  return name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 };
 
-const StatusIcon = memo(function StatusIcon({ status }: { status: ToolStatus }) {
+const StatusIcon = memo(function StatusIcon({
+  status,
+}: {
+  status: ToolStatus;
+}) {
   switch (status) {
     case "pending":
       return (
-        <div className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/30" />
+        <div className="border-muted-foreground/30 h-3.5 w-3.5 rounded-full border-2" />
       );
     case "running":
-      return (
-        <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-      );
+      return <Loader2 className="text-primary h-3.5 w-3.5 animate-spin" />;
     case "complete":
-      return (
-        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-      );
+      return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />;
     case "error":
-      return (
-        <AlertCircle className="h-3.5 w-3.5 text-destructive" />
-      );
+      return <AlertCircle className="text-destructive h-3.5 w-3.5" />;
   }
 });
 
@@ -102,16 +107,14 @@ const ToolStepItem = memo(function ToolStepItem({ step }: { step: ToolStep }) {
         className={cn(
           "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors",
           hasDetails && "hover:bg-muted/50 cursor-pointer",
-          !hasDetails && "cursor-default"
+          !hasDetails && "cursor-default",
         )}
       >
         <StatusIcon status={step.status} />
 
-        <span className="text-muted-foreground">
-          {getToolIcon(step.name)}
-        </span>
+        <span className="text-muted-foreground">{getToolIcon(step.name)}</span>
 
-        <span className="flex-1 truncate text-xs text-foreground">
+        <span className="text-foreground flex-1 truncate text-xs">
           {step.description || formatToolName(step.name)}
         </span>
 
@@ -135,16 +138,12 @@ const ToolStepItem = memo(function ToolStepItem({ step }: { step: ToolStep }) {
             transition={{ duration: 0.15 }}
             className="overflow-hidden"
           >
-            <div className="ml-7 border-l-2 border-muted pl-3 py-1">
+            <div className="border-muted ml-7 border-l-2 py-1 pl-3">
               {step.result && (
-                <p className="text-xs text-muted-foreground">
-                  {step.result}
-                </p>
+                <p className="text-muted-foreground text-xs">{step.result}</p>
               )}
               {step.error && (
-                <p className="text-xs text-destructive">
-                  {step.error}
-                </p>
+                <p className="text-destructive text-xs">{step.error}</p>
               )}
             </div>
           </motion.div>
@@ -168,20 +167,25 @@ export const ToolExecution = memo(function ToolExecution({
   if (steps.length === 0) return null;
 
   return (
-    <div className={cn("rounded-lg border border-border/50 bg-muted/20", className)}>
+    <div
+      className={cn(
+        "border-border/50 bg-muted/20 rounded-lg border",
+        className,
+      )}
+    >
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="flex w-full items-center gap-2 px-3 py-2 text-left"
       >
         {hasRunning ? (
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          <Loader2 className="text-primary h-4 w-4 animate-spin" />
         ) : hasError ? (
-          <AlertCircle className="h-4 w-4 text-destructive" />
+          <AlertCircle className="text-destructive h-4 w-4" />
         ) : (
           <CheckCircle2 className="h-4 w-4 text-emerald-500" />
         )}
 
-        <span className="flex-1 text-xs font-medium text-foreground">
+        <span className="text-foreground flex-1 text-xs font-medium">
           {hasRunning
             ? "Executing actions..."
             : hasError
@@ -207,7 +211,7 @@ export const ToolExecution = memo(function ToolExecution({
             transition={{ duration: 0.15 }}
             className="overflow-hidden"
           >
-            <div className="border-t border-border/50 px-1 py-1">
+            <div className="border-border/50 border-t px-1 py-1">
               {steps.map((step) => (
                 <ToolStepItem key={step.id} step={step} />
               ))}
@@ -230,11 +234,11 @@ export const InlineToolExecution = memo(function InlineToolExecution({
   if (steps.length === 0) return null;
 
   return (
-    <div className={cn("flex flex-col gap-0.5 mt-2", className)}>
+    <div className={cn("mt-2 flex flex-col gap-0.5", className)}>
       {steps.map((step) => (
         <div
           key={step.id}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground"
+          className="text-muted-foreground flex items-center gap-1.5 text-xs"
         >
           <StatusIcon status={step.status} />
           <span className="opacity-60">{getToolIcon(step.name)}</span>

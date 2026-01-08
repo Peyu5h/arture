@@ -120,7 +120,7 @@ export const generateFlowId = () =>
 
 // phase display labels
 export const PHASE_LABELS: Record<AgentPhase, string> = {
-  idle: "Ready",
+  idle: "Thinking",
   analyzing: "Analyzing Canvas",
   planning: "Planning",
   executing: "Executing",

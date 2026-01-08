@@ -159,8 +159,20 @@ export type ActionType =
   | "add_image"
   | "remove_background"
   | "change_canvas_background"
+  | "apply_gradient_background"
+  | "set_image_background"
   | "change_layer_order"
+  | "bring_to_front"
+  | "send_to_back"
+  | "bring_forward"
+  | "send_backward"
   | "duplicate_element"
+  | "take_canvas_screenshot"
+  | "search_templates"
+  | "load_template"
+  | "suggest_palette"
+  | "suggest_fonts"
+  | "audit_design"
   | "ask_clarification";
 
 export interface AgentActionBase {
@@ -310,7 +322,9 @@ export type UIComponentType =
   | "time_picker"
   | "number_input"
   | "text_input"
-  | "image_selector";
+  | "image_selector"
+  | "template_gallery"
+  | "design_wizard";
 
 // ui component request from ai
 export interface UIComponentRequest {

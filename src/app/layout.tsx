@@ -5,7 +5,6 @@ import { ThemeProvider } from "next-themes";
 import { Toaster as UIToaster } from "~/components/ui/toaster";
 import { Toaster } from "sonner";
 import ReactQueryProvider from "~/lib/ReactQueryProvider";
-import { Navbar } from "~/components/navbar";
 import { ClientOnly } from "~/components/client-only";
 
 const inter = Inter({ subsets: ["latin"] });

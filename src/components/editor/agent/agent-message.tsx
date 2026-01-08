@@ -20,6 +20,10 @@ import {
   Wand2,
   Circle,
   Layers,
+  Sparkles,
+  FileText,
+  LayoutTemplate,
+  ScanEye,
 } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { Markdown } from "~/components/ai-elements/markdown";
@@ -97,6 +101,11 @@ function getToolIcon(type: string): typeof Wand2 | undefined {
     add_image_to_canvas: ImageIcon,
     remove_background: Scissors,
     change_canvas_background: Palette,
+    suggest_palette: Sparkles,
+    suggest_fonts: FileText,
+    search_templates: LayoutTemplate,
+    load_template: LayoutTemplate,
+    audit_design: ScanEye,
   };
   return iconMap[type] || Wand2;
 }
@@ -412,7 +421,7 @@ export const AgentMessage = memo(function AgentMessage({
 
           {/* render ui component if present */}
           {!isUser && uiComponentRequest && onUIComponentSubmit && (
-            <div className="mt-3">
+            <div className="mt-3 min-w-0 max-w-full overflow-hidden">
               <AgentUIComponent
                 request={uiComponentRequest}
                 onSubmit={onUIComponentSubmit}

@@ -19,53 +19,53 @@ function StyleCard({ option, isSelected, onSelect }: StyleCardProps) {
       type="button"
       onClick={onSelect}
       className={cn(
-        "relative flex-shrink-0 w-32 rounded-lg border overflow-hidden transition-all",
+        "relative w-24 flex-shrink-0 overflow-hidden rounded-lg border transition-all",
         isSelected
-          ? "border-primary ring-2 ring-primary ring-offset-2 ring-offset-background"
-          : "border-border hover:border-primary/50"
+          ? "border-primary ring-primary ring-offset-background ring-2 ring-offset-2"
+          : "border-border hover:border-primary/50",
       )}
     >
       {/* preview image or color swatches */}
-      <div className="aspect-[4/3] relative">
+      <div className="relative aspect-[4/3]">
         {option.preview ? (
           <img
             src={option.preview}
             alt={option.name}
-            className="w-full h-full object-cover"
+            className="h-full w-full object-cover"
           />
         ) : option.colors && option.colors.length > 0 ? (
-          <div className="w-full h-full flex">
+          <div className="flex h-full w-full">
             {option.colors.slice(0, 4).map((color, idx) => (
               <div
                 key={idx}
-                className="flex-1 h-full"
+                className="h-full flex-1"
                 style={{ backgroundColor: color }}
               />
             ))}
           </div>
         ) : (
-          <div className="w-full h-full bg-muted flex items-center justify-center">
-            <Palette className="h-8 w-8 text-muted-foreground" />
+          <div className="bg-muted flex h-full w-full items-center justify-center">
+            <Palette className="text-muted-foreground h-8 w-8" />
           </div>
         )}
 
         {/* selected overlay */}
         {isSelected && (
-          <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-              <Check className="h-4 w-4 text-primary-foreground" />
+          <div className="bg-primary/20 absolute inset-0 flex items-center justify-center">
+            <div className="bg-primary flex h-6 w-6 items-center justify-center rounded-full">
+              <Check className="text-primary-foreground h-4 w-4" />
             </div>
           </div>
         )}
       </div>
 
       {/* label */}
-      <div className="p-2 bg-background">
-        <p className="text-xs font-medium truncate text-center">
+      <div className="bg-background p-2">
+        <p className="truncate text-center text-xs font-medium">
           {option.name}
         </p>
         {option.description && (
-          <p className="text-[10px] text-muted-foreground truncate text-center mt-0.5">
+          <p className="text-muted-foreground mt-0.5 truncate text-center text-[10px]">
             {option.description}
           </p>
         )}
@@ -77,7 +77,7 @@ function StyleCard({ option, isSelected, onSelect }: StyleCardProps) {
           {option.tags.slice(0, 2).map((tag) => (
             <span
               key={tag}
-              className="text-[8px] px-1 py-0.5 rounded bg-background/80 backdrop-blur-sm"
+              className="bg-background/80 rounded px-1 py-0.5 text-[8px] backdrop-blur-sm"
             >
               {tag}
             </span>
@@ -99,8 +99,11 @@ export function AgentStyleCarousel({
   onSubmit,
   onCancel,
 }: StyleCarouselProps) {
+  // limit options to prevent overflow (max 6 recommended)
+  const limitedOptions = options.slice(0, 6);
+
   const [selectedId, setSelectedId] = useState<string | null>(
-    defaultValue || null
+    defaultValue || null,
   );
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -110,7 +113,7 @@ export function AgentStyleCarousel({
 
   const handleSubmit = useCallback(() => {
     if (selectedId) {
-      const selected = options.find((o) => o.id === selectedId);
+      const selected = limitedOptions.find((o) => o.id === selectedId);
       if (selected) {
         onSubmit({
           id: selected.id,
@@ -119,7 +122,7 @@ export function AgentStyleCarousel({
         });
       }
     }
-  }, [selectedId, options, onSubmit]);
+  }, [selectedId, limitedOptions, onSubmit]);
 
   const handleCancel = useCallback(() => {
     onCancel?.();
@@ -140,47 +143,55 @@ export function AgentStyleCarousel({
   const selectedOption = options.find((o) => o.id === selectedId);
 
   return (
-    <div className="w-full space-y-3 p-3 bg-muted/30 rounded-lg border border-border/50">
+    <div className="bg-muted/30 border-border/50 max-w-[280px] w-full min-w-0 overflow-hidden space-y-3 rounded-lg border p-3">
       {(title || description) && (
         <div className="space-y-1">
           {title && (
-            <h4 className="text-sm font-medium flex items-center gap-2">
-              <Palette className="h-4 w-4 text-primary" />
+            <h4 className="flex items-center gap-2 text-sm font-medium">
+              <Palette className="text-primary h-4 w-4" />
               {title}
               {required && <span className="text-destructive">*</span>}
             </h4>
           )}
           {description && (
-            <p className="text-xs text-muted-foreground">{description}</p>
+            <p className="text-muted-foreground text-xs">{description}</p>
           )}
         </div>
       )}
 
       {/* carousel container */}
-      <div className="relative group">
-        {/* scroll buttons */}
-        <Button
-          variant="outline"
-          size="icon"
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={scrollLeft}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
+      <div className="group relative w-full max-w-full min-w-0 overflow-hidden">
+        {/* scroll buttons - only show if more than 3 options */}
+        {limitedOptions.length > 3 && (
+          <>
+            <Button
+              variant="outline"
+              size="icon"
+              className="absolute top-1/2 left-0 z-10 h-8 w-8 -translate-y-1/2 rounded-full opacity-0 shadow-md transition-opacity group-hover:opacity-100"
+              onClick={scrollLeft}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
 
-        <Button
-          variant="outline"
-          size="icon"
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={scrollRight}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="absolute top-1/2 right-0 z-10 h-8 w-8 -translate-y-1/2 rounded-full opacity-0 shadow-md transition-opacity group-hover:opacity-100"
+              onClick={scrollRight}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </>
+        )}
 
         {/* scrollable area */}
-        <ScrollArea className="w-full" ref={scrollRef}>
+        <div
+          ref={scrollRef}
+          className="w-full overflow-x-auto pb-2"
+          style={{ scrollbarWidth: 'thin' }}
+        >
           <div className="flex gap-3 p-1">
-            {options.map((option) => (
+            {limitedOptions.map((option) => (
               <StyleCard
                 key={option.id}
                 option={option}
@@ -189,32 +200,31 @@ export function AgentStyleCarousel({
               />
             ))}
           </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+        </div>
       </div>
 
-      {/* selected preview */}
+      {/* selected preview - compact to prevent overflow */}
       {selectedOption && (
-        <div className="p-3 rounded-lg border border-primary/30 bg-primary/5">
+        <div className="border-primary/30 bg-primary/5 rounded-lg border p-2">
           <div className="flex items-center gap-3">
             {selectedOption.colors && selectedOption.colors.length > 0 && (
               <div className="flex gap-1">
                 {selectedOption.colors.slice(0, 5).map((color, idx) => (
                   <div
                     key={idx}
-                    className="w-5 h-5 rounded-full border border-border/50"
+                    className="border-border/50 h-5 w-5 rounded-full border"
                     style={{ backgroundColor: color }}
                     title={color}
                   />
                 ))}
               </div>
             )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">
                 {selectedOption.name}
               </p>
               {selectedOption.description && (
-                <p className="text-xs text-muted-foreground truncate">
+                <p className="text-muted-foreground truncate text-xs">
                   {selectedOption.description}
                 </p>
               )}
@@ -224,14 +234,14 @@ export function AgentStyleCarousel({
       )}
 
       {/* action buttons */}
-      <div className="flex gap-2 pt-2 border-t border-border/50">
+      <div className="border-border/50 flex gap-2 border-t pt-2">
         <Button
           size="sm"
           onClick={handleSubmit}
           disabled={required && !selectedId}
           className="flex-1"
         >
-          <Check className="h-4 w-4 mr-1" />
+          <Check className="mr-1 h-4 w-4" />
           Apply Style
         </Button>
         {onCancel && (

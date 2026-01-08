@@ -47,12 +47,149 @@ import {
 } from "./types";
 import { executeActions, AgentAction } from "~/lib/ai";
 import type { UIComponentRequest, UIComponentResponse } from "~/lib/ai/types";
+import type {
+  TemplateGalleryValue,
+  DesignRequirements,
+} from "~/components/agent-ui/types";
 import { ImageAttachment } from "./agent-input";
+import api from "~/lib/api";
 
 // constants
 const PANEL_WIDTH = 380;
 const generateId = () => Math.random().toString(36).substring(2, 9);
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// detect design type from user message
+function detectDesignType(
+  message: string,
+  category?: string,
+): "wedding" | "birthday" | "event" | "poster" | "card" | "gym" | "restaurant" | "music" | "tech" | "sports" | "generic" {
+  const lowerMsg = message.toLowerCase();
+
+  // gym/fitness keywords
+  if (
+    lowerMsg.includes("gym") ||
+    lowerMsg.includes("fitness") ||
+    lowerMsg.includes("workout") ||
+    lowerMsg.includes("exercise") ||
+    lowerMsg.includes("bodybuilding")
+  ) {
+    return "gym";
+  }
+  // restaurant/food keywords
+  if (
+    lowerMsg.includes("restaurant") ||
+    lowerMsg.includes("cafe") ||
+    lowerMsg.includes("food") ||
+    lowerMsg.includes("menu") ||
+    lowerMsg.includes("dining")
+  ) {
+    return "restaurant";
+  }
+  // music keywords
+  if (
+    lowerMsg.includes("music") ||
+    lowerMsg.includes("concert") ||
+    lowerMsg.includes("band") ||
+    lowerMsg.includes("dj") ||
+    lowerMsg.includes("album")
+  ) {
+    return "music";
+  }
+  // tech/startup keywords
+  if (
+    lowerMsg.includes("tech") ||
+    lowerMsg.includes("startup") ||
+    lowerMsg.includes("software") ||
+    lowerMsg.includes("app") ||
+    lowerMsg.includes("coding")
+  ) {
+    return "tech";
+  }
+  // sports keywords
+  if (
+    lowerMsg.includes("sports") ||
+    lowerMsg.includes("basketball") ||
+    lowerMsg.includes("football") ||
+    lowerMsg.includes("soccer") ||
+    lowerMsg.includes("tennis")
+  ) {
+    return "sports";
+  }
+  // wedding keywords
+  if (
+    lowerMsg.includes("wedding") ||
+    lowerMsg.includes("marriage") ||
+    lowerMsg.includes("bride") ||
+    lowerMsg.includes("groom")
+  ) {
+    return "wedding";
+  }
+  if (
+    lowerMsg.includes("birthday") ||
+    lowerMsg.includes("bday") ||
+    lowerMsg.includes("birth day")
+  ) {
+    return "birthday";
+  }
+  if (
+    lowerMsg.includes("poster") ||
+    lowerMsg.includes("flyer") ||
+    lowerMsg.includes("banner")
+  ) {
+    return "poster";
+  }
+  if (
+    lowerMsg.includes("greeting card") ||
+    lowerMsg.includes("thank you card") ||
+    lowerMsg.includes("card")
+  ) {
+    return "card";
+  }
+  if (
+    lowerMsg.includes("event") ||
+    lowerMsg.includes("party") ||
+    lowerMsg.includes("celebration") ||
+    lowerMsg.includes("gala")
+  ) {
+    return "event";
+  }
+
+  // fallback to category
+  if (category === "invitations") {
+    return "wedding";
+  }
+
+  return "generic";
+}
+
+// get default decorative keywords for design type
+function getDefaultDecorativeKeywords(designType: string): string {
+  switch (designType) {
+    case "wedding":
+      return "rings, flower, heart, rose, dove";
+    case "birthday":
+      return "balloon, cake, confetti, gift, party";
+    case "event":
+      return "star, celebration, ribbon, decoration";
+    case "gym":
+      return "dumbbell, barbell, fitness, muscle, workout";
+    case "restaurant":
+      return "fork, plate, chef, food, kitchen";
+    case "music":
+      return "guitar, music note, headphones, speaker";
+    case "tech":
+      return "laptop, rocket, lightbulb, code";
+    case "sports":
+      return "trophy, ball, medal, stadium";
+    case "poster":
+      return "geometric, abstract, circle, pattern";
+    case "card":
+      return "elegant borders, floral elements";
+    default:
+      return "decorative elements, abstract shapes";
+  }
+}
 
 const createWelcomeMessage = (): AgentMessage => ({
   id: "welcome",
@@ -140,6 +277,25 @@ export const AgentPanel = ({
         // extract imageAttachments from context for display
         const imageAttachments = msgContext?.imageAttachments || [];
 
+        // restore mentions from saved context
+        const restoredMentions: Mention[] | undefined = msgContext?.mentions
+          ? msgContext.mentions.map((m) => ({
+              id: m.id,
+              type: m.type as Mention["type"],
+              label: m.label,
+              elementRef: m.elementId
+                ? {
+                    id: m.elementId,
+                    type: m.elementType || "unknown",
+                    name: m.label,
+                    text: m.text,
+                    isOnCanvas: true,
+                  }
+                : undefined,
+              isOnCanvas: !!m.elementId,
+            }))
+          : undefined;
+
         return {
           id: msg.id,
           role: msg.role as "user" | "assistant" | "system",
@@ -148,6 +304,7 @@ export const AgentPanel = ({
           timestamp: msg.timestamp,
           actions: msg.actions as AgentMessage["actions"],
           context: msgContext,
+          mentions: restoredMentions,
           imageAttachments:
             imageAttachments.length > 0 ? imageAttachments : undefined,
         };
@@ -480,7 +637,28 @@ export const AgentPanel = ({
     }
 
     isSubmittingRef.current = true;
-    const messageContent = inputValue.trim();
+    let messageContent = inputValue.trim();
+
+    // build enriched message with @ mention context for the AI
+    const mentionContext: string[] = [];
+    if (activeMentions.length > 0) {
+      for (const mention of activeMentions) {
+        if (mention.elementRef) {
+          const ref = mention.elementRef;
+          let desc = `@${mention.label} (ID: "${ref.id}", Type: ${ref.type}`;
+          if (ref.text) desc += `, Text: "${ref.text.slice(0, 30)}"`;
+          if (ref.fill) desc += `, Fill: ${ref.fill}`;
+          desc += ")";
+          mentionContext.push(desc);
+        } else if (mention.type === "canvas") {
+          mentionContext.push(`@Canvas Background`);
+        }
+      }
+      // append mention info to message so AI knows exactly what elements are referenced
+      if (mentionContext.length > 0) {
+        messageContent = `${messageContent}\n\n[Referenced elements: ${mentionContext.join(", ")}]`;
+      }
+    }
 
     // immediately add user message to chat
     const userMessageId = generateId();
@@ -519,11 +697,13 @@ export const AgentPanel = ({
       }
     }
     clearAllImages();
+    // store mentions before clearing for context
+    const currentMentions = [...activeMentions];
     setActiveMentions([]);
 
     // generate context
     let contextSummary: string | undefined;
-    if (activeMentions.length === 0 && editor?.canvas && context) {
+    if (currentMentions.length === 0 && editor?.canvas && context) {
       const elements = editor.canvas
         .getObjects()
         .map((obj: fabric.Object) =>
@@ -556,14 +736,24 @@ export const AgentPanel = ({
       }
     }
 
-    // save user message to db
+    // save user message to db with mentions
     if (convId) {
       createMessage
         .mutateAsync({
           conversationId: convId,
           role: "USER",
           content: messageContent,
-          context: contextSummary ? { summary: contextSummary } : undefined,
+          context: {
+            summary: contextSummary,
+            mentions: currentMentions.map((m) => ({
+              id: m.id,
+              type: m.type,
+              label: m.label,
+              elementId: m.elementRef?.id,
+              elementType: m.elementRef?.type,
+              text: m.elementRef?.text,
+            })),
+          },
         })
         .catch(console.error);
     }
@@ -606,6 +796,19 @@ export const AgentPanel = ({
           aiContext.selectedElementIds = activeObjects
             .map((obj: fabric.Object) => (obj as unknown as { id?: string }).id)
             .filter(Boolean) as string[];
+        }
+
+        // include referenced element IDs from @ mentions
+        if (currentMentions.length > 0) {
+          const mentionedIds = currentMentions
+            .filter((m) => m.elementRef?.id)
+            .map((m) => m.elementRef!.id);
+          if (mentionedIds.length > 0) {
+            aiContext.selectedElementIds = [
+              ...(aiContext.selectedElementIds || []),
+              ...mentionedIds,
+            ].filter((id, i, arr) => arr.indexOf(id) === i);
+          }
         }
       }
 
@@ -673,8 +876,121 @@ export const AgentPanel = ({
         setPhase("executing", "Executing actions");
         setProgress(70, `Executing ${aiActions.length} actions`);
 
+        // check for search_templates action - handle specially
+        const searchTemplatesAction = aiActions.find(
+          (a) => a.type === "search_templates",
+        );
+
+        if (searchTemplatesAction) {
+          // fetch templates from database
+          const payload = searchTemplatesAction.payload as {
+            category?: string;
+            query?: string;
+          };
+          setProgress(75, "Searching templates");
+
+          // mark search action as running
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantMessageId && msg.actions
+                ? {
+                    ...msg,
+                    actions: msg.actions.map((a) =>
+                      a.type === "search_templates"
+                        ? { ...a, status: "running" }
+                        : a,
+                    ),
+                  }
+                : msg,
+            ),
+          );
+
+          try {
+            const queryParams = new URLSearchParams();
+            if (payload.category) queryParams.set("category", payload.category);
+            if (payload.query) queryParams.set("q", payload.query);
+
+            const templatesRes = await api.get<
+              Array<{
+                id: string;
+                name: string;
+                thumbnailUrl?: string;
+                category?: string;
+                tags?: string[];
+              }>
+            >(`/api/templates?${queryParams.toString()}`);
+
+            const templates = templatesRes.data || [];
+            console.log("[TEMPLATE_SEARCH]", {
+              category: payload.category,
+              query: payload.query,
+              found: templates.length,
+            });
+
+            // show template gallery UI component
+            const templateGalleryRequest: UIComponentRequest = {
+              id: generateId(),
+              componentType:
+                "template_gallery" as UIComponentRequest["componentType"],
+              props: {
+                title: "Choose a Template",
+                templates: templates.slice(0, 6).map((t) => ({
+                  id: t.id,
+                  name: t.name,
+                  thumbnail: t.thumbnailUrl,
+                  category: t.category,
+                  tags: t.tags,
+                })),
+                category: payload.category,
+                query: payload.query,
+                allowScratch: true,
+                noResultsMessage: `No templates found for "${payload.query || payload.category || "this search"}". You can start from scratch!`,
+              },
+              followUpPrompt:
+                templates.length > 0
+                  ? "User selected: {action}"
+                  : "User wants to start from scratch",
+            };
+
+            // mark search action as complete and update message with template gallery
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMessageId
+                  ? {
+                      ...msg,
+                      uiComponentRequest: templateGalleryRequest,
+                      actions: msg.actions?.map((a) =>
+                        a.type === "search_templates"
+                          ? { ...a, status: "complete" }
+                          : a,
+                      ),
+                    }
+                  : msg,
+              ),
+            );
+
+            setPendingUIComponent({
+              messageId: assistantMessageId,
+              request: templateGalleryRequest,
+            });
+
+            setProgress(100, "Templates loaded");
+            setPhase("completed", "Done");
+            endFlow(true);
+
+            // skip normal action execution for template search
+            setIsLoading(false);
+            isSubmittingRef.current = false;
+            return;
+          } catch (templateError) {
+            console.error("Template search failed:", templateError);
+            // fall through to show design wizard
+          }
+        }
+
         const executableActions = aiActions.filter(
-          (a) => a.type !== "ask_clarification",
+          (a) =>
+            a.type !== "ask_clarification" && a.type !== "search_templates",
         );
 
         if (executableActions.length > 0) {
@@ -1011,18 +1327,193 @@ export const AgentPanel = ({
         ),
       );
 
+      // capture pending component info before clearing
+      const pendingRequest = pendingUIComponent.request;
+      const pendingCategory = (pendingRequest.props as { category?: string })
+        ?.category;
+      const pendingQuery = (pendingRequest.props as { query?: string })?.query;
+
+      // clear pending state
+      setPendingUIComponent(null);
+
+      // handle template gallery response
+      if ((response.componentType as string) === "template_gallery") {
+        const galleryValue = response.value as TemplateGalleryValue;
+        console.log("[TEMPLATE_GALLERY_RESPONSE]", galleryValue);
+
+        if (
+          galleryValue.action === "select_template" &&
+          galleryValue.templateId
+        ) {
+          // user selected a template - load it
+          setInputValue(
+            `Load template "${galleryValue.templateName || galleryValue.templateId}"`,
+          );
+          setTimeout(() => {
+            const submitBtn = document.querySelector(
+              "[data-agent-submit]",
+            ) as HTMLButtonElement;
+            submitBtn?.click();
+          }, 100);
+        } else if (galleryValue.action === "start_scratch") {
+          // user wants to start from scratch - show design wizard
+          const wizardMessageId = generateId();
+
+          // detect design type from original query and category
+          const originalUserMessage =
+            messages.find((m) => m.role === "user")?.content || "";
+          const designType = detectDesignType(
+            pendingQuery || originalUserMessage,
+            pendingCategory,
+          );
+
+          const designTypeLabel = {
+            wedding: "Wedding Invitation",
+            birthday: "Birthday Invitation",
+            event: "Event Invitation",
+            poster: "Poster",
+            card: "Card",
+            gym: "Gym/Fitness Poster",
+            restaurant: "Restaurant/Food Poster",
+            music: "Music/Concert Poster",
+            tech: "Tech/Startup Poster",
+            sports: "Sports Poster",
+            generic: "Design"
+          }[designType] || "Design";
+
+          const wizardRequest: UIComponentRequest = {
+            id: generateId(),
+            componentType:
+              "design_wizard" as UIComponentRequest["componentType"],
+            props: {
+              designType,
+              title: `Create ${designTypeLabel}`,
+              description: "Fill in the details for your design",
+            },
+            followUpPrompt: "Create design with these requirements",
+          };
+
+          const wizardMessage: AgentMessage = {
+            id: wizardMessageId,
+            role: "assistant",
+            content:
+              "Let's create your design from scratch! Please fill in the details below.",
+            status: "complete",
+            timestamp: Date.now(),
+            uiComponentRequest: wizardRequest,
+          };
+
+          setMessages((prev) => [...prev, wizardMessage]);
+          setPendingUIComponent({
+            messageId: wizardMessageId,
+            request: wizardRequest,
+          });
+        }
+        return;
+      }
+
+      // handle design wizard response
+      if ((response.componentType as string) === "design_wizard") {
+        const requirements = response.value as DesignRequirements;
+        console.log("[DESIGN_WIZARD_RESPONSE]", requirements);
+
+        // detect design type from pending request props OR re-detect from original user message
+        const wizardProps = pendingRequest.props as { designType?: string };
+        const originalUserMessage = messages.find((m) => m.role === "user")?.content || "";
+        let designType = wizardProps?.designType || "generic";
+        
+        // if generic, try to re-detect from original message to catch gym, restaurant, etc.
+        if (designType === "generic" && originalUserMessage) {
+          designType = detectDesignType(originalUserMessage);
+        }
+        
+        console.log("[DESIGN_TYPE_DETECTED]", { wizardType: wizardProps?.designType, detected: designType });
+
+        // build a detailed prompt for the AI to create the design
+        let designPrompt = `Create a ${designType} design with these specifications:\n`;
+
+        if (requirements.primaryText)
+          designPrompt += `- Main text: "${requirements.primaryText}"\n`;
+        if (requirements.secondaryText)
+          designPrompt += `- Subtitle: "${requirements.secondaryText}"\n`;
+        if (requirements.date) designPrompt += `- Date: ${requirements.date}\n`;
+        if (requirements.time) designPrompt += `- Time: ${requirements.time}\n`;
+        if (requirements.venue)
+          designPrompt += `- Venue: ${requirements.venue}\n`;
+        if (requirements.additionalInfo)
+          designPrompt += `- Additional: ${requirements.additionalInfo}\n`;
+
+        // color palette
+        if (requirements.colorPalette) {
+          if (requirements.colorPalette.id === "auto") {
+            designPrompt += `- Colors: Let AI choose best color palette for ${designType}\n`;
+          } else {
+            designPrompt += `- Color palette: ${requirements.colorPalette.name} (${requirements.colorPalette.colors.join(", ")})\n`;
+          }
+        }
+
+        // font pairing
+        if (requirements.fontPairing) {
+          if (requirements.fontPairing.id === "auto") {
+            designPrompt += `- Fonts: Let AI choose best font pairing for ${designType}\n`;
+          } else {
+            designPrompt += `- Fonts: ${requirements.fontPairing.heading} for headings, ${requirements.fontPairing.body} for body\n`;
+          }
+        }
+
+        // design style
+        if (requirements.designStyle) {
+          if (typeof requirements.designStyle === "string") {
+            designPrompt += `- Style: ${requirements.designStyle}\n`;
+          } else {
+            const style = requirements.designStyle as any;
+            if (style.id === "auto") {
+              designPrompt += `- Style: Let AI choose best style for ${designType}\n`;
+            } else {
+              designPrompt += `- Style: ${style.name}\n`;
+            }
+          }
+        }
+
+        if (requirements.backgroundStyle)
+          designPrompt += `- Background: ${requirements.backgroundStyle}\n`;
+
+        // decorative elements with PNG/stickers from Pixabay
+        if (requirements.includeDecorations) {
+          const decorativeKeywords = requirements.imageKeywords?.length
+            ? requirements.imageKeywords.join(", ")
+            : getDefaultDecorativeKeywords(designType);
+          designPrompt += `- DECORATIONS (REQUIRED): Search Pixabay for EXACTLY these terms with image_type=vector: ${decorativeKeywords}\n`;
+          designPrompt += `- DO NOT use generic terms like "abstract shapes" or "ornamental graphics" - use ONLY the keywords listed above\n`;
+        }
+
+        // images
+        if (requirements.includeImages) {
+          designPrompt += `- Include relevant images from Pixabay that match the ${designType} theme\n`;
+        }
+
+        designPrompt +=
+          `\n\nCRITICAL: For decorative elements, you MUST use search_images with the EXACT keywords specified above (e.g., "${getDefaultDecorativeKeywords(designType).split(", ")[0]}", "${getDefaultDecorativeKeywords(designType).split(", ")[1] || ""}"). DO NOT search for generic terms like "abstract shapes", "decorative elements", or "ornamental graphics". Place decorations strategically around the text. Create a complete, professional ${designType} design.`;
+
+        setInputValue(designPrompt);
+        setTimeout(() => {
+          const submitBtn = document.querySelector(
+            "[data-agent-submit]",
+          ) as HTMLButtonElement;
+          submitBtn?.click();
+        }, 100);
+        return;
+      }
+
       // format user-friendly display text
       const displayText = formatUIResponseForDisplay(
         response.value,
         response.componentType,
       );
 
-      // clear pending state
-      setPendingUIComponent(null);
-
       // build the follow-up prompt with proper substitution
       const followUpPrompt = replaceTemplatePlaceholders(
-        pendingUIComponent.request.followUpPrompt || "",
+        pendingRequest.followUpPrompt || "",
         response.value,
       );
 
@@ -1042,6 +1533,7 @@ export const AgentPanel = ({
       pendingUIComponent,
       formatUIResponseForDisplay,
       replaceTemplatePlaceholders,
+      messages,
     ],
   );
 

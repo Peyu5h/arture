@@ -26,6 +26,10 @@ import {
   Clock,
   Filter,
   X,
+  Sparkles,
+  FileText,
+  LayoutTemplate,
+  ScanEye,
 } from "lucide-react";
 
 // truncates text to max length
@@ -72,6 +76,11 @@ const getToolIcon = (toolName: string) => {
     add_image_to_canvas: Image,
     remove_background: Scissors,
     change_canvas_background: Palette,
+    suggest_palette: Sparkles,
+    suggest_fonts: FileText,
+    search_templates: LayoutTemplate,
+    load_template: LayoutTemplate,
+    audit_design: ScanEye,
   };
   return iconMap[toolName] || Wand2;
 };

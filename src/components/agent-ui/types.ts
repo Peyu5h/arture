@@ -10,7 +10,9 @@ export type UIComponentType =
   | "time_picker"
   | "number_input"
   | "text_input"
-  | "image_selector";
+  | "image_selector"
+  | "template_gallery"
+  | "design_wizard";
 
 // base props for all ui components
 export interface BaseUIComponentProps {
@@ -182,6 +184,78 @@ export interface ImageOption {
   caption?: string;
 }
 
+// template gallery props
+export interface TemplateGalleryProps extends BaseUIComponentProps {
+  componentType: "template_gallery";
+  templates: TemplateOption[];
+  query?: string;
+  category?: string;
+  allowScratch?: boolean;
+  isLoading?: boolean;
+  noResultsMessage?: string;
+}
+
+export interface TemplateOption {
+  id: string;
+  name: string;
+  thumbnail?: string;
+  category?: string;
+  tags?: string[];
+}
+
+export interface TemplateGalleryValue {
+  action: "select_template" | "start_scratch";
+  templateId?: string;
+  templateName?: string;
+}
+
+// design wizard props
+export interface DesignWizardProps extends BaseUIComponentProps {
+  componentType: "design_wizard";
+  designType: "wedding" | "birthday" | "event" | "poster" | "card" | "generic";
+  prefilledData?: Partial<DesignRequirements>;
+}
+
+export interface DesignRequirements {
+  // basic info
+  primaryText?: string;
+  secondaryText?: string;
+  date?: string;
+  time?: string;
+  venue?: string;
+  additionalInfo?: string;
+
+  // style
+  colorPalette?: ColorPalette;
+  customColors?: string[];
+  fontPairing?: FontPairing;
+  designStyle?: string;
+
+  // elements
+  includeImages?: boolean;
+  imageKeywords?: string[];
+  includeDecorations?: boolean;
+
+  // layout
+  orientation?: "portrait" | "landscape";
+  backgroundStyle?: "solid" | "gradient" | "image";
+}
+
+export interface ColorPalette {
+  id: string;
+  name: string;
+  colors: string[];
+  description?: string;
+}
+
+export interface FontPairing {
+  id: string;
+  name: string;
+  heading: string;
+  body: string;
+  description?: string;
+}
+
 // union type for all component props
 export type UIComponentProps =
   | DatePickerProps
@@ -193,13 +267,18 @@ export type UIComponentProps =
   | TimePickerProps
   | NumberInputProps
   | TextInputProps
-  | ImageSelectorProps;
+  | ImageSelectorProps
+  | TemplateGalleryProps
+  | DesignWizardProps;
 
 // ui component request from ai
 export interface UIComponentRequest {
   id: string;
   componentType: UIComponentType;
-  props: Omit<UIComponentProps, "id" | "componentType" | "onSubmit" | "onCancel">;
+  props: Omit<
+    UIComponentProps,
+    "id" | "componentType" | "onSubmit" | "onCancel"
+  >;
   context?: string;
   followUpPrompt?: string;
 }

@@ -16,8 +16,20 @@ export type ActionType =
   | "add_image_to_canvas"
   | "remove_background"
   | "change_canvas_background"
+  | "apply_gradient_background"
+  | "set_image_background"
   | "change_layer_order"
+  | "bring_to_front"
+  | "send_to_back"
+  | "bring_forward"
+  | "send_backward"
   | "duplicate_element"
+  | "take_canvas_screenshot"
+  | "search_templates"
+  | "load_template"
+  | "suggest_palette"
+  | "suggest_fonts"
+  | "audit_design"
   | "ask_clarification";
 
 export type MentionType =
@@ -105,6 +117,14 @@ export interface MessageContext {
   canvasSnapshot?: string;
   summary?: string;
   imageAttachments?: ImageAttachmentRef[];
+  mentions?: Array<{
+    id: string;
+    type: string;
+    label: string;
+    elementId?: string;
+    elementType?: string;
+    text?: string;
+  }>;
 }
 
 export interface Suggestion {

@@ -93,22 +93,34 @@ pixabayRoute.get("/search", async (c) => {
       });
     }
 
+    // pixabay accepts: "all", "photo", "illustration", "vector"
+    const validImageTypes = ["all", "photo", "illustration", "vector"];
+    const finalImageType = validImageTypes.includes(imageType)
+      ? imageType
+      : "all";
+
     const params = new URLSearchParams({
       key: apiKey,
       q: query,
       page: String(page),
-      per_page: String(Math.min(perPage, 200)),
-      image_type: imageType,
+      per_page: String(Math.max(3, Math.min(perPage, 200))),
       safesearch: "true",
     });
 
-    const response = await fetch(
-      `https://pixabay.com/api/?${params.toString()}`,
-    );
+    // only add image_type if it's not "all" (pixabay default)
+    if (finalImageType !== "all") {
+      params.append("image_type", finalImageType);
+    }
+
+    const apiUrl = `https://pixabay.com/api/?${params.toString()}`;
+    console.log(`[PIXABAY_SEARCH] ${apiUrl}`);
+
+    const response = await fetch(apiUrl);
 
     handleRateLimitResponse(response);
 
     if (response.status === 429) {
+      console.log("[PIXABAY_RATE_LIMITED]");
       return c.json({
         success: true,
         data: {
@@ -123,14 +135,49 @@ pixabayRoute.get("/search", async (c) => {
     }
 
     if (!response.ok) {
-      throw new Error(`Pixabay API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error(
+        `[PIXABAY_ERROR] Status: ${response.status}, Body: ${errorText}`,
+      );
+
+      // return empty results instead of throwing
+      return c.json({
+        success: true,
+        data: {
+          images: [],
+          total: 0,
+          page,
+          perPage,
+          error: `Pixabay API returned ${response.status}`,
+        },
+      });
     }
 
     const data: PixabayResponse = await response.json();
+    console.log(
+      `[PIXABAY_SUCCESS] Found ${data.hits?.length || 0} images for query: ${query}`,
+    );
+
+    // handle empty results
+    if (!data.hits || data.hits.length === 0) {
+      console.log(
+        `[PIXABAY_NO_RESULTS] Query: ${query}, ImageType: ${finalImageType}`,
+      );
+      return c.json({
+        success: true,
+        data: {
+          images: [],
+          total: 0,
+          page,
+          perPage,
+          message: "No images found for this search",
+        },
+      });
+    }
 
     const images = data.hits.map((hit) => ({
       id: String(hit.id),
-      url: hit.largeImageURL,
+      url: hit.largeImageURL || hit.webformatURL,
       thumbnail: hit.webformatURL,
       preview: hit.previewURL,
       tags: hit.tags.split(", "),

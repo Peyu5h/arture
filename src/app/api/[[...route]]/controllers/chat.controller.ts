@@ -11,31 +11,23 @@ import { err, success, validationErr } from "../utils/response";
 import { prisma } from "~/lib/prisma";
 import { generateToolsDescription } from "~/lib/ai/tools/schemas";
 
-// available gemini models - updated to working models
 const GEMINI_MODELS = [
-  // --- MOST RELIABLE FREE TIER MODELS ---
-  "gemini-3-flash-preview", // Latest 3.0 series, fast and highly intelligent
-  "gemini-2.5-flash", // Stable, high rate limits, great for production
-  "gemini-2.5-flash-lite", // Most cost-efficient, extremely fast
-
-  // --- CAPABILITY-SPECIFIC / EXPERIMENTAL ---
-  "gemini-3-pro-preview", // Most powerful reasoning, limited free access
-  "gemini-2.5-pro", // High reasoning, stable version
-  "gemini-2.0-flash", // Previous stable generation
-  "gemini-2.0-flash-lite", // Previous lite generation
+  "gemini-3-flash-preview",
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-lite",
+  "gemini-2.5-pro",
+  "gemini-2.5-flash-lite",
 ] as const;
 
-// openrouter models for fallback - fast models first
 const OPENROUTER_MODELS = [
   "anthropic/claude-3-haiku",
   "google/gemini-flash-1.5-8b",
 ] as const;
 
-// shorter timeout for faster fallback
 const GEMINI_TIMEOUT_MS = 12000;
 const OPENROUTER_TIMEOUT_MS = 10000;
 
-// get all available gemini api keys
 function getGeminiApiKeys(): string[] {
   const keys: string[] = [];
   const primary = process.env.GEMINI_API_KEY;
@@ -48,7 +40,6 @@ function getGeminiApiKeys(): string[] {
   return keys;
 }
 
-// get openrouter api keys
 function getOpenRouterApiKeys(): string[] {
   const keys: string[] = [];
   const primary = process.env.OPENROUTER_API_KEY;
@@ -61,11 +52,9 @@ function getOpenRouterApiKeys(): string[] {
   return keys;
 }
 
-// track rate limited keys with expiry
 const rateLimitedKeys = new Map<string, number>();
 const rateLimitedModels = new Map<string, number>();
 
-// get next available gemini api key
 function getAvailableGeminiKey(): string | null {
   const keys = getGeminiApiKeys();
   const now = Date.now();
@@ -80,7 +69,6 @@ function getAvailableGeminiKey(): string | null {
   return null;
 }
 
-// get next available openrouter key
 function getAvailableOpenRouterKey(): string | null {
   const keys = getOpenRouterApiKeys();
   const now = Date.now();
@@ -95,7 +83,6 @@ function getAvailableOpenRouterKey(): string | null {
   return null;
 }
 
-// get next available model
 function getAvailableModel(): string {
   const now = Date.now();
 
@@ -109,17 +96,14 @@ function getAvailableModel(): string {
   return GEMINI_MODELS[0];
 }
 
-// mark key as rate limited
 function markKeyRateLimited(key: string, retryAfterMs: number = 60000) {
   rateLimitedKeys.set(key, Date.now() + retryAfterMs);
 }
 
-// mark model as rate limited
 function markModelRateLimited(model: string, retryAfterMs: number = 60000) {
   rateLimitedModels.set(model, Date.now() + retryAfterMs);
 }
 
-// check if error is rate limit
 function isRateLimitError(error: unknown): boolean {
   if (error instanceof Error) {
     const msg = error.message.toLowerCase();
@@ -128,7 +112,6 @@ function isRateLimitError(error: unknown): boolean {
   return false;
 }
 
-// extract retry delay from error
 function extractRetryDelay(error: unknown): number {
   if (error instanceof Error) {
     const match = error.message.match(/retry in (\d+\.?\d*)/i);
@@ -136,10 +119,9 @@ function extractRetryDelay(error: unknown): number {
       return Math.ceil(parseFloat(match[1]) * 1000);
     }
   }
-  return 15000; // default 15s for faster retry
+  return 15000;
 }
 
-// try gemini with direct fetch and timeout
 async function tryGeminiDirect(
   apiKey: string,
   modelName: string,
@@ -205,7 +187,6 @@ async function tryGeminiDirect(
   }
 }
 
-// call openrouter api with timeout - optimized
 async function callOpenRouter(
   apiKey: string,
   model: string,
@@ -334,7 +315,6 @@ Title:`;
   }
 }
 
-// fallback title generation
 function generateTitleFallback(query: string): string {
   const words = query.split(" ").slice(0, 5);
   let title = words.join(" ");
@@ -344,7 +324,6 @@ function generateTitleFallback(query: string): string {
   return title || "New Chat";
 }
 
-// get conversations
 export const getConversations = async (c: Context) => {
   try {
     const user = c.get("user");
@@ -390,7 +369,6 @@ export const getConversations = async (c: Context) => {
   }
 };
 
-// get single conversation with messages
 export const getConversation = async (c: Context) => {
   try {
     const user = c.get("user");
@@ -438,7 +416,6 @@ export const getConversation = async (c: Context) => {
   }
 };
 
-// create new conversation
 export const createConversation = async (c: Context) => {
   try {
     const user = c.get("user");
@@ -481,7 +458,6 @@ export const createConversation = async (c: Context) => {
   }
 };
 
-// update conversation
 export const updateConversation = async (c: Context) => {
   try {
     const user = c.get("user");
@@ -523,7 +499,6 @@ export const updateConversation = async (c: Context) => {
   }
 };
 
-// delete conversation
 export const deleteConversation = async (c: Context) => {
   try {
     const user = c.get("user");
@@ -553,7 +528,6 @@ export const deleteConversation = async (c: Context) => {
   }
 };
 
-// add message to conversation
 export const createMessage = async (c: Context) => {
   try {
     const user = c.get("user");
@@ -588,7 +562,6 @@ export const createMessage = async (c: Context) => {
       },
     });
 
-    // update conversation title if it's first user message
     if (role === "USER" && conversation.title === "New Chat") {
       const title = await generateTitleWithAI(content);
       await prisma.chatConversation.update({
@@ -619,7 +592,7 @@ export const createMessage = async (c: Context) => {
   }
 };
 
-// generate title from query using ai
+// generate title from query using llm
 export const generateTitle = async (c: Context) => {
   try {
     const body = await c.req.json();
@@ -636,7 +609,6 @@ export const generateTitle = async (c: Context) => {
   }
 };
 
-// ai chat response schema with canvas context and image attachments
 const aiChatSchema = z.object({
   message: z.string().min(1),
   context: z
@@ -674,81 +646,223 @@ const aiChatSchema = z.object({
     .optional(),
 });
 
-// builds compact action-aware system prompt
+// builds compact action-aware system prompt with design intelligence
 function buildActionSystemPrompt(
   contextInfo: string,
   historyContext: string,
   imageContext: string,
 ): string {
-  return `You are Arture AI, a canvas design assistant. You MUST respond with ONLY valid JSON - no other text.
+  return `You are Arture AI, a professional canvas design assistant. You MUST respond with ONLY valid JSON - no other text.
 
-OUTPUT FORMAT - respond with exactly this structure:
-{"message":"<your response>","actions":[<action objects>],"ui_component_request":<optional component>}
+OUTPUT FORMAT:
+{"message":"<response>","actions":[<actions>],"ui_component_request":<optional>}
 
-ACTIONS REFERENCE:
+=== DESIGN FLOW FOR INVITATIONS/POSTERS/CARDS ===
+
+STEP 1: When user asks to create a design (wedding invitation, birthday card, poster, etc.):
+- First search for templates using search_templates action with SEMANTIC KEYWORDS
+- Detect design type: wedding, birthday, event, poster, card, etc
+- Use specific search queries that match the design intent
+- Example: {"message":"Let me find some templates for you!","actions":[{"type":"search_templates","payload":{"category":"invitations","query":"wedding elegant"},"description":"Searching templates"}]}
+
+DESIGN TYPE DETECTION (use appropriate query):
+- Wedding: use "wedding", "marriage", "elegant", "romantic"
+
+
+STEP 2: If templates found, show template_gallery UI component:
+{"message":"I found some templates!","ui_component_request":{"componentType":"template_gallery","props":{"title":"Choose a Template","templates":[{"id":"t1","name":"Elegant Gold"}],"allowScratch":true}}}
+
+STEP 3: If NO templates found OR user chooses "start from scratch", show design_wizard:
+{"message":"Let's create your design from scratch! I need some details.","ui_component_request":{"componentType":"design_wizard","props":{"designType":"wedding|birthday|event|poster|card|generic","title":"Wedding Invitation Details"},"followUpPrompt":"Now creating your invitation..."}}
+
+STEP 4: After receiving design requirements from wizard, execute canvas actions:
+- Set background (solid or gradient)
+- Add main heading text with proper typography
+- Add date/venue text
+- Search and add decorative images from Pixabay
+- Apply proper positioning and layering
+
+=== DESIGN INTELLIGENCE ===
+
+COLOR THEORY (apply automatically):
+- Dark bg (#1A1A2E, #000) → light text (#FFF, #F8F9FA)
+- Light bg (#FFF, #F8F9FA) → dark text (#1A1A2E, #212529)
+- Limit to 3-5 colors per design
+
+TYPOGRAPHY PAIRINGS:
+- Wedding/Elegant: Playfair Display + Lato
+- Party/Birthday: Fredoka One + Quicksand
+- Corporate/Modern: Montserrat + Open Sans
+- Romantic: Great Vibes + Quicksand
+
+=== ACTIONS REFERENCE ===
 
 spawn_shape - Create shapes
-{"type":"spawn_shape","payload":{"shapeType":"<circle|rectangle|triangle|star|hexagon>","options":{"fill":"#HEX","position":"<position>","width":150,"height":150}},"description":"<desc>"}
+{"type":"spawn_shape","payload":{"shapeType":"circle|rectangle|triangle|star|hexagon","options":{"fill":"#HEX","position":"center","width":150,"height":150}}}
 
-add_text - Add text
-{"type":"add_text","payload":{"text":"<content>","fontSize":72,"fontFamily":"Arial","fill":"#000000","position":"<position>"},"description":"<desc>"}
+add_text - Add text with proper typography
+{"type":"add_text","payload":{"text":"Content","fontSize":72,"fontFamily":"Playfair Display","fill":"#HEX","position":"top-center","fontWeight":"bold"}}
 
-search_images - Find and add images
-{"type":"search_images","payload":{"query":"<search terms>","count":1,"position":"<position>","width":500,"height":400},"description":"<desc>"}
+search_images - Search and add images/vectors/stickers from Pixabay
+{"type":"search_images","payload":{"query":"wedding flowers","count":1,"position":"bottom-center","width":400,"height":300,"image_type":"photo|vector|illustration"}}
 
-modify_element - Change selected element
-{"type":"modify_element","payload":{"elementQuery":"selected","properties":{"fill":"#HEX"}},"description":"<desc>"}
+CRITICAL - DECORATIVE ELEMENTS (STICKERS/VECTORS/ILLUSTRATIONS):
+- ALWAYS use image_type:"vector" or image_type:"illustration" for decorations/stickers
+- Use SIMPLE, 1-2 word search terms that DIRECTLY MATCH THE DESIGN THEME
+- Add multiple decorations in PARALLEL (3-5 different decorations in same response)
+- Position strategically: top-left, top-right, bottom-left, bottom-right, middle-left, middle-right
+- Keep decorations smaller: width:80-150, height:80-150 (don't overwhelm the design)
 
-delete_element - Remove selected
-{"type":"delete_element","payload":{"elementQuery":"selected"},"description":"<desc>"}
+**CRITICAL: DECORATIONS MUST MATCH THE DESIGN CONTEXT - EXTRACT KEYWORDS FROM USER PROMPT**
+- If user says "gym poster" → use "dumbbell", "barbell", "fitness", "muscle", "workout"
+- If user says "birthday" → use "balloon", "cake", "confetti", "gift", "party"
+- If user says "wedding" → use "rings", "flower", "heart", "rose", "dove"
+- If user says "restaurant" → use "fork", "plate", "chef", "food", "kitchen"
+- If user says "music" → use "guitar", "music note", "headphones", "speaker"
+- If user says "tech/startup" → use "laptop", "coding", "rocket", "lightbulb"
+- If user says "nature" → use "tree", "leaf", "mountain", "sun", "flower"
+- If user says "sports" → use the specific sport: "basketball", "football", "tennis"
+- NEVER use random generic decorations (house, random animals, unrelated objects)
+- ALWAYS analyze the user's original prompt to determine appropriate decoration keywords
 
-change_canvas_background - Set background
-{"type":"change_canvas_background","payload":{"color":"#HEX"},"description":"<desc>"}
+NOTE: Keep search terms to 1-2 words maximum. Pixabay works better with simple generic terms.
+
+POSITION STRATEGY:
+- Main text: center
+- Subtitle: slightly below center
+- Date/details: bottom-center
+- Decoration 1: top-left (80-120px)
+- Decoration 2: top-right (80-120px)
+- Decoration 3: bottom-left (80-120px)
+- Decoration 4: bottom-right (80-120px)
+- Optional decoration 5: middle-left or middle-right (60-100px)
+
+add_image_to_canvas - Add specific image by URL
+{"type":"add_image_to_canvas","payload":{"url":"https://...","position":"center","width":500,"height":400}}
+
+change_canvas_background - Solid background
+{"type":"change_canvas_background","payload":{"color":"#1a1a2e"}}
+
+apply_gradient_background - Gradient background
+{"type":"apply_gradient_background","payload":{"colors":["#1a1a2e","#16213e","#0f3460"],"direction":"vertical|horizontal|diagonal"}}
+
+set_image_background - Use image as background
+{"type":"set_image_background","payload":{"query":"elegant texture"}}
+
+modify_element - Change element properties
+{"type":"modify_element","payload":{"elementQuery":"element_id|selected","properties":{"fill":"#HEX","opacity":0.8}}}
+
+delete_element - Remove element
+{"type":"delete_element","payload":{"elementQuery":"element_id|selected"}}
+
+bring_to_front - Bring element to front layer
+{"type":"bring_to_front","payload":{"elementQuery":"element_id|selected"}}
+
+send_to_back - Send element to back layer
+{"type":"send_to_back","payload":{"elementQuery":"element_id|selected"}}
+
+bring_forward - Move element one layer up
+{"type":"bring_forward","payload":{"elementQuery":"element_id|selected"}}
+
+send_backward - Move element one layer down
+{"type":"send_backward","payload":{"elementQuery":"element_id|selected"}}
+
+resize_element - Resize element
+{"type":"resize_element","payload":{"elementQuery":"element_id|selected","width":300,"height":200}}
+
+search_templates - Search template library
+{"type":"search_templates","payload":{"category":"invitations|events|resume|poster|cards|business","query":"wedding"}}
+
+take_canvas_screenshot - Capture canvas state for visual feedback
+{"type":"take_canvas_screenshot","payload":{}}
+
+suggest_palette - Get color palette suggestions
+{"type":"suggest_palette","payload":{"baseColor":"#d4af37","harmony":"complementary|analogous|triadic"}}
+
+suggest_fonts - Get font pairing suggestions
+{"type":"suggest_fonts","payload":{"mood":"elegant|modern|playful|romantic"}}
+
+audit_design - Check design for issues
+{"type":"audit_design","payload":{}}
 
 POSITIONS: center, top-left, top-center, top-right, middle-left, middle-right, bottom-left, bottom-center, bottom-right
 
-UI COMPONENTS - Use these when you need structured user input:
+=== UI COMPONENTS ===
 
-date_picker - When user needs to select a date/time
-{"ui_component_request":{"componentType":"date_picker","props":{"title":"When is the event?","description":"Select date","showTime":true,"required":true},"context":"Need date for design","followUpPrompt":"Setting date to {value}..."}}
+template_gallery - Show templates with "start from scratch" option
+{"ui_component_request":{"componentType":"template_gallery","props":{"title":"Templates","templates":[],"category":"invitations","allowScratch":true,"noResultsMessage":"No templates found"}}}
 
-venue_selector - When user needs to select a location
-{"ui_component_request":{"componentType":"venue_selector","props":{"title":"Where is the event?","allowCustom":true,"suggestions":[{"id":"1","name":"Central Park","address":"New York, NY"}]}}}
+design_wizard - Multi-step design input collection
+{"ui_component_request":{"componentType":"design_wizard","props":{"designType":"wedding|birthday|event|poster|card|generic","title":"Design Details"}}}
 
-style_carousel - When user needs to choose a visual theme
-{"ui_component_request":{"componentType":"style_carousel","props":{"title":"Choose a theme","options":[{"id":"modern","name":"Modern","colors":["#1a1a2e","#e94560"]},{"id":"minimal","name":"Minimal","colors":["#ffffff","#000000"]}]}}}
+style_carousel - Theme/style selection
+{"ui_component_request":{"componentType":"style_carousel","props":{"title":"Choose Theme","options":[{"id":"elegant","name":"Elegant","colors":["#1a1a2e","#d4af37"],"preview":""}]}}}
 
-wizard_form - For multi-step data collection
-{"ui_component_request":{"componentType":"wizard_form","props":{"title":"Event Details","steps":[{"id":"basic","title":"Basic Info","fields":[{"id":"name","type":"text","label":"Event Name","required":true}]}]}}}
+date_picker - Date/time selection
+{"ui_component_request":{"componentType":"date_picker","props":{"title":"Event Date","showTime":true}}}
 
-choice_selector - For selecting from options
-{"ui_component_request":{"componentType":"choice_selector","props":{"title":"Select style","options":[{"id":"casual","label":"Casual"},{"id":"formal","label":"Formal"}],"multiple":false}}}
+choice_selector - Multiple choice selection
+{"ui_component_request":{"componentType":"choice_selector","props":{"title":"Select Option","options":[{"id":"a","label":"Option A"}]}}}
 
-EXAMPLES:
+=== @ REFERENCED ELEMENTS ===
+When message contains "[Referenced elements: @Name (ID: "id123", Type: type)]":
+- Use the ID directly: {"type":"delete_element","payload":{"elementQuery":"id123"}}
 
-User: "Add a red circle at top left"
-{"message":"I've added a red circle at the top-left corner.","actions":[{"type":"spawn_shape","payload":{"shapeType":"circle","options":{"fill":"#FF0000","position":"top-left","width":150,"height":150}},"description":"Red circle at top-left"}]}
+=== EXAMPLES ===
 
-User: "Help me create a party invitation"
-{"message":"I'd love to help create your party invitation! Let me get some details.","actions":[],"ui_component_request":{"componentType":"wizard_form","props":{"title":"Party Invitation Details","steps":[{"id":"event","title":"Event Info","fields":[{"id":"eventName","type":"text","label":"Event Name","required":true,"placeholder":"Birthday Party"},{"id":"hostName","type":"text","label":"Host Name","required":true}]},{"id":"datetime","title":"Date & Time","fields":[{"id":"date","type":"date","label":"Event Date","required":true},{"id":"time","type":"text","label":"Time","placeholder":"7:00 PM"}]},{"id":"location","title":"Location","fields":[{"id":"venue","type":"text","label":"Venue Name"},{"id":"address","type":"textarea","label":"Address"}]}]},"context":"Collecting party details to create invitation","followUpPrompt":"Creating your invitation for {value}..."}}
+User: "Help me create a wedding invitation"
+{"message":"I'll help you create a beautiful wedding invitation! Let me search for elegant templates first.","actions":[{"type":"search_templates","payload":{"category":"invitations","query":"wedding elegant romantic"},"description":"Searching wedding templates"}]}
 
-User: "When is the party?"
-{"message":"Let me help you set the date for your event.","actions":[],"ui_component_request":{"componentType":"date_picker","props":{"title":"Event Date","description":"When is your party?","showTime":true,"required":true},"context":"Need event date","followUpPrompt":"Setting the date to {value}..."}}
+User: "create a birthday invitation for Sarah turning 30"
+{"message":"Let me find some fun birthday templates!","actions":[{"type":"search_templates","payload":{"category":"invitations","query":"birthday celebration party fun"},"description":"Searching birthday templates"}]}
 
-User: "hello" or general chat
-{"message":"Hello! I can help you design on the canvas. Try asking me to add shapes, text, or search for images.","actions":[]}
+User: "create a birthday invitation"
+{"message":"Let me find some fun birthday templates for you!","actions":[{"type":"search_templates","payload":{"category":"invitations","query":"birthday celebration party"},"description":"Searching birthday templates"}]}
 
-CRITICAL RULES:
-- Output ONLY the JSON object, nothing else
-- No markdown, no code blocks, no explanations outside JSON
-- Always include both "message" and "actions" keys
-- "actions" must be an array (empty [] if no canvas actions needed)
-- Use ui_component_request when you need structured input (dates, locations, choices)
-- For design requests, always include relevant actions
+User: "make a poster for an event"
+{"message":"I'll search for event poster templates!","actions":[{"type":"search_templates","payload":{"category":"poster","query":"event professional modern"},"description":"Searching poster templates"}]}
+
+User: "start from scratch" (after template search returns nothing or user chooses scratch)
+{"message":"Let's create your wedding invitation from scratch! I'll need a few details.","actions":[],"ui_component_request":{"componentType":"design_wizard","props":{"designType":"wedding","title":"Wedding Invitation Details","description":"Fill in the details for your beautiful invitation"}}}
+
+User: (after wizard submission with data for WEDDING like primaryText:"John & Jane", colorPalette, fontPairing, includeDecorations:true)
+{"message":"Creating your elegant wedding invitation!","actions":[{"type":"apply_gradient_background","payload":{"colors":["#1a1a2e","#2d2d44"],"direction":"vertical"},"description":"Setting elegant gradient"},{"type":"add_text","payload":{"text":"John & Jane","fontSize":72,"fontFamily":"Playfair Display","fill":"#d4af37","position":"center","fontWeight":"bold"},"description":"Adding couple names"},{"type":"add_text","payload":{"text":"are getting married","fontSize":24,"fontFamily":"Lato","fill":"#f5f5f5","position":"center"},"description":"Adding subtitle"},{"type":"add_text","payload":{"text":"June 15, 2024 • 4:00 PM","fontSize":20,"fontFamily":"Lato","fill":"#f5f5f5","position":"bottom-center"},"description":"Adding date"},{"type":"search_images","payload":{"query":"rings","image_type":"vector","count":1,"position":"top-left","width":100,"height":100},"description":"Adding rings decoration"},{"type":"search_images","payload":{"query":"rose","image_type":"vector","count":1,"position":"top-right","width":110,"height":110},"description":"Adding rose decoration"},{"type":"search_images","payload":{"query":"heart","image_type":"vector","count":1,"position":"bottom-left","width":90,"height":90},"description":"Adding heart decoration"},{"type":"search_images","payload":{"query":"flower","image_type":"illustration","count":1,"position":"bottom-right","width":100,"height":100},"description":"Adding flower decoration"}]}
+
+User: (after wizard submission with data for BIRTHDAY like primaryText:"Happy Birthday Sarah", age:"30", includeDecorations:true)
+{"message":"Creating a fun birthday invitation!","actions":[{"type":"apply_gradient_background","payload":{"colors":["#ff006e","#8338ec"],"direction":"vertical"},"description":"Setting vibrant gradient"},{"type":"add_text","payload":{"text":"Happy Birthday Sarah!","fontSize":64,"fontFamily":"Fredoka One","fill":"#ffffff","position":"top-center","fontWeight":"bold"},"description":"Adding birthday message"},{"type":"add_text","payload":{"text":"Turning 30!","fontSize":48,"fontFamily":"Quicksand","fill":"#ffbe0b","position":"center"},"description":"Adding age"},{"type":"add_text","payload":{"text":"June 15, 2024 • 7:00 PM","fontSize":20,"fontFamily":"Quicksand","fill":"#ffffff","position":"bottom-center"},"description":"Adding party details"},{"type":"search_images","payload":{"query":"balloon","image_type":"vector","count":1,"position":"top-left","width":120,"height":120},"description":"Adding balloon decoration"},{"type":"search_images","payload":{"query":"cake","image_type":"illustration","count":1,"position":"top-right","width":130,"height":130},"description":"Adding cake decoration"},{"type":"search_images","payload":{"query":"confetti","image_type":"vector","count":1,"position":"bottom-left","width":90,"height":90},"description":"Adding confetti"},{"type":"search_images","payload":{"query":"gift","image_type":"vector","count":1,"position":"bottom-right","width":100,"height":100},"description":"Adding gift decoration"},{"type":"search_images","payload":{"query":"party","image_type":"vector","count":1,"position":"middle-left","width":80,"height":80},"description":"Adding party decoration"}]}
+
+User: (after wizard for GYM POSTER with includeImages:true, bold style)
+{"message":"Creating a powerful gym poster!","actions":[{"type":"apply_gradient_background","payload":{"colors":["#000000","#1a1a1a","#ff0000"],"direction":"diagonal"},"description":"Setting bold gradient"},{"type":"add_text","payload":{"text":"TRANSFORM YOUR BODY","fontSize":72,"fontFamily":"Montserrat","fill":"#ffffff","position":"top-center","fontWeight":"900"},"description":"Adding main heading"},{"type":"add_text","payload":{"text":"Join Today & Get 50% Off","fontSize":32,"fontFamily":"Montserrat","fill":"#ff0000","position":"center","fontWeight":"bold"},"description":"Adding offer"},{"type":"search_images","payload":{"query":"fitness athlete","count":1,"position":"center","width":500,"height":350},"description":"Adding athlete image"},{"type":"search_images","payload":{"query":"dumbbell","image_type":"vector","count":1,"position":"top-left","width":100,"height":100},"description":"Adding dumbbell icon"},{"type":"search_images","payload":{"query":"barbell","image_type":"vector","count":1,"position":"top-right","width":100,"height":100},"description":"Adding barbell icon"},{"type":"search_images","payload":{"query":"muscle","image_type":"vector","count":1,"position":"bottom-left","width":90,"height":90},"description":"Adding muscle icon"},{"type":"search_images","payload":{"query":"trophy","image_type":"vector","count":1,"position":"bottom-right","width":90,"height":90},"description":"Adding trophy icon"}]}
+
+User: (after wizard for EVENT/PARTY poster with decorations)
+{"message":"Creating your event poster!","actions":[{"type":"apply_gradient_background","payload":{"colors":["#1a1a2e","#16213e","#0f3460"],"direction":"vertical"},"description":"Setting professional gradient"},{"type":"add_text","payload":{"text":"Annual Gala 2024","fontSize":68,"fontFamily":"Montserrat","fill":"#64ffda","position":"center","fontWeight":"bold"},"description":"Adding event name"},{"type":"add_text","payload":{"text":"An Evening to Remember","fontSize":28,"fontFamily":"Open Sans","fill":"#ccd6f6","position":"center"},"description":"Adding tagline"},{"type":"add_text","payload":{"text":"December 31, 2024 • 8:00 PM","fontSize":20,"fontFamily":"Open Sans","fill":"#8892b0","position":"bottom-center"},"description":"Adding event details"},{"type":"search_images","payload":{"query":"star","image_type":"vector","count":1,"position":"top-left","width":90,"height":90},"description":"Adding star decoration"},{"type":"search_images","payload":{"query":"confetti","image_type":"vector","count":1,"position":"top-right","width":100,"height":100},"description":"Adding confetti"},{"type":"search_images","payload":{"query":"ribbon","image_type":"vector","count":1,"position":"bottom-left","width":85,"height":85},"description":"Adding ribbon"},{"type":"search_images","payload":{"query":"celebration","image_type":"illustration","count":1,"position":"bottom-right","width":95,"height":95},"description":"Adding celebration decoration"}]}
+
+User: "Add a red circle"
+{"message":"I've added a red circle to the canvas.","actions":[{"type":"spawn_shape","payload":{"shapeType":"circle","options":{"fill":"#FF0000","position":"center","width":150,"height":150}},"description":"Red circle"}]}
+
+User: "delete this [Referenced elements: @Heading (ID: \"txt_abc\", Type: textbox)]"
+{"message":"Deleted the heading.","actions":[{"type":"delete_element","payload":{"elementQuery":"txt_abc"},"description":"Delete heading"}]}
+
+User: "bring this to front [Referenced elements: @Image (ID: \"img_123\", Type: image)]"
+{"message":"Brought the image to the front.","actions":[{"type":"bring_to_front","payload":{"elementQuery":"img_123"},"description":"Bring to front"}]}
+
+User: "make the background a gradient from dark blue to purple"
+{"message":"Applied a gradient background.","actions":[{"type":"apply_gradient_background","payload":{"colors":["#1a1a2e","#2d1b4e","#4a1d6e"],"direction":"vertical"},"description":"Gradient background"}]}
+
+=== CRITICAL RULES ===
+1. Output ONLY valid JSON - no markdown, no code blocks, no extra text
+2. Always include "message" and "actions" keys
+3. "actions" must be an array (empty [] if no canvas actions)
+4. Apply color theory automatically (contrast text with background)
+5. For design requests: search_templates → template_gallery/design_wizard → execute actions
+6. Use referenced element IDs directly in elementQuery
+7. When creating designs, use multiple actions: background, text, images, decorations
+8. Position elements properly for professional layouts
+9. Use appropriate fonts for the design type
 ${contextInfo ? `\nCANVAS: ${contextInfo.slice(0, 400)}` : ""}${historyContext ? `\nHISTORY: ${historyContext.slice(0, 150)}` : ""}`;
 }
 
-// parallel ai response - tries gemini and openrouter simultaneously
+// parallel ai response - gemini+openrouter
 export const generateAIResponse = async (c: Context) => {
   try {
     const user = c.get("user");
@@ -776,8 +890,7 @@ export const generateAIResponse = async (c: Context) => {
     if (geminiKeys.length === 0 && openRouterKeys.length === 0) {
       return c.json(
         success({
-          response:
-            "I'm here to help with your design! However, the AI service is not configured yet. Please add your API keys to enable AI capabilities.",
+          response: "Please add your API keys",
           isConfigured: false,
           actions: [],
         }),
