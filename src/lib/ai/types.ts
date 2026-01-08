@@ -298,3 +298,65 @@ export const DEFAULT_BUDGET_CONFIG: ContextBudgetConfig = {
   elementPriority: 0.35,
   summaryPriority: 0.25,
 };
+
+// ui component types for agent generative components
+export type UIComponentType =
+  | "date_picker"
+  | "venue_selector"
+  | "style_carousel"
+  | "wizard_form"
+  | "choice_selector"
+  | "color_picker"
+  | "time_picker"
+  | "number_input"
+  | "text_input"
+  | "image_selector";
+
+// ui component request from ai
+export interface UIComponentRequest {
+  id: string;
+  componentType: UIComponentType;
+  props: Record<string, unknown>;
+  context?: string;
+  followUpPrompt?: string;
+}
+
+// ui component response from user
+export interface UIComponentResponse {
+  requestId: string;
+  componentType: UIComponentType;
+  value: unknown;
+  timestamp: number;
+}
+
+// extended parsed ai response with ui component support
+export interface ParsedAIResponseWithUI extends ParsedAIResponse {
+  uiComponentRequest?: UIComponentRequest;
+}
+
+// streaming event for real-time updates
+export interface StreamingEvent {
+  id: string;
+  type: "chunk" | "action" | "message" | "complete" | "error" | "ui_component";
+  data: unknown;
+  timestamp: number;
+  sequence: number;
+}
+
+// streaming session state
+export type StreamingSessionState =
+  | "created"
+  | "connecting"
+  | "streaming"
+  | "completed"
+  | "error"
+  | "timeout";
+
+// streaming action with status tracking
+export type StreamingAction = AgentActionBase & {
+  type: string;
+  payload: Record<string, unknown>;
+  status: "pending" | "executing" | "complete" | "error";
+  result?: unknown;
+  error?: string;
+};

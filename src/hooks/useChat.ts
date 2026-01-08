@@ -201,6 +201,14 @@ interface AIResponseOutput {
     payload: Record<string, unknown>;
     description?: string;
   }>;
+  uiComponentRequest?: {
+    id?: string;
+    componentType: string;
+    props: Record<string, unknown>;
+    context?: string;
+    followUpPrompt?: string;
+  };
+  model?: string;
 }
 
 // generate ai response using gemini

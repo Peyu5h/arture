@@ -4,6 +4,7 @@ import { useEffect, useRef, memo, useState, useMemo } from "react";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { AgentMessage } from "./agent-message";
 import { AgentChatProps, AgentMessage as AgentMessageType } from "./types";
+import type { UIComponentResponse } from "~/lib/ai/types";
 import {
   Reasoning,
   ReasoningContent,
@@ -185,6 +186,8 @@ const ThinkingIndicator = memo(function ThinkingIndicator({
 interface ExtendedAgentChatProps extends AgentChatProps {
   onPositionSelect?: (position: string) => void;
   showStepViewer?: boolean;
+  onUIComponentSubmit?: (response: UIComponentResponse) => void;
+  onUIComponentCancel?: () => void;
 }
 
 export const AgentChat = memo(function AgentChat({
@@ -192,6 +195,8 @@ export const AgentChat = memo(function AgentChat({
   isLoading,
   onPositionSelect,
   showStepViewer = true,
+  onUIComponentSubmit,
+  onUIComponentCancel,
 }: ExtendedAgentChatProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -236,6 +241,11 @@ export const AgentChat = memo(function AgentChat({
             onPositionSelect={
               index === messages.length - 1 ? onPositionSelect : undefined
             }
+            uiComponentRequest={message.uiComponentRequest}
+            onUIComponentSubmit={onUIComponentSubmit}
+            onUIComponentCancel={onUIComponentCancel}
+            isUIComponentResolved={message.isUIComponentResolved}
+            uiComponentResolvedValue={message.uiComponentResponse?.value}
           />
         ))}
 

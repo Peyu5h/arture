@@ -46,6 +46,7 @@ import {
   AgentAction as LocalAgentAction,
 } from "./types";
 import { executeActions, AgentAction } from "~/lib/ai";
+import type { UIComponentRequest, UIComponentResponse } from "~/lib/ai/types";
 import { ImageAttachment } from "./agent-input";
 
 // constants
@@ -87,6 +88,11 @@ export const AgentPanel = ({
   const [showHistory, setShowHistory] = useState(false);
   const [isInspectMode, setIsInspectMode] = useState(false);
   const [contextStats, setContextStats] = useState<ContextStats | null>(null);
+
+  const [pendingUIComponent, setPendingUIComponent] = useState<{
+    messageId: string;
+    request: UIComponentRequest;
+  } | null>(null);
   const currentRequestIdRef = useRef<string | null>(null);
   const isSubmittingRef = useRef(false);
 
@@ -635,8 +641,34 @@ export const AgentPanel = ({
       setProgress(60, "Processing response");
 
       const aiActions = (response as { actions?: AgentAction[] }).actions || [];
+      const assistantMessageId = generateId();
 
-      // execute actions if any
+      // prepare actions with initial pending status for progressive display
+      const actionsWithIds = aiActions.map((action) => ({
+        ...action,
+        id: action.id || generateId(),
+        status: "pending" as "pending" | "running" | "complete" | "error",
+      }));
+
+      // create assistant message early with pending actions for progressive UI
+      const assistantMessage: AgentMessage = {
+        id: assistantMessageId,
+        role: "assistant",
+        content: response.response,
+        status: "complete",
+        timestamp: Date.now(),
+        actions:
+          actionsWithIds.length > 0
+            ? (actionsWithIds as unknown as LocalAgentAction[])
+            : undefined,
+        uiComponentRequest: undefined,
+      };
+
+      // show message immediately with pending actions
+      setPendingMessageIds((prev) => new Set(prev).add(assistantMessageId));
+      setMessages((prev) => [...prev, assistantMessage]);
+
+      // execute actions if any - with progressive status updates
       if (editor?.canvas && aiActions.length > 0) {
         setPhase("executing", "Executing actions");
         setProgress(70, `Executing ${aiActions.length} actions`);
@@ -646,9 +678,10 @@ export const AgentPanel = ({
         );
 
         if (executableActions.length > 0) {
-          // track each action
+          // progressively update action statuses
           for (let i = 0; i < executableActions.length; i++) {
             const action = executableActions[i];
+            const actionId = actionsWithIds[i]?.id;
             const actionDescription =
               (action as { description?: string }).description ||
               action.type.replace(/_/g, " ");
@@ -658,12 +691,40 @@ export const AgentPanel = ({
               action.payload as Record<string, unknown>,
             );
 
+            // update action to running status
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMessageId && msg.actions
+                  ? {
+                      ...msg,
+                      actions: msg.actions.map((a) =>
+                        a.id === actionId ? { ...a, status: "running" } : a,
+                      ),
+                    }
+                  : msg,
+              ),
+            );
+
             const progress =
               70 + Math.floor(((i + 1) / executableActions.length) * 20);
             setProgress(progress, actionDescription);
 
-            // small delay for visual feedback
-            await delay(100);
+            // delay for visual feedback between actions
+            await delay(300);
+
+            // update action to complete status
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMessageId && msg.actions
+                  ? {
+                      ...msg,
+                      actions: msg.actions.map((a) =>
+                        a.id === actionId ? { ...a, status: "complete" } : a,
+                      ),
+                    }
+                  : msg,
+              ),
+            );
 
             completeTool(toolId, { success: true });
           }
@@ -695,26 +756,43 @@ export const AgentPanel = ({
       setPhase("completed", "Done");
       setProgress(100, "Complete");
 
-      const assistantMessageId = generateId();
-      const actionsWithStatus = aiActions.map((action) => ({
-        ...action,
-        id: action.id || generateId(),
-        status: "complete" as const,
-      }));
-      const assistantMessage: AgentMessage = {
-        id: assistantMessageId,
-        role: "assistant",
-        content: response.response,
-        status: "complete",
-        timestamp: Date.now(),
-        actions:
-          actionsWithStatus.length > 0
-            ? (actionsWithStatus as unknown as LocalAgentAction[])
-            : undefined,
-      };
+      // check for ui component request and update message
+      const uiComponentRequest = (
+        response as { uiComponentRequest?: UIComponentRequest }
+      ).uiComponentRequest;
 
-      setPendingMessageIds((prev) => new Set(prev).add(assistantMessageId));
-      setMessages((prev) => [...prev, assistantMessage]);
+      if (uiComponentRequest) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMessageId
+              ? {
+                  ...msg,
+                  uiComponentRequest: {
+                    id: uiComponentRequest.id || generateId(),
+                    componentType:
+                      uiComponentRequest.componentType as UIComponentRequest["componentType"],
+                    props: uiComponentRequest.props || {},
+                    context: uiComponentRequest.context,
+                    followUpPrompt: uiComponentRequest.followUpPrompt,
+                  },
+                }
+              : msg,
+          ),
+        );
+
+        // set pending ui component
+        setPendingUIComponent({
+          messageId: assistantMessageId,
+          request: {
+            id: uiComponentRequest.id || generateId(),
+            componentType:
+              uiComponentRequest.componentType as UIComponentRequest["componentType"],
+            props: uiComponentRequest.props || {},
+            context: uiComponentRequest.context,
+            followUpPrompt: uiComponentRequest.followUpPrompt,
+          },
+        });
+      }
 
       endFlow(true);
 
@@ -833,6 +911,153 @@ export const AgentPanel = ({
     setActiveMentions([]);
   }, [resetFlow]);
 
+  // formats ui component response for display
+  const formatUIResponseForDisplay = useCallback(
+    (value: unknown, componentType: string): string => {
+      if (value === null || value === undefined) return "No selection";
+
+      if (typeof value === "string") return value;
+      if (typeof value === "number") return String(value);
+      if (typeof value === "boolean") return value ? "Yes" : "No";
+
+      if (typeof value === "object" && !Array.isArray(value)) {
+        const obj = value as Record<string, unknown>;
+        // extract meaningful display text based on component type
+        if (componentType === "wizard_form") {
+          // for wizard forms, show key details
+          const parts: string[] = [];
+          if (obj.title) parts.push(String(obj.title));
+          if (obj.name) parts.push(String(obj.name));
+          if (obj.date) parts.push(String(obj.date));
+          if (obj.venue) parts.push(`at ${obj.venue}`);
+          return parts.length > 0 ? parts.join(" - ") : "Form submitted";
+        }
+        if (obj.label) return String(obj.label);
+        if (obj.name) return String(obj.name);
+        if (obj.title) return String(obj.title);
+        if (obj.value) return String(obj.value);
+        // fallback: show first meaningful field
+        const keys = Object.keys(obj).filter((k) => obj[k] !== undefined);
+        if (keys.length > 0 && keys.length <= 3) {
+          return keys.map((k) => `${k}: ${obj[k]}`).join(", ");
+        }
+        return "Selection confirmed";
+      }
+
+      if (Array.isArray(value)) {
+        if (value.length === 0) return "None selected";
+        if (value.length === 1)
+          return formatUIResponseForDisplay(value[0], componentType);
+        return `${value.length} items selected`;
+      }
+
+      return "Selection confirmed";
+    },
+    [],
+  );
+
+  // replaces template placeholders with actual values
+  const replaceTemplatePlaceholders = useCallback(
+    (template: string, value: unknown): string => {
+      if (!template) return "";
+
+      let result = template;
+
+      // replace {value} with string representation
+      result = result.replace(
+        /\{value\}/g,
+        formatUIResponseForDisplay(value, ""),
+      );
+
+      // if value is object, replace field-specific placeholders
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        !Array.isArray(value)
+      ) {
+        const obj = value as Record<string, unknown>;
+        for (const [key, val] of Object.entries(obj)) {
+          const placeholder = new RegExp(`\\{${key}\\}`, "g");
+          result = result.replace(
+            placeholder,
+            val !== undefined ? String(val) : "",
+          );
+        }
+      }
+
+      // remove any remaining unresolved placeholders
+      result = result.replace(/\{[^}]+\}/g, "").trim();
+
+      return result;
+    },
+    [formatUIResponseForDisplay],
+  );
+
+  // handle ui component submission
+  const handleUIComponentSubmit = useCallback(
+    (response: UIComponentResponse) => {
+      if (!pendingUIComponent) return;
+
+      // update message with resolved state
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === pendingUIComponent.messageId
+            ? {
+                ...msg,
+                uiComponentResponse: response,
+                isUIComponentResolved: true,
+              }
+            : msg,
+        ),
+      );
+
+      // format user-friendly display text
+      const displayText = formatUIResponseForDisplay(
+        response.value,
+        response.componentType,
+      );
+
+      // clear pending state
+      setPendingUIComponent(null);
+
+      // build the follow-up prompt with proper substitution
+      const followUpPrompt = replaceTemplatePlaceholders(
+        pendingUIComponent.request.followUpPrompt || "",
+        response.value,
+      );
+
+      // auto-submit the follow-up if we have a prompt
+      if (followUpPrompt) {
+        setInputValue(followUpPrompt);
+        // trigger submit after short delay for UI feedback
+        setTimeout(() => {
+          const submitBtn = document.querySelector(
+            "[data-agent-submit]",
+          ) as HTMLButtonElement;
+          submitBtn?.click();
+        }, 100);
+      }
+    },
+    [
+      pendingUIComponent,
+      formatUIResponseForDisplay,
+      replaceTemplatePlaceholders,
+    ],
+  );
+
+  const handleUIComponentCancel = useCallback(() => {
+    if (!pendingUIComponent) return;
+
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === pendingUIComponent.messageId
+          ? { ...msg, isUIComponentResolved: true }
+          : msg,
+      ),
+    );
+    setPendingUIComponent(null);
+  }, [pendingUIComponent]);
+
   return (
     <>
       <AnimatePresence mode="wait">
@@ -915,6 +1140,8 @@ export const AgentPanel = ({
                   messages={messages}
                   isLoading={isLoading}
                   onPositionSelect={handlePositionSelect}
+                  onUIComponentSubmit={handleUIComponentSubmit}
+                  onUIComponentCancel={handleUIComponentCancel}
                 />
 
                 {showSuggestions && (

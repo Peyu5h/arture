@@ -1,3 +1,5 @@
+import type { UIComponentRequest, UIComponentResponse } from "~/lib/ai/types";
+
 export type MessageRole = "user" | "assistant" | "system";
 
 export type MessageStatus = "pending" | "streaming" | "complete" | "error";
@@ -87,6 +89,9 @@ export interface AgentMessage {
   mentions?: Mention[];
   context?: MessageContext;
   imageAttachments?: ImageAttachmentRef[];
+  uiComponentRequest?: UIComponentRequest;
+  uiComponentResponse?: UIComponentResponse;
+  isUIComponentResolved?: boolean;
 }
 
 export interface MessageContext {
@@ -182,6 +187,8 @@ export interface AgentSuggestionsProps {
 
 export interface AgentMessageProps {
   message: AgentMessage;
+  onUIComponentSubmit?: (response: UIComponentResponse) => void;
+  onUIComponentCancel?: () => void;
 }
 
 export interface AgentActionIndicatorProps {

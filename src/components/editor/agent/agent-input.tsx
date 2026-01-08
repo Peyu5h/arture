@@ -642,6 +642,7 @@ export const AgentInput = memo(function AgentInput({
                 >
                   <Button
                     size="icon"
+                    data-agent-submit
                     className={cn(
                       "h-8 w-8 rounded-full transition-all",
                       canSubmit

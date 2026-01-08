@@ -683,7 +683,7 @@ function buildActionSystemPrompt(
   return `You are Arture AI, a canvas design assistant. You MUST respond with ONLY valid JSON - no other text.
 
 OUTPUT FORMAT - respond with exactly this structure:
-{"message":"<your response>","actions":[<action objects>]}
+{"message":"<your response>","actions":[<action objects>],"ui_component_request":<optional component>}
 
 ACTIONS REFERENCE:
 
@@ -707,16 +707,33 @@ change_canvas_background - Set background
 
 POSITIONS: center, top-left, top-center, top-right, middle-left, middle-right, bottom-left, bottom-center, bottom-right
 
+UI COMPONENTS - Use these when you need structured user input:
+
+date_picker - When user needs to select a date/time
+{"ui_component_request":{"componentType":"date_picker","props":{"title":"When is the event?","description":"Select date","showTime":true,"required":true},"context":"Need date for design","followUpPrompt":"Setting date to {value}..."}}
+
+venue_selector - When user needs to select a location
+{"ui_component_request":{"componentType":"venue_selector","props":{"title":"Where is the event?","allowCustom":true,"suggestions":[{"id":"1","name":"Central Park","address":"New York, NY"}]}}}
+
+style_carousel - When user needs to choose a visual theme
+{"ui_component_request":{"componentType":"style_carousel","props":{"title":"Choose a theme","options":[{"id":"modern","name":"Modern","colors":["#1a1a2e","#e94560"]},{"id":"minimal","name":"Minimal","colors":["#ffffff","#000000"]}]}}}
+
+wizard_form - For multi-step data collection
+{"ui_component_request":{"componentType":"wizard_form","props":{"title":"Event Details","steps":[{"id":"basic","title":"Basic Info","fields":[{"id":"name","type":"text","label":"Event Name","required":true}]}]}}}
+
+choice_selector - For selecting from options
+{"ui_component_request":{"componentType":"choice_selector","props":{"title":"Select style","options":[{"id":"casual","label":"Casual"},{"id":"formal","label":"Formal"}],"multiple":false}}}
+
 EXAMPLES:
 
 User: "Add a red circle at top left"
 {"message":"I've added a red circle at the top-left corner.","actions":[{"type":"spawn_shape","payload":{"shapeType":"circle","options":{"fill":"#FF0000","position":"top-left","width":150,"height":150}},"description":"Red circle at top-left"}]}
 
-User: "Add blue rectangle bottom right and text HELLO at top center"
-{"message":"I've added a blue rectangle at the bottom-right and 'HELLO' text at the top-center.","actions":[{"type":"spawn_shape","payload":{"shapeType":"rectangle","options":{"fill":"#0000FF","position":"bottom-right","width":200,"height":150}},"description":"Blue rectangle"},{"type":"add_text","payload":{"text":"HELLO","fontSize":72,"fontFamily":"Arial","fill":"#000000","position":"top-center"},"description":"HELLO text"}]}
+User: "Help me create a party invitation"
+{"message":"I'd love to help create your party invitation! Let me get some details.","actions":[],"ui_component_request":{"componentType":"wizard_form","props":{"title":"Party Invitation Details","steps":[{"id":"event","title":"Event Info","fields":[{"id":"eventName","type":"text","label":"Event Name","required":true,"placeholder":"Birthday Party"},{"id":"hostName","type":"text","label":"Host Name","required":true}]},{"id":"datetime","title":"Date & Time","fields":[{"id":"date","type":"date","label":"Event Date","required":true},{"id":"time","type":"text","label":"Time","placeholder":"7:00 PM"}]},{"id":"location","title":"Location","fields":[{"id":"venue","type":"text","label":"Venue Name"},{"id":"address","type":"textarea","label":"Address"}]}]},"context":"Collecting party details to create invitation","followUpPrompt":"Creating your invitation for {value}..."}}
 
-User: "Search for mountain image and add to center"
-{"message":"I'm searching for a mountain image and adding it to the center.","actions":[{"type":"search_images","payload":{"query":"mountain landscape nature","count":1,"position":"center","width":500,"height":400},"description":"Mountain image search"}]}
+User: "When is the party?"
+{"message":"Let me help you set the date for your event.","actions":[],"ui_component_request":{"componentType":"date_picker","props":{"title":"Event Date","description":"When is your party?","showTime":true,"required":true},"context":"Need event date","followUpPrompt":"Setting the date to {value}..."}}
 
 User: "hello" or general chat
 {"message":"Hello! I can help you design on the canvas. Try asking me to add shapes, text, or search for images.","actions":[]}
@@ -726,6 +743,7 @@ CRITICAL RULES:
 - No markdown, no code blocks, no explanations outside JSON
 - Always include both "message" and "actions" keys
 - "actions" must be an array (empty [] if no canvas actions needed)
+- Use ui_component_request when you need structured input (dates, locations, choices)
 - For design requests, always include relevant actions
 ${contextInfo ? `\nCANVAS: ${contextInfo.slice(0, 400)}` : ""}${historyContext ? `\nHISTORY: ${historyContext.slice(0, 150)}` : ""}`;
 }
@@ -870,7 +888,11 @@ export const generateAIResponse = async (c: Context) => {
 
     const tryParseJson = (
       jsonStr: string,
-    ): { message?: string; actions?: unknown[] } | null => {
+    ): {
+      message?: string;
+      actions?: unknown[];
+      ui_component_request?: unknown;
+    } | null => {
       try {
         const result = JSON.parse(jsonStr);
         return result;
@@ -911,7 +933,11 @@ export const generateAIResponse = async (c: Context) => {
 
     const parseResponse = (
       text: string,
-    ): { message: string; actions: unknown[] } => {
+    ): {
+      message: string;
+      actions: unknown[];
+      uiComponentRequest?: unknown;
+    } => {
       console.log("[PARSE_RESPONSE_INPUT]", {
         textLength: text.length,
         textPreview: text.slice(0, 500),
@@ -920,6 +946,7 @@ export const generateAIResponse = async (c: Context) => {
 
       let parsedMessage = text;
       let actions: unknown[] = [];
+      let uiComponentRequest: unknown = undefined;
 
       // clean text - remove markdown artifacts
       let cleanText = text.trim();
@@ -941,13 +968,17 @@ export const generateAIResponse = async (c: Context) => {
           console.log("[PARSE_RESPONSE_SUCCESS] Direct JSON parse", {
             hasMessage: !!parsed.message,
             actionsCount: parsed.actions?.length || 0,
+            hasUIComponent: !!parsed.ui_component_request,
             actions: JSON.stringify(parsed.actions || []).slice(0, 500),
           });
           if (parsed.message) parsedMessage = parsed.message;
           if (parsed.actions && Array.isArray(parsed.actions)) {
             actions = parsed.actions.map(normalizeAction);
           }
-          return { message: parsedMessage, actions };
+          if (parsed.ui_component_request) {
+            uiComponentRequest = parsed.ui_component_request;
+          }
+          return { message: parsedMessage, actions, uiComponentRequest };
         }
       }
 
@@ -965,12 +996,16 @@ export const generateAIResponse = async (c: Context) => {
           console.log("[PARSE_RESPONSE_SUCCESS] Actions pattern matched", {
             hasMessage: !!parsed.message,
             actionsCount: parsed.actions?.length || 0,
+            hasUIComponent: !!parsed.ui_component_request,
           });
           if (parsed.message) parsedMessage = parsed.message;
           if (parsed.actions && Array.isArray(parsed.actions)) {
             actions = parsed.actions.map(normalizeAction);
           }
-          return { message: parsedMessage, actions };
+          if (parsed.ui_component_request) {
+            uiComponentRequest = parsed.ui_component_request;
+          }
+          return { message: parsedMessage, actions, uiComponentRequest };
         }
       }
 
@@ -988,7 +1023,10 @@ export const generateAIResponse = async (c: Context) => {
           if (parsed.actions && Array.isArray(parsed.actions)) {
             actions = parsed.actions.map(normalizeAction);
           }
-          return { message: parsedMessage, actions };
+          if (parsed.ui_component_request) {
+            uiComponentRequest = parsed.ui_component_request;
+          }
+          return { message: parsedMessage, actions, uiComponentRequest };
         }
       }
 
@@ -1008,7 +1046,10 @@ export const generateAIResponse = async (c: Context) => {
           if (parsed.actions && Array.isArray(parsed.actions)) {
             actions = parsed.actions.map(normalizeAction);
           }
-          return { message: parsedMessage, actions };
+          if (parsed.ui_component_request) {
+            uiComponentRequest = parsed.ui_component_request;
+          }
+          return { message: parsedMessage, actions, uiComponentRequest };
         }
       }
 
@@ -1027,7 +1068,7 @@ export const generateAIResponse = async (c: Context) => {
           "I received your request but couldn't generate a proper response. Please try again with a clearer instruction like 'Add a red circle at the center'.";
       }
 
-      return { message: parsedMessage, actions };
+      return { message: parsedMessage, actions, uiComponentRequest };
     };
 
     // try gemini with first available key (fast)
@@ -1036,7 +1077,7 @@ export const generateAIResponse = async (c: Context) => {
         ? userContent
         : JSON.stringify(userContent);
 
-    console.log("[AI_REQUEST]", {
+    console.log("[REST_MODE] AI request via REST endpoint (non-streaming)", {
       message: message.slice(0, 100),
       contextInfo: contextInfo.slice(0, 200),
       historyLength: conversationHistory?.length || 0,
@@ -1058,13 +1099,15 @@ export const generateAIResponse = async (c: Context) => {
           GEMINI_TIMEOUT_MS,
         );
         console.log(`✓ Gemini ${modelName} success`);
-        const { message, actions } = parseResponse(responseText);
+        const { message, actions, uiComponentRequest } =
+          parseResponse(responseText);
 
-        console.log("[AI_RESPONSE_FINAL]", {
+        console.log("[REST_MODE_COMPLETE]", {
           model: `gemini:${modelName}`,
           messagePreview: message.slice(0, 100),
-          actionsCount: actions.length,
-          actions: JSON.stringify(actions).slice(0, 500),
+          actionsCount: actions?.length || 0,
+          hasUIComponent: !!uiComponentRequest,
+          note: "Response delivered as single payload (not streamed)",
         });
 
         return c.json(
@@ -1072,6 +1115,7 @@ export const generateAIResponse = async (c: Context) => {
             response: message,
             isConfigured: true,
             actions,
+            uiComponentRequest,
             model: `gemini:${modelName}`,
           }),
         );
@@ -1103,12 +1147,14 @@ export const generateAIResponse = async (c: Context) => {
             OPENROUTER_TIMEOUT_MS,
           );
           console.log(`✓ OpenRouter ${modelName} success`);
-          const { message, actions } = parseResponse(responseText);
+          const { message, actions, uiComponentRequest } =
+            parseResponse(responseText);
 
           console.log("[AI_RESPONSE_FINAL]", {
             model: `openrouter:${modelName}`,
             messagePreview: message.slice(0, 100),
             actionsCount: actions.length,
+            hasUIComponent: !!uiComponentRequest,
             actions: JSON.stringify(actions).slice(0, 500),
           });
 
@@ -1117,6 +1163,7 @@ export const generateAIResponse = async (c: Context) => {
               response: message,
               isConfigured: true,
               actions,
+              uiComponentRequest,
               model: `openrouter:${modelName}`,
             }),
           );

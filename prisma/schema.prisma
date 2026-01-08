@@ -268,3 +268,103 @@ enum MessageRole {
   ASSISTANT
   SYSTEM
 }
+
+// streaming session for real-time ai responses
+model StreamingSession {
+  id             String           @id @default(cuid()) @map("_id")
+  userId         String
+  conversationId String?
+  projectId      String?
+  state          SessionState     @default(CREATED)
+  model          String?
+  currentMessage String           @default("")
+  error          String?
+  startedAt      DateTime         @default(now())
+  completedAt    DateTime?
+  lastActivityAt DateTime         @default(now())
+  events         StreamingEvent[]
+  actions        SessionAction[]
+
+  @@index([userId])
+  @@index([conversationId])
+  @@index([state])
+  @@map("streamingSession")
+}
+
+enum SessionState {
+  CREATED
+  CONNECTING
+  STREAMING
+  COMPLETED
+  ERROR
+  TIMEOUT
+}
+
+// individual streaming events
+model StreamingEvent {
+  id        String          @id @default(cuid()) @map("_id")
+  sessionId String
+  session   StreamingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  type      StreamEventType
+  sequence  Int
+  data      Json
+  timestamp DateTime        @default(now())
+
+  @@index([sessionId])
+  @@index([sequence])
+  @@map("streamingEvent")
+}
+
+enum StreamEventType {
+  SESSION_START
+  CHUNK
+  ACTION
+  TOOL_CALL
+  TOOL_RESULT
+  MESSAGE
+  ERROR
+  COMPLETE
+  HEARTBEAT
+  UI_COMPONENT
+}
+
+// session actions with full tracking
+model SessionAction {
+  id          String           @id @default(cuid()) @map("_id")
+  sessionId   String
+  session     StreamingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  type        String
+  payload     Json
+  description String?
+  status      ActionStatus     @default(PENDING)
+  result      Json?
+  error       String?
+  startedAt   DateTime         @default(now())
+  completedAt DateTime?
+
+  @@index([sessionId])
+  @@map("sessionAction")
+}
+
+enum ActionStatus {
+  PENDING
+  EXECUTING
+  COMPLETE
+  ERROR
+}
+
+// ui component requests from ai
+model UIComponentRequest {
+  id             String   @id @default(cuid()) @map("_id")
+  conversationId String
+  messageId      String?
+  componentType  String
+  props          Json
+  userResponse   Json?
+  isResolved     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  resolvedAt     DateTime?
+
+  @@index([conversationId])
+  @@map("uiComponentRequest")
+}

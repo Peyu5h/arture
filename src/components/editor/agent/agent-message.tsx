@@ -36,6 +36,8 @@ import {
 } from "~/components/ui/tooltip";
 import { AgentMessageProps } from "./types";
 import { InlinePositionSelector } from "./position-selector";
+import { AgentUIComponent } from "./agent-ui-component";
+import type { UIComponentRequest, UIComponentResponse } from "~/lib/ai/types";
 
 type FeedbackType = "like" | "dislike" | null;
 
@@ -228,12 +230,22 @@ interface ToolStep {
 interface ExtendedAgentMessageProps extends AgentMessageProps {
   onPositionSelect?: (position: string) => void;
   toolSteps?: ToolStep[];
+  uiComponentRequest?: UIComponentRequest;
+  onUIComponentSubmit?: (response: UIComponentResponse) => void;
+  onUIComponentCancel?: () => void;
+  isUIComponentResolved?: boolean;
+  uiComponentResolvedValue?: unknown;
 }
 
 export const AgentMessage = memo(function AgentMessage({
   message,
   onPositionSelect,
   toolSteps,
+  uiComponentRequest,
+  onUIComponentSubmit,
+  onUIComponentCancel,
+  isUIComponentResolved,
+  uiComponentResolvedValue,
 }: ExtendedAgentMessageProps) {
   const isUser = message.role === "user";
   const isError = message.status === "error";
@@ -246,13 +258,29 @@ export const AgentMessage = memo(function AgentMessage({
     return isAskingForPositionClarification(message.content);
   }, [isUser, message.content, onPositionSelect]);
 
+  // maps action status to chain-of-thought step status
+  const mapActionStatus = (status: string | undefined): StepStatus => {
+    switch (status) {
+      case "pending":
+        return "pending";
+      case "running":
+        return "active";
+      case "complete":
+        return "complete";
+      case "error":
+        return "error";
+      default:
+        return "complete";
+    }
+  };
+
   // convert message actions to chain-of-thought steps
   const chainOfThoughtSteps = useMemo(() => {
     if (toolSteps && toolSteps.length > 0) {
       return toolSteps.map((step, idx) => ({
         id: step.id || `step-${idx}`,
         label: step.description || step.name.replace(/_/g, " "),
-        status: (step.status || "complete") as StepStatus,
+        status: mapActionStatus(step.status),
         icon: getToolIcon(step.name),
       }));
     }
@@ -260,7 +288,7 @@ export const AgentMessage = memo(function AgentMessage({
       return message.actions.map((action, idx) => ({
         id: action.id || `action-${idx}`,
         label: action.description || action.type.replace(/_/g, " "),
-        status: (action.status || "complete") as StepStatus,
+        status: mapActionStatus(action.status),
         icon: getToolIcon(action.type),
       }));
     }
@@ -380,6 +408,19 @@ export const AgentMessage = memo(function AgentMessage({
             <InlinePositionSelector
               onSelect={(pos) => onPositionSelect!(pos)}
             />
+          )}
+
+          {/* render ui component if present */}
+          {!isUser && uiComponentRequest && onUIComponentSubmit && (
+            <div className="mt-3">
+              <AgentUIComponent
+                request={uiComponentRequest}
+                onSubmit={onUIComponentSubmit}
+                onCancel={onUIComponentCancel}
+                isResolved={isUIComponentResolved}
+                resolvedValue={uiComponentResolvedValue}
+              />
+            </div>
           )}
         </div>
 
