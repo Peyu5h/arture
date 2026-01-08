@@ -151,24 +151,33 @@ async function tryGeminiDirect(
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    const requestBody = {
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: `${systemPrompt}\n\nUSER REQUEST: ${userContent}` }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 4096,
+        topP: 0.8,
+        responseMimeType: "application/json",
+      },
+    };
+
+    console.log("[GEMINI_REQUEST]", {
+      model: modelName,
+      userContent: userContent.slice(0, 200),
+      systemPromptLength: systemPrompt.length,
+    });
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: `${systemPrompt}\n\n${userContent}` }],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: 512,
-            topP: 0.8,
-          },
-        }),
+        body: JSON.stringify(requestBody),
         signal: controller.signal,
       },
     );
@@ -181,6 +190,13 @@ async function tryGeminiDirect(
 
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    console.log("[GEMINI_RAW_RESPONSE]", {
+      model: modelName,
+      rawText: text?.slice(0, 500),
+      finishReason: data.candidates?.[0]?.finishReason,
+    });
+
     if (!text) throw new Error("No response from Gemini");
     return text.trim();
   } catch (e) {
@@ -199,6 +215,15 @@ async function callOpenRouter(
     | Array<{ type: string; text?: string; image_url?: string }>,
   timeoutMs: number = 15000,
 ): Promise<string> {
+  const userContentStr =
+    typeof userContent === "string" ? userContent : JSON.stringify(userContent);
+
+  console.log("[OPENROUTER_REQUEST]", {
+    model,
+    userContent: userContentStr.slice(0, 200),
+    systemPromptLength: systemPrompt.length,
+  });
+
   const messages = [
     { role: "system", content: systemPrompt },
     {
@@ -239,8 +264,8 @@ async function callOpenRouter(
         body: JSON.stringify({
           model,
           messages,
-          max_tokens: 2048,
-          temperature: 0.7,
+          max_tokens: 4096,
+          temperature: 0.2,
         }),
         signal: controller.signal,
       },
@@ -254,7 +279,15 @@ async function callOpenRouter(
     }
 
     const data = await response.json();
-    return data.choices?.[0]?.message?.content || "";
+    const text = data.choices?.[0]?.message?.content || "";
+
+    console.log("[OPENROUTER_RAW_RESPONSE]", {
+      model,
+      rawText: text.slice(0, 500),
+      finishReason: data.choices?.[0]?.finish_reason,
+    });
+
+    return text;
   } catch (error: any) {
     clearTimeout(timeoutId);
     if (error.name === "AbortError") {
@@ -647,23 +680,54 @@ function buildActionSystemPrompt(
   historyContext: string,
   imageContext: string,
 ): string {
-  return `You are Arture AI. Return ONLY JSON.
+  return `You are Arture AI, a canvas design assistant. You MUST respond with ONLY valid JSON - no other text.
 
-FORMAT: \`\`\`json
-{"message":"Done","actions":[{"type":"...","payload":{...}}]}
-\`\`\`
+OUTPUT FORMAT - respond with exactly this structure:
+{"message":"<your response>","actions":[<action objects>]}
 
-ACTIONS:
-spawn_shape: {"type":"spawn_shape","payload":{"shapeType":"circle|rectangle|triangle","options":{"fill":"#hex","position":"center|top-left|top-right|bottom-left|bottom-right","width":100,"height":100}}}
-add_text: {"type":"add_text","payload":{"text":"Hi","position":"center"}}
-delete_element: {"type":"delete_element","payload":{"elementQuery":"selected"}}
-move_element: {"type":"move_element","payload":{"elementQuery":"selected","position":"top-left"}}
-modify_element: {"type":"modify_element","payload":{"elementQuery":"selected","properties":{"fill":"#hex"}}}
-search_images: {"type":"search_images","payload":{"query":"cat","count":1}}
-change_canvas_background: {"type":"change_canvas_background","payload":{"color":"#fff"}}
+ACTIONS REFERENCE:
 
-RULES: JSON only, no text outside. Use "selected" for current element.
-${contextInfo ? `\nCONTEXT: ${contextInfo.slice(0, 500)}` : ""}${historyContext ? `\nHISTORY: ${historyContext.slice(0, 200)}` : ""}`;
+spawn_shape - Create shapes
+{"type":"spawn_shape","payload":{"shapeType":"<circle|rectangle|triangle|star|hexagon>","options":{"fill":"#HEX","position":"<position>","width":150,"height":150}},"description":"<desc>"}
+
+add_text - Add text
+{"type":"add_text","payload":{"text":"<content>","fontSize":72,"fontFamily":"Arial","fill":"#000000","position":"<position>"},"description":"<desc>"}
+
+search_images - Find and add images
+{"type":"search_images","payload":{"query":"<search terms>","count":1,"position":"<position>","width":500,"height":400},"description":"<desc>"}
+
+modify_element - Change selected element
+{"type":"modify_element","payload":{"elementQuery":"selected","properties":{"fill":"#HEX"}},"description":"<desc>"}
+
+delete_element - Remove selected
+{"type":"delete_element","payload":{"elementQuery":"selected"},"description":"<desc>"}
+
+change_canvas_background - Set background
+{"type":"change_canvas_background","payload":{"color":"#HEX"},"description":"<desc>"}
+
+POSITIONS: center, top-left, top-center, top-right, middle-left, middle-right, bottom-left, bottom-center, bottom-right
+
+EXAMPLES:
+
+User: "Add a red circle at top left"
+{"message":"I've added a red circle at the top-left corner.","actions":[{"type":"spawn_shape","payload":{"shapeType":"circle","options":{"fill":"#FF0000","position":"top-left","width":150,"height":150}},"description":"Red circle at top-left"}]}
+
+User: "Add blue rectangle bottom right and text HELLO at top center"
+{"message":"I've added a blue rectangle at the bottom-right and 'HELLO' text at the top-center.","actions":[{"type":"spawn_shape","payload":{"shapeType":"rectangle","options":{"fill":"#0000FF","position":"bottom-right","width":200,"height":150}},"description":"Blue rectangle"},{"type":"add_text","payload":{"text":"HELLO","fontSize":72,"fontFamily":"Arial","fill":"#000000","position":"top-center"},"description":"HELLO text"}]}
+
+User: "Search for mountain image and add to center"
+{"message":"I'm searching for a mountain image and adding it to the center.","actions":[{"type":"search_images","payload":{"query":"mountain landscape nature","count":1,"position":"center","width":500,"height":400},"description":"Mountain image search"}]}
+
+User: "hello" or general chat
+{"message":"Hello! I can help you design on the canvas. Try asking me to add shapes, text, or search for images.","actions":[]}
+
+CRITICAL RULES:
+- Output ONLY the JSON object, nothing else
+- No markdown, no code blocks, no explanations outside JSON
+- Always include both "message" and "actions" keys
+- "actions" must be an array (empty [] if no canvas actions needed)
+- For design requests, always include relevant actions
+${contextInfo ? `\nCANVAS: ${contextInfo.slice(0, 400)}` : ""}${historyContext ? `\nHISTORY: ${historyContext.slice(0, 150)}` : ""}`;
 }
 
 // parallel ai response - tries gemini and openrouter simultaneously
@@ -808,26 +872,38 @@ export const generateAIResponse = async (c: Context) => {
       jsonStr: string,
     ): { message?: string; actions?: unknown[] } | null => {
       try {
-        return JSON.parse(jsonStr);
-      } catch {
-        // try to fix incomplete json
+        const result = JSON.parse(jsonStr);
+        return result;
+      } catch (e1) {
+        // try to fix common issues
         let fixed = jsonStr.trim();
-        if (!fixed.endsWith("}")) {
-          const lastBrace = fixed.lastIndexOf("}");
-          if (lastBrace > 0) {
-            fixed = fixed.slice(0, lastBrace + 1);
-            // ensure array is closed
-            const openBrackets = (fixed.match(/\[/g) || []).length;
-            const closeBrackets = (fixed.match(/\]/g) || []).length;
-            if (openBrackets > closeBrackets) {
-              fixed += "]".repeat(openBrackets - closeBrackets);
-            }
-            fixed += "}";
-          }
+
+        // remove trailing commas before ] or }
+        fixed = fixed.replace(/,\s*([}\]])/g, "$1");
+
+        // ensure proper closing
+        const openBraces = (fixed.match(/\{/g) || []).length;
+        const closeBraces = (fixed.match(/\}/g) || []).length;
+        const openBrackets = (fixed.match(/\[/g) || []).length;
+        const closeBrackets = (fixed.match(/\]/g) || []).length;
+
+        if (openBrackets > closeBrackets) {
+          fixed += "]".repeat(openBrackets - closeBrackets);
         }
+        if (openBraces > closeBraces) {
+          fixed += "}".repeat(openBraces - closeBraces);
+        }
+
         try {
-          return JSON.parse(fixed);
-        } catch {
+          const result = JSON.parse(fixed);
+          console.log("[PARSE_JSON] Fixed JSON successfully");
+          return result;
+        } catch (e2) {
+          console.log("[PARSE_JSON_FAILED]", {
+            originalError: e1 instanceof Error ? e1.message : String(e1),
+            fixedError: e2 instanceof Error ? e2.message : String(e2),
+            jsonPreview: jsonStr.slice(0, 200),
+          });
           return null;
         }
       }
@@ -836,28 +912,60 @@ export const generateAIResponse = async (c: Context) => {
     const parseResponse = (
       text: string,
     ): { message: string; actions: unknown[] } => {
+      console.log("[PARSE_RESPONSE_INPUT]", {
+        textLength: text.length,
+        textPreview: text.slice(0, 500),
+        fullText: text,
+      });
+
       let parsedMessage = text;
       let actions: unknown[] = [];
 
-      // try code block json first
-      const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (jsonMatch) {
-        const parsed = tryParseJson(jsonMatch[1].trim());
+      // clean text - remove markdown artifacts
+      let cleanText = text.trim();
+
+      // remove markdown code blocks if present
+      const codeBlockMatch = cleanText.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (codeBlockMatch) {
+        cleanText = codeBlockMatch[1].trim();
+        console.log(
+          "[PARSE_RESPONSE] Extracted from code block:",
+          cleanText.slice(0, 200),
+        );
+      }
+
+      // try direct JSON parse first (most common case)
+      if (cleanText.startsWith("{")) {
+        const parsed = tryParseJson(cleanText);
         if (parsed) {
+          console.log("[PARSE_RESPONSE_SUCCESS] Direct JSON parse", {
+            hasMessage: !!parsed.message,
+            actionsCount: parsed.actions?.length || 0,
+            actions: JSON.stringify(parsed.actions || []).slice(0, 500),
+          });
           if (parsed.message) parsedMessage = parsed.message;
           if (parsed.actions && Array.isArray(parsed.actions)) {
             actions = parsed.actions.map(normalizeAction);
           }
           return { message: parsedMessage, actions };
         }
-        parsedMessage = text.replace(/```(?:json)?\s*[\s\S]*?```/g, "").trim();
       }
 
-      // try raw json
-      const rawJsonMatch = text.match(/\{[\s\S]*"message"[\s\S]*\}/);
-      if (rawJsonMatch) {
-        const parsed = tryParseJson(rawJsonMatch[0]);
+      // try to find JSON object with actions array
+      const actionsMatch = cleanText.match(
+        /\{[^{}]*"actions"\s*:\s*\[[\s\S]*?\][^{}]*\}/,
+      );
+      if (actionsMatch) {
+        console.log(
+          "[PARSE_RESPONSE] Found actions pattern:",
+          actionsMatch[0].slice(0, 200),
+        );
+        const parsed = tryParseJson(actionsMatch[0]);
         if (parsed) {
+          console.log("[PARSE_RESPONSE_SUCCESS] Actions pattern matched", {
+            hasMessage: !!parsed.message,
+            actionsCount: parsed.actions?.length || 0,
+          });
           if (parsed.message) parsedMessage = parsed.message;
           if (parsed.actions && Array.isArray(parsed.actions)) {
             actions = parsed.actions.map(normalizeAction);
@@ -866,14 +974,57 @@ export const generateAIResponse = async (c: Context) => {
         }
       }
 
-      // fallback: clean up any json artifacts
-      parsedMessage = text
+      // try to find any JSON object with message field
+      const messageMatch = cleanText.match(/\{[^{}]*"message"\s*:[^{}]*\}/);
+      if (messageMatch) {
+        console.log(
+          "[PARSE_RESPONSE] Found message pattern:",
+          messageMatch[0].slice(0, 200),
+        );
+        const parsed = tryParseJson(messageMatch[0]);
+        if (parsed) {
+          console.log("[PARSE_RESPONSE_SUCCESS] Message pattern matched");
+          if (parsed.message) parsedMessage = parsed.message;
+          if (parsed.actions && Array.isArray(parsed.actions)) {
+            actions = parsed.actions.map(normalizeAction);
+          }
+          return { message: parsedMessage, actions };
+        }
+      }
+
+      // last resort: try to extract any valid JSON from the text
+      const jsonStart = cleanText.indexOf("{");
+      const jsonEnd = cleanText.lastIndexOf("}");
+      if (jsonStart !== -1 && jsonEnd > jsonStart) {
+        const potentialJson = cleanText.slice(jsonStart, jsonEnd + 1);
+        console.log(
+          "[PARSE_RESPONSE] Trying substring extraction:",
+          potentialJson.slice(0, 200),
+        );
+        const parsed = tryParseJson(potentialJson);
+        if (parsed) {
+          console.log("[PARSE_RESPONSE_SUCCESS] Substring extraction worked");
+          if (parsed.message) parsedMessage = parsed.message;
+          if (parsed.actions && Array.isArray(parsed.actions)) {
+            actions = parsed.actions.map(normalizeAction);
+          }
+          return { message: parsedMessage, actions };
+        }
+      }
+
+      // complete fallback - no valid JSON found
+      console.log(
+        "[PARSE_RESPONSE_FALLBACK] No valid JSON found, raw text:",
+        cleanText,
+      );
+      parsedMessage = cleanText
         .replace(/```(?:json)?[\s\S]*$/g, "")
         .replace(/\{[\s\S]*$/g, "")
         .trim();
 
-      if (!parsedMessage) {
-        parsedMessage = "Action completed.";
+      if (!parsedMessage || parsedMessage.length < 5) {
+        parsedMessage =
+          "I received your request but couldn't generate a proper response. Please try again with a clearer instruction like 'Add a red circle at the center'.";
       }
 
       return { message: parsedMessage, actions };
@@ -884,6 +1035,13 @@ export const generateAIResponse = async (c: Context) => {
       typeof userContent === "string"
         ? userContent
         : JSON.stringify(userContent);
+
+    console.log("[AI_REQUEST]", {
+      message: message.slice(0, 100),
+      contextInfo: contextInfo.slice(0, 200),
+      historyLength: conversationHistory?.length || 0,
+      imageCount: imageAttachments?.length || 0,
+    });
 
     for (const geminiKey of geminiKeys) {
       const expiry = rateLimitedKeys.get(geminiKey);
@@ -901,6 +1059,14 @@ export const generateAIResponse = async (c: Context) => {
         );
         console.log(`✓ Gemini ${modelName} success`);
         const { message, actions } = parseResponse(responseText);
+
+        console.log("[AI_RESPONSE_FINAL]", {
+          model: `gemini:${modelName}`,
+          messagePreview: message.slice(0, 100),
+          actionsCount: actions.length,
+          actions: JSON.stringify(actions).slice(0, 500),
+        });
+
         return c.json(
           success({
             response: message,
@@ -938,6 +1104,14 @@ export const generateAIResponse = async (c: Context) => {
           );
           console.log(`✓ OpenRouter ${modelName} success`);
           const { message, actions } = parseResponse(responseText);
+
+          console.log("[AI_RESPONSE_FINAL]", {
+            model: `openrouter:${modelName}`,
+            messagePreview: message.slice(0, 100),
+            actionsCount: actions.length,
+            actions: JSON.stringify(actions).slice(0, 500),
+          });
+
           return c.json(
             success({
               response: message,

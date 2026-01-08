@@ -123,8 +123,6 @@ export const DragProvider = ({
   );
 
   const setWorkspaceBounds = useCallback((bounds: WorkspaceBounds | null) => {
-    // only update ref to avoid render loops
-    // state will be updated during drag operations
     workspaceBoundsRef.current = bounds;
   }, []);
 

@@ -24,11 +24,12 @@ function loadImageFromUrl(url: string): Promise<fabric.Image> {
 }
 
 interface AddTextPayload {
-  text: string;
+  text?: string;
   fontSize?: number;
   fontFamily?: string;
   fill?: string;
   position?: PositionPreset;
+  fontWeight?: string;
 }
 
 interface ChangeBackgroundPayload {
@@ -91,7 +92,7 @@ function resolvePosition(
   return positions[position as PositionPreset] || positions.center;
 }
 
-// gets workspace bounds
+// gets workspace bounds in canvas coordinates (not screen coordinates)
 function getWorkspaceBounds(canvas: fabric.Canvas): {
   width: number;
   height: number;
@@ -105,19 +106,12 @@ function getWorkspaceBounds(canvas: fabric.Canvas): {
     | undefined;
 
   if (workspace) {
-    const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
-    const zoom = canvas.getZoom();
-
-    const wsLeft = (workspace.left || 0) * zoom + vpt[4];
-    const wsTop = (workspace.top || 0) * zoom + vpt[5];
-    const wsWidth = (workspace.width || 800) * zoom;
-    const wsHeight = (workspace.height || 600) * zoom;
-
+    // use raw workspace coordinates for object placement
     return {
-      width: wsWidth,
-      height: wsHeight,
-      left: wsLeft,
-      top: wsTop,
+      width: workspace.width || 800,
+      height: workspace.height || 600,
+      left: workspace.left || 0,
+      top: workspace.top || 0,
     };
   }
 
@@ -775,20 +769,27 @@ export async function executeAction(
       case "add_text": {
         const payload = action.payload as AddTextPayload;
         const text = payload.text || "Text";
-        const fontSize = payload.fontSize || 32;
+        const bounds = getWorkspaceBounds(canvas);
+
+        // smart font size: use provided or calculate based on canvas size
+        // minimum 48px, default 72px for headlines, scale with canvas
+        const defaultFontSize = Math.max(72, Math.floor(bounds.width / 15));
+        const fontSize = payload.fontSize || defaultFontSize;
         const fontFamily = payload.fontFamily || "Arial";
         const fill = payload.fill || "#000000";
         const position = payload.position || "center";
+        const fontWeight = payload.fontWeight || "bold";
 
-        const bounds = getWorkspaceBounds(canvas);
+        // calculate width based on text length and font size
         const estimatedWidth = Math.min(
-          text.length * fontSize * 0.6,
-          bounds.width * 0.8,
+          Math.max(text.length * fontSize * 0.6, fontSize * 3),
+          bounds.width * 0.9,
         );
         const textObj = new fabric.Textbox(text, {
           fontSize,
           fontFamily,
           fill,
+          fontWeight,
           width: estimatedWidth,
           textAlign: "center",
         });
@@ -828,6 +829,12 @@ export async function executeAction(
 
       case "search_images": {
         const payload = action.payload as {
+          query?: string;
+          count?: number;
+          position?: PositionPreset;
+          width?: number;
+          height?: number;
+        } & {
           query: string;
           count?: number;
           position?: PositionPreset;
@@ -873,10 +880,16 @@ export async function executeAction(
           const bounds = getWorkspaceBounds(canvas);
           const imgWidth = fabricImg.width || 200;
           const imgHeight = fabricImg.height || 200;
+
+          // use payload width/height if provided, otherwise scale to 60-70% of canvas
+          const targetWidth = payload.width || bounds.width * 0.65;
+          const targetHeight = payload.height || bounds.height * 0.65;
+
+          // calculate scale to fit target size while maintaining aspect ratio
           const scale = Math.min(
-            (bounds.width * 0.5) / imgWidth,
-            (bounds.height * 0.5) / imgHeight,
-            1,
+            targetWidth / imgWidth,
+            targetHeight / imgHeight,
+            2, // allow upscaling up to 2x for small images
           );
 
           const position = payload.position || "center";
@@ -916,25 +929,28 @@ export async function executeAction(
         if (!url) return { success: false, message: "No image URL" };
 
         const position = payload.position || "center";
-        const targetWidth = payload.width;
-        const targetHeight = payload.height;
+        const bounds = getWorkspaceBounds(canvas);
+
+        // default to 60% of canvas if no size specified
+        const targetWidth = payload.width || bounds.width * 0.6;
+        const targetHeight = payload.height || bounds.height * 0.6;
 
         try {
           const fabricImg = await loadImageFromUrl(url);
-          const bounds = getWorkspaceBounds(canvas);
           const imgWidth = fabricImg.width || 200;
           const imgHeight = fabricImg.height || 200;
 
+          // scale to fit target dimensions while maintaining aspect ratio
           let scale = Math.min(
-            (bounds.width * 0.5) / imgWidth,
-            (bounds.height * 0.5) / imgHeight,
-            1,
+            targetWidth / imgWidth,
+            targetHeight / imgHeight,
+            2, // allow upscaling for small images
           );
 
-          if (targetWidth) {
-            scale = targetWidth / imgWidth;
-          } else if (targetHeight) {
-            scale = targetHeight / imgHeight;
+          // ensure minimum visible size
+          const minSize = Math.min(bounds.width, bounds.height) * 0.2;
+          if (imgWidth * scale < minSize && imgHeight * scale < minSize) {
+            scale = minSize / Math.min(imgWidth, imgHeight);
           }
 
           const scaledWidth = imgWidth * scale;

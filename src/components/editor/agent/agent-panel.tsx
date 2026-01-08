@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "~/lib/utils";
 import { Sparkles } from "lucide-react";
@@ -19,6 +19,7 @@ import { AgentHistoryPanel } from "./agent-history-panel";
 import { AgentInspectTool } from "./agent-inspect-tool";
 import { useAgentContext } from "~/hooks/useAgentContext";
 import { useImageAttachments } from "~/hooks/useImageAttachments";
+import { useAgentFlow } from "~/hooks/useAgentFlow";
 import {
   useConversations,
   useConversation,
@@ -35,19 +36,22 @@ import {
 } from "~/lib/context-calculator";
 import {
   AgentMessage,
-  Suggestion,
   AgentPanelProps,
   Conversation,
   Mention,
   MentionSuggestion,
   ContextStats,
   ElementReference,
+  Suggestion,
   AgentAction as LocalAgentAction,
 } from "./types";
-import { executeActions, parseUserMessage, AgentAction } from "~/lib/ai";
+import { executeActions, AgentAction } from "~/lib/ai";
 import { ImageAttachment } from "./agent-input";
 
+// constants
+const PANEL_WIDTH = 380;
 const generateId = () => Math.random().toString(36).substring(2, 9);
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const createWelcomeMessage = (): AgentMessage => ({
   id: "welcome",
@@ -57,8 +61,6 @@ const createWelcomeMessage = (): AgentMessage => ({
   status: "complete",
   timestamp: Date.now(),
 });
-
-const PANEL_WIDTH = 380;
 
 export const AgentPanel = ({
   editor,
@@ -85,6 +87,8 @@ export const AgentPanel = ({
   const [showHistory, setShowHistory] = useState(false);
   const [isInspectMode, setIsInspectMode] = useState(false);
   const [contextStats, setContextStats] = useState<ContextStats | null>(null);
+  const currentRequestIdRef = useRef<string | null>(null);
+  const isSubmittingRef = useRef(false);
 
   // image attachments with cloudinary upload
   const {
@@ -98,6 +102,20 @@ export const AgentPanel = ({
   } = useImageAttachments();
 
   const { context, isAnalyzing, canvasIndex } = useAgentContext(editor);
+
+  // agent flow state management
+  const {
+    startFlow,
+    endFlow,
+    resetFlow,
+    setPhase,
+    startTool,
+    completeTool,
+    setCanvasTarget,
+    clearCanvasTargets,
+    log,
+    setProgress,
+  } = useAgentFlow();
 
   const { data: conversations = [], refetch: refetchConversations } =
     useConversations(projectId);
@@ -204,6 +222,9 @@ export const AgentPanel = ({
   }, [onToggle, isOpen]);
 
   const handleNewChat = useCallback(async () => {
+    // reset agent flow state
+    resetFlow();
+
     try {
       const result = await createConversation.mutateAsync({
         projectId,
@@ -225,7 +246,7 @@ export const AgentPanel = ({
       setIsActiveSession(false);
       setPendingMessageIds(new Set());
     }
-  }, [projectId, createConversation, refetchConversations]);
+  }, [projectId, createConversation, refetchConversations, resetFlow]);
 
   const handleSelectConversation = useCallback((id: string) => {
     setActiveConversationId(id);
@@ -443,19 +464,58 @@ export const AgentPanel = ({
   );
 
   const handleSubmit = useCallback(async () => {
-    if (!inputValue.trim() || isLoading || isUploadingImages) return;
+    if (
+      !inputValue.trim() ||
+      isLoading ||
+      isUploadingImages ||
+      isSubmittingRef.current
+    ) {
+      return;
+    }
 
-    // upload any pending images to cloudinary first
+    isSubmittingRef.current = true;
+    const messageContent = inputValue.trim();
+
+    // immediately add user message to chat
+    const userMessageId = generateId();
+    const userMessage: AgentMessage = {
+      id: userMessageId,
+      role: "user",
+      content: messageContent,
+      status: "complete",
+      timestamp: Date.now(),
+      mentions: activeMentions.length > 0 ? [...activeMentions] : undefined,
+    };
+
+    // update UI immediately
+    setMessages((prev) => [...prev, userMessage]);
+    setInputValue("");
+    setIsLoading(true);
+    setIsActiveSession(true);
+    setPendingMessageIds((prev) => new Set(prev).add(userMessageId));
+
+    // start flow for visual feedback
+    const flowId = `req_${Date.now()}`;
+    currentRequestIdRef.current = flowId;
+    resetFlow();
+    startFlow(flowId);
+    setPhase("analyzing", "Analyzing request");
+    setProgress(10, "Preparing");
+
+    // upload images if any
     let uploadedImages: typeof attachedImages = [];
     if (attachedImages.length > 0) {
       try {
+        setProgress(20, "Uploading images");
         uploadedImages = await uploadAllImages();
       } catch (error) {
         console.error("Failed to upload images:", error);
       }
     }
+    clearAllImages();
+    setActiveMentions([]);
 
-    // generate context summary if no specific mentions
+    // generate context
     let contextSummary: string | undefined;
     if (activeMentions.length === 0 && editor?.canvas && context) {
       const elements = editor.canvas
@@ -470,75 +530,16 @@ export const AgentPanel = ({
       );
     }
 
-    // build image attachment refs for display in message
-    const messageImageAttachments = uploadedImages
-      .filter((img) => img.cloudinaryUrl || img.dataUrl)
-      .map((img) => ({
-        id: img.id,
-        name: img.name,
-        url: img.cloudinaryUrl,
-        thumbnail: img.thumbnail,
-        dataUrl: img.dataUrl,
-      }));
+    setProgress(30, "Context ready");
 
-    const userMessageId = generateId();
-    const userMessage: AgentMessage = {
-      id: userMessageId,
-      role: "user",
-      content: inputValue.trim(),
-      status: "complete",
-      timestamp: Date.now(),
-      mentions: activeMentions.length > 0 ? [...activeMentions] : undefined,
-      imageAttachments:
-        messageImageAttachments.length > 0
-          ? messageImageAttachments
-          : undefined,
-      context:
-        activeMentions.length > 0
-          ? {
-              elements: activeMentions
-                .filter((m) => m.elementRef)
-                .map((m) => ({
-                  id: m.id,
-                  type: m.type,
-                  name: m.label,
-                  text: m.elementRef?.text,
-                  imageSrc: m.elementRef?.imageSrc,
-                })),
-              imageAttachments:
-                messageImageAttachments.length > 0
-                  ? messageImageAttachments
-                  : undefined,
-            }
-          : contextSummary
-            ? {
-                summary: contextSummary,
-                imageAttachments:
-                  messageImageAttachments.length > 0
-                    ? messageImageAttachments
-                    : undefined,
-              }
-            : messageImageAttachments.length > 0
-              ? { imageAttachments: messageImageAttachments }
-              : undefined,
-    };
-
-    // mark session as active to prevent DB reload overwriting
-    setIsActiveSession(true);
-    setPendingMessageIds((prev) => new Set(prev).add(userMessageId));
-    setMessages((prev) => [...prev, userMessage]);
-    setInputValue("");
-    setActiveMentions([]);
-    clearAllImages();
-    setIsLoading(true);
-
-    // ensure we have an active conversation
+    // ensure conversation exists
     let convId = activeConversationId;
     if (!convId) {
       try {
         const result = await createConversation.mutateAsync({
           title:
-            inputValue.slice(0, 50) + (inputValue.length > 50 ? "..." : ""),
+            messageContent.slice(0, 50) +
+            (messageContent.length > 50 ? "..." : ""),
           projectId,
         });
         convId = result.id;
@@ -549,31 +550,22 @@ export const AgentPanel = ({
       }
     }
 
-    // save user message to db with image attachments in context
+    // save user message to db
     if (convId) {
-      try {
-        // ensure imageAttachments are included in context for persistence
-        const messageContext = {
-          ...userMessage.context,
-          imageAttachments:
-            messageImageAttachments.length > 0
-              ? messageImageAttachments
-              : undefined,
-        };
-
-        await createMessage.mutateAsync({
+      createMessage
+        .mutateAsync({
           conversationId: convId,
           role: "USER",
-          content: userMessage.content,
-          context: messageContext,
-        });
-      } catch (error) {
-        console.error("Failed to save message:", error);
-      }
+          content: messageContent,
+          context: contextSummary ? { summary: contextSummary } : undefined,
+        })
+        .catch(console.error);
     }
 
-    // get ai response from gemini
     try {
+      // phase 2: get AI response
+      setPhase("planning", "AI is thinking...");
+      setProgress(40, "Waiting for AI");
       // build context for AI
       const aiContext: {
         elements?: Array<Record<string, unknown>>;
@@ -603,7 +595,6 @@ export const AgentPanel = ({
           );
         aiContext.elements = canvasElements;
 
-        // capture selected element IDs for context
         const activeObjects = editor.canvas.getActiveObjects();
         if (activeObjects && activeObjects.length > 0) {
           aiContext.selectedElementIds = activeObjects
@@ -621,13 +612,7 @@ export const AgentPanel = ({
           content: m.content,
         }));
 
-      // parse user message for direct actions (but don't execute clarification requests)
-      const userActions = parseUserMessage(userMessage.content);
-      const hasAskClarification = userActions.some(
-        (a) => a.type === "ask_clarification",
-      );
-
-      // prepare image attachments for AI
+      // prepare image attachments
       const imageAttachments = uploadedImages
         .filter((img) => img.cloudinaryUrl || img.dataUrl)
         .map((img) => ({
@@ -638,45 +623,84 @@ export const AgentPanel = ({
           dataUrl: img.dataUrl,
         }));
 
-      // get AI response first (it provides feedback)
+      // get AI response
       const response = await aiResponse.mutateAsync({
-        message: userMessage.content,
+        message: messageContent,
         context: aiContext,
         conversationHistory,
         canvasIndex: canvasIndex as unknown as Record<string, unknown>,
         imageAttachments,
       });
 
+      setProgress(60, "Processing response");
+
       const aiActions = (response as { actions?: AgentAction[] }).actions || [];
 
-      if (editor?.canvas && !hasAskClarification && aiActions.length > 0) {
+      // execute actions if any
+      if (editor?.canvas && aiActions.length > 0) {
+        setPhase("executing", "Executing actions");
+        setProgress(70, `Executing ${aiActions.length} actions`);
+
         const executableActions = aiActions.filter(
           (a) => a.type !== "ask_clarification",
         );
+
         if (executableActions.length > 0) {
+          // track each action
+          for (let i = 0; i < executableActions.length; i++) {
+            const action = executableActions[i];
+            const actionDescription =
+              (action as { description?: string }).description ||
+              action.type.replace(/_/g, " ");
+
+            const toolId = startTool(
+              action.type,
+              action.payload as Record<string, unknown>,
+            );
+
+            const progress =
+              70 + Math.floor(((i + 1) / executableActions.length) * 20);
+            setProgress(progress, actionDescription);
+
+            // small delay for visual feedback
+            await delay(100);
+
+            completeTool(toolId, { success: true });
+          }
+
+          // execute all actions on canvas
           try {
             await executeActions(editor.canvas, executableActions);
           } catch (actionError) {
             console.error("Action execution failed:", actionError);
-          } finally {
-            // ensure canvas remains interactive after action execution
-            if (editor.canvas) {
-              editor.canvas.selection = true;
-              editor.canvas.interactive = true;
-              editor.canvas.getObjects().forEach((obj: fabric.Object) => {
-                const objWithName = obj as fabric.Object & { name?: string };
-                if (objWithName.name !== "clip") {
-                  obj.selectable = true;
-                  obj.evented = true;
-                }
-              });
-              editor.canvas.requestRenderAll();
-            }
+          }
+
+          // ensure canvas remains interactive
+          if (editor.canvas) {
+            editor.canvas.selection = true;
+            editor.canvas.interactive = true;
+            editor.canvas.getObjects().forEach((obj: fabric.Object) => {
+              const objWithName = obj as fabric.Object & { name?: string };
+              if (objWithName.name !== "clip") {
+                obj.selectable = true;
+                obj.evented = true;
+              }
+            });
+            editor.canvas.requestRenderAll();
           }
         }
       }
 
+      // complete flow
+      setPhase("completed", "Done");
+      setProgress(100, "Complete");
+
       const assistantMessageId = generateId();
+      const actionsWithStatus = aiActions.map((action) => ({
+        ...action,
+        id: action.id || generateId(),
+        status: "complete" as const,
+      }));
       const assistantMessage: AgentMessage = {
         id: assistantMessageId,
         role: "assistant",
@@ -684,18 +708,17 @@ export const AgentPanel = ({
         status: "complete",
         timestamp: Date.now(),
         actions:
-          aiActions.length > 0
-            ? (aiActions as unknown as LocalAgentAction[])
+          actionsWithStatus.length > 0
+            ? (actionsWithStatus as unknown as LocalAgentAction[])
             : undefined,
       };
 
       setPendingMessageIds((prev) => new Set(prev).add(assistantMessageId));
       setMessages((prev) => [...prev, assistantMessage]);
 
-      // stop loading immediately after message is displayed
-      setIsLoading(false);
+      endFlow(true);
 
-      // save assistant message to db (non-blocking)
+      // save assistant message to db
       if (convId) {
         createMessage
           .mutateAsync({
@@ -703,12 +726,12 @@ export const AgentPanel = ({
             role: "ASSISTANT",
             content: assistantMessage.content,
           })
-          .catch((error) => {
-            console.error("Failed to save assistant message:", error);
-          });
+          .catch(console.error);
       }
     } catch (error) {
       console.error("AI response error:", error);
+      endFlow(false, String(error));
+
       const errorMessage: AgentMessage = {
         id: generateId(),
         role: "assistant",
@@ -720,6 +743,8 @@ export const AgentPanel = ({
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      clearCanvasTargets();
+      isSubmittingRef.current = false;
     }
   }, [
     inputValue,
@@ -739,6 +764,16 @@ export const AgentPanel = ({
     attachedImages,
     uploadAllImages,
     clearAllImages,
+    startFlow,
+    endFlow,
+    resetFlow,
+    setPhase,
+    startTool,
+    completeTool,
+    setCanvasTarget,
+    clearCanvasTargets,
+    log,
+    setProgress,
   ]);
 
   const handleRemoveMention = useCallback((id: string) => {
@@ -748,14 +783,25 @@ export const AgentPanel = ({
   // handle image attachment from agent input
   const handleImagesChange = useCallback(
     (images: ImageAttachment[]) => {
-      // convert old format to new format via add
+      // check if an image was removed
+      const currentIds = new Set(images.map((img) => img.id));
+      const attachedIds = attachedImages.map((a) => a.id);
+
+      // remove images that are no longer in the list
+      attachedIds.forEach((id) => {
+        if (!currentIds.has(id)) {
+          removeImageAttachment(id);
+        }
+      });
+
+      // add new images
       images.forEach((img) => {
         if (img.dataUrl && !attachedImages.find((a) => a.id === img.id)) {
           addImageFromDataUrl(img.dataUrl, img.name);
         }
       });
     },
-    [attachedImages, addImageFromDataUrl],
+    [attachedImages, addImageFromDataUrl, removeImageAttachment],
   );
 
   // handles position selection from inline position selector
@@ -782,9 +828,10 @@ export const AgentPanel = ({
   );
 
   const handleClearHistory = useCallback(() => {
+    resetFlow();
     setMessages([createWelcomeMessage()]);
     setActiveMentions([]);
-  }, []);
+  }, [resetFlow]);
 
   return (
     <>

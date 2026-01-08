@@ -51,7 +51,7 @@ import {
   CanvasSkeleton,
   EditorSkeleton,
 } from "~/components/editor/canvas-skeleton";
-import { AgentPanel } from "~/components/editor/agent";
+import { AgentPanel, CanvasGhostOverlay } from "~/components/editor/agent";
 import {
   DragProvider,
   useDragContext,
@@ -734,6 +734,10 @@ function EditorContent() {
             >
               {!editor && <CanvasSkeleton />}
               <canvas ref={canvasRef} className="absolute inset-0" />
+              <CanvasGhostOverlay
+                canvas={editor?.canvas || null}
+                containerRef={containerRef}
+              />
               <div className="pointer-events-auto absolute right-4 bottom-4 z-10">
                 <ZoomControls editor={editor} />
               </div>
