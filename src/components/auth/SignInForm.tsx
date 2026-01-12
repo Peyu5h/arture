@@ -12,6 +12,11 @@ import { toast } from "sonner";
 import { SocialSignIn } from "./SocialSignIn";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 
+const GUEST_CREDENTIALS = {
+  email: "123@gmail.com",
+  password: "12345678",
+};
+
 export function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -20,6 +25,7 @@ export function SignInForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isGuestLoading, setIsGuestLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
@@ -48,22 +54,62 @@ export function SignInForm() {
           onError: (ctx) => {
             setError(ctx.error.message || "Failed to sign in");
             setIsLoading(false);
-            setPassword(""); // Clear password on error
+            setPassword("");
           },
         },
       );
 
       if (result && result.error) {
         setError(result.error.message || "Failed to sign in");
-        setPassword(""); // Clear password on error
+        setPassword("");
         return;
       }
     } catch (err) {
       console.error("Sign-in error:", err);
       setError(err instanceof Error ? err.message : "Failed to sign in");
-      setPassword(""); // Clear password on error
+      setPassword("");
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function handleGuestSignIn() {
+    setIsGuestLoading(true);
+    setError("");
+
+    try {
+      const result = await authClient.signIn.email(
+        {
+          email: GUEST_CREDENTIALS.email,
+          password: GUEST_CREDENTIALS.password,
+        },
+        {
+          onRequest: () => {
+            setIsGuestLoading(true);
+          },
+          onSuccess: () => {
+            toast.success("Welcome!", {
+              description: "Signed in as guest.",
+            });
+            router.push(callbackUrl);
+            router.refresh();
+          },
+          onError: (ctx) => {
+            setError(ctx.error.message || "Failed to sign in as guest");
+            setIsGuestLoading(false);
+          },
+        },
+      );
+
+      if (result && result.error) {
+        setError(result.error.message || "Failed to sign in as guest");
+        return;
+      }
+    } catch (err) {
+      console.error("Guest sign-in error:", err);
+      setError(err instanceof Error ? err.message : "Failed to sign in as guest");
+    } finally {
+      setIsGuestLoading(false);
     }
   }
 
@@ -83,6 +129,7 @@ export function SignInForm() {
         </Alert>
       )}
 
+      {/* email/password form */}
       <form onSubmit={handleSignIn} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
@@ -132,7 +179,7 @@ export function SignInForm() {
         <Button
           type="submit"
           className="w-full"
-          disabled={isLoading || !email || !password}
+          disabled={isLoading || isGuestLoading || !email || !password}
         >
           {isLoading ? (
             <>
@@ -146,6 +193,36 @@ export function SignInForm() {
       </form>
 
       <SocialSignIn />
+
+      {/* guest signin section */}
+      <div className="space-y-4">
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-card text-muted-foreground px-2">
+              Or continue as
+            </span>
+          </div>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleGuestSignIn}
+          disabled={isGuestLoading || isLoading}
+          className="w-full"
+        >
+          {isGuestLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Signing in...
+            </>
+          ) : (
+            "Continue with Guest Account"
+          )}
+        </Button>
+      </div>
 
       <div className="text-center text-sm">
         <p className="text-muted-foreground">

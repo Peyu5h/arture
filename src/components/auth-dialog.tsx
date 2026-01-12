@@ -19,6 +19,11 @@ import { toast } from "sonner";
 import { fetchCallback } from "~/lib/utils";
 import { useRouter } from "next/navigation";
 
+const GUEST_CREDENTIALS = {
+  email: "123@gmail.com",
+  password: "12345678",
+};
+
 interface AuthDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -37,6 +42,7 @@ export function AuthDialog({
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isGuestLoading, setIsGuestLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
@@ -121,15 +127,45 @@ export function AuthDialog({
       },
       fetchCallback({
         setIsPending: setIsGoogleLoading,
-        // onSuccess: () => {
-        //   onClose();
-        //   router.refresh();
-        // },
-        // onError: (ctx) => {
-        //   toast.error(ctx.error.message || "Google sign-in failed");
-        // },
       }),
     );
+  }
+
+  async function handleGuestSignIn() {
+    setIsGuestLoading(true);
+    setError("");
+
+    try {
+      const result = await authClient.signIn.email(
+        {
+          email: GUEST_CREDENTIALS.email,
+          password: GUEST_CREDENTIALS.password,
+        },
+        {
+          onRequest: () => setIsGuestLoading(true),
+          onSuccess: () => {
+            toast.success("Welcome!", {
+              description: "Signed in as guest.",
+            });
+            onClose();
+            router.refresh();
+          },
+          onError: (ctx) => {
+            setError(ctx.error.message || "Failed to sign in as guest");
+            setIsGuestLoading(false);
+          },
+          onSettled: () => setIsGuestLoading(false),
+        },
+      );
+
+      if (result?.error) {
+        setError(result.error.message || "Failed to sign in as guest");
+      }
+    } catch (err) {
+      console.error("Guest sign-in error:", err);
+      setError(err instanceof Error ? err.message : "Failed to sign in as guest");
+      setIsGuestLoading(false);
+    }
   }
 
   const handleViewChange = (newView: "signin" | "signup") => {
@@ -141,6 +177,7 @@ export function AuthDialog({
     setShowPassword(false);
     setIsLoading(false);
     setIsGoogleLoading(false);
+    setIsGuestLoading(false);
   };
 
   return (
@@ -237,7 +274,7 @@ export function AuthDialog({
               type="submit"
               className="w-full"
               disabled={
-                isLoading || !email || !password || (view === "signup" && !name)
+                isLoading || isGuestLoading || !email || !password || (view === "signup" && !name)
               }
             >
               {isLoading ? (
@@ -260,14 +297,14 @@ export function AuthDialog({
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-background text-muted-foreground px-2">
-                  Or continue with
+                  OR
                 </span>
               </div>
             </div>
             <Button
               variant="outline"
               onClick={handleGoogleSignIn}
-              disabled={isGoogleLoading}
+              disabled={isGoogleLoading || isGuestLoading}
               className="h-10 w-full"
             >
               {isGoogleLoading ? (
@@ -285,6 +322,36 @@ export function AuthDialog({
                 </svg>
               )}
               Continue with Google
+            </Button>
+          </div>
+
+          {/* guest signin section */}
+          <div className="space-y-4">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background text-muted-foreground px-2">
+                  Or continue as
+                </span>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleGuestSignIn}
+              disabled={isGuestLoading || isLoading || isGoogleLoading}
+              className="w-full border-primary border-dashed border-2"
+            >
+              {isGuestLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Continue with Guest Account"
+              )}
             </Button>
           </div>
 
