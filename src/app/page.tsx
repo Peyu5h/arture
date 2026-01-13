@@ -25,12 +25,11 @@ export default function Home() {
     return <LoggedInHome />;
   }
 
-  // guest: show landing page
   return (
     <div className="bg-background text-foreground min-h-screen antialiased">
       <Hero />
       <FeaturesSection />
-      <PricingSection />
+      {/*<PricingSection />*/}
       <CTASection />
       <Footer />
     </div>

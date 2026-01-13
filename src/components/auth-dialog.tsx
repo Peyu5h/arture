@@ -163,7 +163,9 @@ export function AuthDialog({
       }
     } catch (err) {
       console.error("Guest sign-in error:", err);
-      setError(err instanceof Error ? err.message : "Failed to sign in as guest");
+      setError(
+        err instanceof Error ? err.message : "Failed to sign in as guest",
+      );
       setIsGuestLoading(false);
     }
   }
@@ -274,7 +276,11 @@ export function AuthDialog({
               type="submit"
               className="w-full"
               disabled={
-                isLoading || isGuestLoading || !email || !password || (view === "signup" && !name)
+                isLoading ||
+                isGuestLoading ||
+                !email ||
+                !password ||
+                (view === "signup" && !name)
               }
             >
               {isLoading ? (
@@ -342,7 +348,7 @@ export function AuthDialog({
               variant="outline"
               onClick={handleGuestSignIn}
               disabled={isGuestLoading || isLoading || isGoogleLoading}
-              className="w-full border-primary border-dashed border-2"
+              className="border-primary w-full border-1 border-dashed"
             >
               {isGuestLoading ? (
                 <>
