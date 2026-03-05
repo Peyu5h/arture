@@ -15,7 +15,7 @@ import {
   Heart,
   Cake,
   Gift,
-  Calendar,
+  Calendar as CalendarIcon,
   MapPin,
   MessageSquare,
   Wand2,
@@ -24,12 +24,28 @@ import {
   Zap,
   Leaf,
   Circle,
+  Clock,
+  CalendarDays,
 } from "lucide-react";
+import { format } from "date-fns";
 import { cn } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
+import { Calendar } from "~/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "~/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import type { BaseUIComponentProps } from "./types";
 
 // color palettes
@@ -137,13 +153,237 @@ const DESIGN_STYLES = [
   { id: "bohemian", name: "Bohemian", icon: Sun, description: "Free-spirited" },
 ];
 
+// dynamic field types that AI can request
+export type DynamicFieldType =
+  | "name"
+  | "age"
+  | "couple_names"
+  | "date"
+  | "time"
+  | "venue"
+  | "theme"
+  | "rsvp_details"
+  | "event_name"
+  | "tagline"
+  | "details"
+  | "gym_name"
+  | "offer"
+  | "schedule"
+  | "contact"
+  | "restaurant_name"
+  | "cuisine"
+  | "hours"
+  | "address"
+  | "artist"
+  | "ticket_info"
+  | "headline"
+  | "subheadline"
+  | "call_to_action";
+
+// field config for dynamic rendering
+interface FieldConfig {
+  key: string;
+  label: string;
+  placeholder: string;
+  icon: React.ComponentType<{ className?: string }>;
+  required?: boolean;
+  multiline?: boolean;
+  inputType?: "text" | "date" | "time";
+  optional?: boolean;
+}
+
+// mapping of field types to their configs
+const FIELD_CONFIGS: Record<DynamicFieldType, FieldConfig> = {
+  name: {
+    key: "primaryText",
+    label: "Name",
+    placeholder: "Enter name",
+    icon: Users,
+    required: true,
+  },
+  age: {
+    key: "secondaryText",
+    label: "Age/Message",
+    placeholder: "Turning 30!",
+    icon: Cake,
+    optional: true,
+  },
+  couple_names: {
+    key: "primaryText",
+    label: "Couple's Names",
+    placeholder: "John & Jane",
+    icon: Heart,
+    required: true,
+  },
+  date: {
+    key: "date",
+    label: "Date",
+    placeholder: "Select date",
+    icon: CalendarDays,
+    inputType: "date",
+  },
+  time: {
+    key: "time",
+    label: "Time",
+    placeholder: "7:00 PM",
+    icon: Clock,
+    inputType: "time",
+  },
+  venue: {
+    key: "venue",
+    label: "Venue/Location",
+    placeholder: "Enter location",
+    icon: MapPin,
+    optional: true,
+  },
+  theme: {
+    key: "additionalInfo",
+    label: "Theme/Style",
+    placeholder: "Garden party, Formal, etc.",
+    icon: Sparkles,
+    optional: true,
+  },
+  rsvp_details: {
+    key: "additionalInfo",
+    label: "RSVP Details",
+    placeholder: "RSVP by date, contact info",
+    icon: MessageSquare,
+    optional: true,
+  },
+  event_name: {
+    key: "primaryText",
+    label: "Event Name",
+    placeholder: "Annual Gala 2024",
+    icon: Star,
+    required: true,
+  },
+  tagline: {
+    key: "secondaryText",
+    label: "Tagline",
+    placeholder: "An evening to remember",
+    icon: MessageSquare,
+    optional: true,
+  },
+  details: {
+    key: "additionalInfo",
+    label: "Additional Details",
+    placeholder: "Dress code, etc.",
+    icon: MessageSquare,
+    multiline: true,
+    optional: true,
+  },
+  gym_name: {
+    key: "primaryText",
+    label: "Gym Name",
+    placeholder: "FitZone Gym",
+    icon: Zap,
+    required: true,
+  },
+  offer: {
+    key: "secondaryText",
+    label: "Offer/Promo",
+    placeholder: "50% OFF First Month!",
+    icon: Star,
+    optional: true,
+  },
+  schedule: {
+    key: "additionalInfo",
+    label: "Schedule/Hours",
+    placeholder: "Mon-Fri 6AM-10PM",
+    icon: Clock,
+    optional: true,
+  },
+  contact: {
+    key: "venue",
+    label: "Contact/Address",
+    placeholder: "123 Main St, (555) 123-4567",
+    icon: MapPin,
+    optional: true,
+  },
+  restaurant_name: {
+    key: "primaryText",
+    label: "Restaurant Name",
+    placeholder: "The Golden Fork",
+    icon: Star,
+    required: true,
+  },
+  cuisine: {
+    key: "secondaryText",
+    label: "Cuisine Type",
+    placeholder: "Italian, Mexican, etc.",
+    icon: Leaf,
+    optional: true,
+  },
+  hours: {
+    key: "additionalInfo",
+    label: "Hours",
+    placeholder: "Open 11AM-10PM",
+    icon: Clock,
+    optional: true,
+  },
+  address: {
+    key: "venue",
+    label: "Address",
+    placeholder: "123 Food Street",
+    icon: MapPin,
+    optional: true,
+  },
+  artist: {
+    key: "primaryText",
+    label: "Artist/Band Name",
+    placeholder: "The Rockers",
+    icon: Star,
+    required: true,
+  },
+  ticket_info: {
+    key: "additionalInfo",
+    label: "Ticket Info",
+    placeholder: "$25 at door, $20 online",
+    icon: Star,
+    optional: true,
+  },
+  headline: {
+    key: "primaryText",
+    label: "Headline",
+    placeholder: "Grand Opening!",
+    icon: Star,
+    required: true,
+  },
+  subheadline: {
+    key: "secondaryText",
+    label: "Subheadline",
+    placeholder: "Join us for the celebration",
+    icon: MessageSquare,
+    optional: true,
+  },
+  call_to_action: {
+    key: "additionalInfo",
+    label: "Call to Action",
+    placeholder: "Visit us today!",
+    icon: Zap,
+    optional: true,
+  },
+};
+
 export interface DesignWizardProps extends Omit<
   BaseUIComponentProps,
   "componentType"
 > {
   componentType: "design_wizard";
-  designType: "wedding" | "birthday" | "event" | "poster" | "card" | "generic";
+  designType:
+    | "wedding"
+    | "birthday"
+    | "event"
+    | "poster"
+    | "card"
+    | "gym"
+    | "restaurant"
+    | "music"
+    | "tech"
+    | "sports"
+    | "generic";
   prefilledData?: Partial<DesignRequirements>;
+  fields?: DynamicFieldType[];
 }
 
 export interface DesignRequirements {
@@ -190,6 +430,28 @@ const STEP_CONFIG: Record<
   extras: { icon: ImageIcon },
 };
 
+// get default fields for a design type when AI doesn't specify
+function getDefaultFieldsForType(type: string): DynamicFieldType[] {
+  switch (type) {
+    case "wedding":
+      return ["couple_names", "date", "time", "venue", "rsvp_details"];
+    case "birthday":
+      return ["name", "age", "date", "time", "venue", "theme"];
+    case "event":
+      return ["event_name", "tagline", "date", "time", "venue", "details"];
+    case "gym":
+      return ["gym_name", "offer", "schedule", "contact"];
+    case "restaurant":
+      return ["restaurant_name", "cuisine", "offer", "hours", "address"];
+    case "music":
+      return ["artist", "event_name", "date", "venue", "ticket_info"];
+    case "poster":
+      return ["headline", "subheadline", "details", "call_to_action"];
+    default:
+      return ["headline", "subheadline", "date", "venue", "details"];
+  }
+}
+
 // dynamic labels based on design type
 function getLabelsForType(type: string) {
   switch (type) {
@@ -228,6 +490,39 @@ function getLabelsForType(type: string) {
         additionalLabel: "Additional Details",
         decorativeKeywords: "event, celebration, party, decorative, elegant",
       };
+    case "gym":
+      return {
+        primaryText: "Gym Name",
+        primaryPlaceholder: "FitZone Gym",
+        secondaryText: "Offer/Promo",
+        secondaryPlaceholder: "50% OFF First Month!",
+        dateLabel: "Schedule",
+        venueLabel: "Contact/Address",
+        additionalLabel: "Additional Info",
+        decorativeKeywords: "gym, fitness, workout, strong, energy, motivation",
+      };
+    case "restaurant":
+      return {
+        primaryText: "Restaurant Name",
+        primaryPlaceholder: "The Golden Fork",
+        secondaryText: "Cuisine/Offer",
+        secondaryPlaceholder: "Authentic Italian",
+        dateLabel: "Hours",
+        venueLabel: "Address",
+        additionalLabel: "Special Offers",
+        decorativeKeywords: "food, restaurant, delicious, cuisine, dining",
+      };
+    case "music":
+      return {
+        primaryText: "Artist/Band",
+        primaryPlaceholder: "The Rockers",
+        secondaryText: "Event Name",
+        secondaryPlaceholder: "Live in Concert",
+        dateLabel: "Date & Time",
+        venueLabel: "Venue",
+        additionalLabel: "Ticket Info",
+        decorativeKeywords: "music, concert, band, dj, stage, lights",
+      };
     case "poster":
       return {
         primaryText: "Main Heading",
@@ -259,6 +554,7 @@ export const AgentDesignWizard = memo(function AgentDesignWizard({
   description,
   designType = "generic",
   prefilledData,
+  fields,
   onSubmit,
   onCancel,
 }: DesignWizardProps) {
@@ -274,6 +570,14 @@ export const AgentDesignWizard = memo(function AgentDesignWizard({
   });
   const [direction, setDirection] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // use AI-provided fields or fall back to defaults for design type
+  // validate and filter fields to ensure they're valid DynamicFieldType
+  const validFields = fields
+    ? fields.filter((f) => typeof f === "string" && f in FIELD_CONFIGS)
+    : [];
+  const activeFields =
+    validFields.length > 0 ? validFields : getDefaultFieldsForType(designType);
 
   const labels = getLabelsForType(designType);
   const currentStepIndex = STEP_ORDER.indexOf(currentStep);
@@ -356,100 +660,166 @@ export const AgentDesignWizard = memo(function AgentDesignWizard({
     exit: (direction: number) => ({ x: direction < 0 ? 20 : -20, opacity: 0 }),
   };
 
+  // date picker state
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    data.date ? new Date(data.date) : undefined,
+  );
+
+  // time options
+  const timeOptions = [
+    "9:00 AM",
+    "10:00 AM",
+    "11:00 AM",
+    "12:00 PM",
+    "1:00 PM",
+    "2:00 PM",
+    "3:00 PM",
+    "4:00 PM",
+    "5:00 PM",
+    "6:00 PM",
+    "7:00 PM",
+    "8:00 PM",
+    "9:00 PM",
+    "10:00 PM",
+  ];
+
   // render info step
+  // render a single dynamic field
+  const renderDynamicField = (fieldType: DynamicFieldType, index: number) => {
+    const config = FIELD_CONFIGS[fieldType];
+    if (!config) return null;
+
+    const IconComponent = config.icon;
+    const value = (data as any)[config.key] || "";
+
+    // render date picker
+    if (config.inputType === "date") {
+      return (
+        <div key={fieldType} className="space-y-2">
+          <Label
+            htmlFor={fieldType}
+            className="flex items-center gap-1.5 text-xs"
+          >
+            <IconComponent className="text-primary h-3 w-3" />
+            {config.label}
+            {config.optional && (
+              <span className="text-muted-foreground ml-1 text-[10px]">
+                (optional)
+              </span>
+            )}
+          </Label>
+          <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "h-9 w-full justify-start text-left text-xs font-normal",
+                  !selectedDate && "text-muted-foreground",
+                )}
+              >
+                <CalendarDays className="mr-2 h-3 w-3" />
+                {selectedDate
+                  ? format(selectedDate, "PPP")
+                  : config.placeholder}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => {
+                  setSelectedDate(date);
+                  if (date) {
+                    updateData({ [config.key]: format(date, "PPP") });
+                  }
+                  setDatePickerOpen(false);
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+      );
+    }
+
+    // render time picker
+    if (config.inputType === "time") {
+      return (
+        <div key={fieldType} className="space-y-2">
+          <Label
+            htmlFor={fieldType}
+            className="flex items-center gap-1.5 text-xs"
+          >
+            <IconComponent className="text-primary h-3 w-3" />
+            {config.label}
+            {config.optional && (
+              <span className="text-muted-foreground ml-1 text-[10px]">
+                (optional)
+              </span>
+            )}
+          </Label>
+          <Select
+            value={value}
+            onValueChange={(val) => updateData({ [config.key]: val })}
+          >
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue placeholder={config.placeholder} />
+            </SelectTrigger>
+            <SelectContent>
+              {timeOptions.map((time) => (
+                <SelectItem key={time} value={time} className="text-xs">
+                  {time}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
+    return (
+      <div key={fieldType} className="space-y-2">
+        <Label
+          htmlFor={fieldType}
+          className="flex items-center gap-1.5 text-xs"
+        >
+          <IconComponent className="text-primary h-3 w-3" />
+          {config.label}
+          {config.required && <span className="text-destructive">*</span>}
+          {config.optional && (
+            <span className="text-muted-foreground ml-1 text-[10px]">
+              (optional)
+            </span>
+          )}
+        </Label>
+        {config.multiline ? (
+          <Textarea
+            id={fieldType}
+            placeholder={config.placeholder}
+            value={value}
+            onChange={(e) => updateData({ [config.key]: e.target.value })}
+            className="min-h-[60px] text-xs"
+          />
+        ) : (
+          <Input
+            id={fieldType}
+            placeholder={config.placeholder}
+            value={value}
+            onChange={(e) => updateData({ [config.key]: e.target.value })}
+            className="text-xs"
+            required={config.required}
+          />
+        )}
+      </div>
+    );
+  };
+
   const renderInfoStep = () => (
     <div className="space-y-3">
-      <div className="space-y-2">
-        <Label
-          htmlFor="primaryText"
-          className="flex items-center gap-1.5 text-xs"
-        >
-          {designType === "birthday" && (
-            <Cake className="text-primary h-3 w-3" />
-          )}
-          {designType === "wedding" && (
-            <Heart className="h-3 w-3 text-pink-500" />
-          )}
-          {designType === "event" && (
-            <Calendar className="text-primary h-3 w-3" />
-          )}
-          {labels.primaryText}
-          <span className="text-destructive">*</span>
-        </Label>
-        <div className="relative">
-          <Input
-            id="primaryText"
-            placeholder={labels.primaryPlaceholder}
-            value={data.primaryText || ""}
-            onChange={(e) => updateData({ primaryText: e.target.value })}
-            onFocus={() => setShowSuggestions(true)}
-            className="text-xs"
-            required
-          />
-          {showSuggestions && !data.primaryText && (
-            <div className="bg-card border-border absolute top-full right-0 left-0 z-10 mt-1 rounded-md border shadow-lg">
-              {getSuggestions("primaryText").map(
-                (suggestion: any, idx: any) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      updateData({ primaryText: suggestion });
-                      setShowSuggestions(false);
-                    }}
-                    className="hover:bg-muted w-full px-3 py-1.5 text-left text-xs transition-colors"
-                  >
-                    {suggestion}
-                  </button>
-                ),
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label
-          htmlFor="secondaryText"
-          className="flex items-center gap-1.5 text-xs"
-        >
-          <MessageSquare className="text-muted-foreground h-3 w-3" />
-          {labels.secondaryText}
-        </Label>
-        <Input
-          id="secondaryText"
-          placeholder={labels.secondaryPlaceholder}
-          value={data.secondaryText || ""}
-          onChange={(e) => updateData({ secondaryText: e.target.value })}
-          className="text-xs"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="venue" className="flex items-center gap-1.5 text-xs">
-          <MapPin className="text-muted-foreground h-3 w-3" />
-          {labels.venueLabel}
-        </Label>
-        <Input
-          id="venue"
-          placeholder="Enter venue or location"
-          value={data.venue || ""}
-          onChange={(e) => updateData({ venue: e.target.value })}
-          className="text-xs"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="additionalInfo" className="text-xs">
-          {labels.additionalLabel} (Optional)
-        </Label>
-        <Textarea
-          id="additionalInfo"
-          placeholder="RSVP details, dress code, etc."
-          value={data.additionalInfo || ""}
-          onChange={(e) => updateData({ additionalInfo: e.target.value })}
-          className="min-h-[60px] text-xs"
-        />
-      </div>
+      {activeFields.map((fieldType, index) =>
+        renderDynamicField(fieldType, index),
+      )}
     </div>
   );
 

@@ -6,6 +6,7 @@ export * from "./canvas-actions";
 export * from "./context-budget";
 export * from "./action-parser";
 export * from "./image-context";
+export { buildSystemPrompt, buildContextInfo } from "./prompts";
 
 // selective tool exports to avoid type conflicts
 export {

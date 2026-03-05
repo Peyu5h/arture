@@ -337,7 +337,7 @@ export const InlineChainOfThought = memo(function InlineChainOfThought({
   return (
     <div
       className={cn(
-        "border-border/50 bg-muted/20 mt-2 max-w-full overflow-hidden rounded-lg border px-3 py-2 dark:bg-zinc-900/50",
+        "border-border/50 bg-muted/20 mt-2 w-full overflow-hidden rounded-lg border px-3 py-2 dark:bg-zinc-900/50",
         className,
       )}
     >
@@ -361,15 +361,17 @@ export const InlineChainOfThought = memo(function InlineChainOfThought({
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.1, duration: 0.2 }}
-              className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs"
+              className="text-muted-foreground flex min-w-0 items-start gap-1.5 text-xs"
             >
-              <StatusIcon status={stepStatus} />
+              <span className="mt-0.5 shrink-0">
+                <StatusIcon status={stepStatus} />
+              </span>
               {Icon && (
-                <span className="shrink-0 opacity-60">
+                <span className="mt-0.5 shrink-0 opacity-60">
                   <Icon className="h-3 w-3" />
                 </span>
               )}
-              <span className="min-w-0 truncate">{step.label}</span>
+              <span className="min-w-0 break-words">{step.label}</span>
             </motion.div>
           );
         })}

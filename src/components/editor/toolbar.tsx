@@ -439,15 +439,15 @@ export const Toolbar = ({
               <Button
                 onClick={decrement}
                 variant="outline"
-                className="rounded-r-none border-r-0 p-2"
+                className="rounded-r-none border-r-0 p-0"
                 size="icon"
               >
-                <Minus className="size-4" />
+                <Minus className="" />
               </Button>
               <Input
                 onChange={(e) => onChangeFontSize(Number(e.target.value))}
                 value={properties.fontSize}
-                className="w-[50px] rounded-none text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+                className="w-[50px] rounded-none py-5 text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
                 style={{ fontSize: "14px" }}
               />
               <Button

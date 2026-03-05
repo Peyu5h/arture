@@ -10,7 +10,7 @@ interface AuthGuardProps {
 
 function AuthGuardContent({
   children,
-  redirectTo = "/onboarding",
+  redirectTo = "/sign-in",
 }: AuthGuardProps) {
   const router = useRouter();
   const searchParams = useSearchParams();

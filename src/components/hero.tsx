@@ -73,20 +73,7 @@ export function Hero() {
 
         <div className="relative z-10 mx-auto w-full max-w-[1000px] space-y-6 text-center sm:space-y-8">
           {/* Badge */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="inline-flex"
-          >
-            <div className="group border-primary/30 bg-primary/5 hover:bg-primary/10 inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 backdrop-blur-sm transition-all duration-300 sm:px-4 sm:py-2">
-              <Sparkles className="text-primary h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="text-foreground text-[11px] font-medium sm:text-xs">
-                Introducing Arture
-              </span>
-              <ArrowRight className="text-primary h-3 w-3 transition-transform duration-300 group-hover:translate-x-0.5" />
-            </div>
-          </motion.div>
+          <div className="py-3"></div>
 
           {/* Main Heading with Comet Effect */}
           <motion.div

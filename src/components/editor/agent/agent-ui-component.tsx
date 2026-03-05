@@ -2,7 +2,17 @@
 
 import { memo, useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  Calendar,
+  Clock,
+  MapPin,
+  User,
+  Palette,
+  Type,
+} from "lucide-react";
 import { cn } from "~/lib/utils";
 import {
   type UIComponentRequest,
@@ -87,8 +97,85 @@ export const AgentUIComponent = memo(function AgentUIComponent({
     onCancel: onCancel ? handleCancel : undefined,
   };
 
+  // format design wizard response for display
+  const formatDesignDetails = (value: unknown): React.ReactNode => {
+    if (!value || typeof value !== "object") return null;
+
+    const details = value as Record<string, unknown>;
+    const items: { icon: React.ReactNode; label: string; value: string }[] = [];
+
+    if (details.primaryText) {
+      items.push({
+        icon: <User className="h-3 w-3" />,
+        label: "Name/Title",
+        value: String(details.primaryText),
+      });
+    }
+    if (details.secondaryText) {
+      items.push({
+        icon: <Type className="h-3 w-3" />,
+        label: "Subtitle",
+        value: String(details.secondaryText),
+      });
+    }
+    if (details.date) {
+      items.push({
+        icon: <Calendar className="h-3 w-3" />,
+        label: "Date",
+        value: String(details.date),
+      });
+    }
+    if (details.time) {
+      items.push({
+        icon: <Clock className="h-3 w-3" />,
+        label: "Time",
+        value: String(details.time),
+      });
+    }
+    if (details.venue) {
+      items.push({
+        icon: <MapPin className="h-3 w-3" />,
+        label: "Venue",
+        value: String(details.venue),
+      });
+    }
+    if (details.colorPalette && typeof details.colorPalette === "object") {
+      const palette = details.colorPalette as {
+        name?: string;
+        colors?: string[];
+      };
+      if (palette.name && palette.name !== "Auto") {
+        items.push({
+          icon: <Palette className="h-3 w-3" />,
+          label: "Colors",
+          value: palette.name,
+        });
+      }
+    }
+
+    if (items.length === 0) return null;
+
+    return (
+      <div className="mt-2 space-y-1.5">
+        {items.map((item, idx) => (
+          <div key={idx} className="flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">{item.icon}</span>
+            <span className="text-muted-foreground">{item.label}:</span>
+            <span className="text-foreground font-medium">{item.value}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   // resolved state display
   if (state === "resolved" || state === "cancelled") {
+    const isDesignWizard = request.componentType === "design_wizard";
+    const designDetails =
+      isDesignWizard && submittedValue
+        ? formatDesignDetails(submittedValue)
+        : null;
+
     return (
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
@@ -107,9 +194,14 @@ export const AgentUIComponent = memo(function AgentUIComponent({
             <XCircle className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
           )}
           <span className="text-muted-foreground text-xs">
-            {state === "resolved" ? "Response submitted" : "Cancelled"}
+            {state === "resolved"
+              ? isDesignWizard
+                ? "Design details submitted"
+                : "Response submitted"
+              : "Cancelled"}
           </span>
         </div>
+        {designDetails}
       </motion.div>
     );
   }

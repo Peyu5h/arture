@@ -63,7 +63,18 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 function detectDesignType(
   message: string,
   category?: string,
-): "wedding" | "birthday" | "event" | "poster" | "card" | "gym" | "restaurant" | "music" | "tech" | "sports" | "generic" {
+):
+  | "wedding"
+  | "birthday"
+  | "event"
+  | "poster"
+  | "card"
+  | "gym"
+  | "restaurant"
+  | "music"
+  | "tech"
+  | "sports"
+  | "generic" {
   const lowerMsg = message.toLowerCase();
 
   // gym/fitness keywords
@@ -273,7 +284,15 @@ export const AgentPanel = ({
   useEffect(() => {
     if (activeConversationData?.messages && !isActiveSession) {
       const msgs = activeConversationData.messages.map((msg: ChatMessage) => {
-        const msgContext = msg.context as AgentMessage["context"];
+        const msgContext = msg.context as AgentMessage["context"] & {
+          uiComponentRequest?: UIComponentRequest;
+          uiComponentResponse?: UIComponentResponse;
+          designWizardResponse?: {
+            designType: string;
+            requirements: Record<string, unknown>;
+            timestamp: number;
+          };
+        };
         // extract imageAttachments from context for display
         const imageAttachments = msgContext?.imageAttachments || [];
 
@@ -296,17 +315,51 @@ export const AgentPanel = ({
             }))
           : undefined;
 
+        // restore uiComponentRequest from context
+        const uiComponentRequest = msgContext?.uiComponentRequest
+          ? {
+              id: msgContext.uiComponentRequest.id,
+              componentType: msgContext.uiComponentRequest
+                .componentType as UIComponentRequest["componentType"],
+              props: msgContext.uiComponentRequest.props || {},
+              context: msgContext.uiComponentRequest.context,
+              followUpPrompt: msgContext.uiComponentRequest.followUpPrompt,
+            }
+          : undefined;
+
+        // restore uiComponentResponse from context
+        const uiComponentResponse = msgContext?.uiComponentResponse
+          ? {
+              requestId: msgContext.uiComponentResponse.requestId,
+              componentType: msgContext.uiComponentResponse
+                .componentType as UIComponentRequest["componentType"],
+              value: msgContext.uiComponentResponse.value,
+              timestamp: msgContext.uiComponentResponse.timestamp,
+            }
+          : undefined;
+
+        // restore actions with complete status
+        const restoredActions = msg.actions
+          ? (msg.actions as LocalAgentAction[]).map((action) => ({
+              ...action,
+              status: "complete" as const,
+            }))
+          : undefined;
+
         return {
           id: msg.id,
           role: msg.role as "user" | "assistant" | "system",
           content: msg.content,
           status: "complete" as const,
           timestamp: msg.timestamp,
-          actions: msg.actions as AgentMessage["actions"],
+          actions: restoredActions,
           context: msgContext,
           mentions: restoredMentions,
           imageAttachments:
             imageAttachments.length > 0 ? imageAttachments : undefined,
+          uiComponentRequest,
+          uiComponentResponse,
+          isUIComponentResolved: !!uiComponentRequest || !!uiComponentResponse,
         };
       });
       if (msgs.length > 0) {
@@ -843,8 +896,94 @@ export const AgentPanel = ({
 
       setProgress(60, "Processing response");
 
+      // check for error response from API
+      if ((response as { error?: boolean }).error) {
+        const errorCode = (response as { errorCode?: string }).errorCode;
+        let errorContent = response.response;
+
+        // enhance error message based on code
+        if (errorCode === "RATE_LIMITED") {
+          errorContent =
+            "I'm receiving too many requests. Please wait a moment and try again.";
+        } else if (errorCode === "TIMEOUT") {
+          errorContent =
+            "Request timed out. Please try a simpler request or try again.";
+        }
+
+        const errorMessage: AgentMessage = {
+          id: generateId(),
+          role: "assistant",
+          content: errorContent,
+          status: "error",
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+        endFlow(false, errorCode || "API_ERROR");
+        return;
+      }
+
       const aiActions = (response as { actions?: AgentAction[] }).actions || [];
       const assistantMessageId = generateId();
+
+      // check for ui component request from AI (design wizard, etc.)
+      const aiUIComponentRequest = (
+        response as { uiComponentRequest?: UIComponentRequest }
+      ).uiComponentRequest;
+
+      // if AI returned a ui component request, show it immediately without actions
+      if (aiUIComponentRequest) {
+        const uiReq: UIComponentRequest = {
+          id: aiUIComponentRequest.id || generateId(),
+          componentType:
+            aiUIComponentRequest.componentType as UIComponentRequest["componentType"],
+          props: aiUIComponentRequest.props || {},
+          context: aiUIComponentRequest.context,
+          followUpPrompt: aiUIComponentRequest.followUpPrompt,
+        };
+
+        const assistantMessage: AgentMessage = {
+          id: assistantMessageId,
+          role: "assistant",
+          content: response.response,
+          status: "complete",
+          timestamp: Date.now(),
+          uiComponentRequest: uiReq,
+        };
+
+        setMessages((prev) => [...prev, assistantMessage]);
+        setPendingUIComponent({
+          messageId: assistantMessageId,
+          request: uiReq,
+        });
+
+        setProgress(100, "Ready for input");
+        setPhase("completed", "Done");
+        endFlow(true);
+
+        // save to db with ui component
+        if (convId) {
+          createMessage
+            .mutateAsync({
+              conversationId: convId,
+              role: "ASSISTANT",
+              content: assistantMessage.content,
+              context: {
+                uiComponentRequest: {
+                  id: uiReq.id,
+                  componentType: uiReq.componentType,
+                  props: uiReq.props,
+                  context: uiReq.context,
+                  followUpPrompt: uiReq.followUpPrompt,
+                },
+              },
+            })
+            .catch(console.error);
+        }
+
+        setIsLoading(false);
+        isSubmittingRef.current = false;
+        return;
+      }
 
       // prepare actions with initial pending status for progressive display
       const actionsWithIds = aiActions.map((action) => ({
@@ -1112,13 +1251,27 @@ export const AgentPanel = ({
 
       endFlow(true);
 
-      // save assistant message to db
+      // save assistant message to db with actions and uiComponentRequest
       if (convId) {
+        const uiReq = (response as { uiComponentRequest?: UIComponentRequest })
+          .uiComponentRequest;
         createMessage
           .mutateAsync({
             conversationId: convId,
             role: "ASSISTANT",
             content: assistantMessage.content,
+            actions: actionsWithIds.length > 0 ? actionsWithIds : undefined,
+            context: uiReq
+              ? {
+                  uiComponentRequest: {
+                    id: uiReq.id || generateId(),
+                    componentType: uiReq.componentType,
+                    props: uiReq.props || {},
+                    context: uiReq.context,
+                    followUpPrompt: uiReq.followUpPrompt,
+                  },
+                }
+              : undefined,
           })
           .catch(console.error);
       }
@@ -1126,11 +1279,32 @@ export const AgentPanel = ({
       console.error("AI response error:", error);
       endFlow(false, String(error));
 
+      // determine error type and provide helpful message
+      let errorContent =
+        "Sorry, I encountered an issue processing your request. Please try again.";
+      const errMsg = error instanceof Error ? error.message : String(error);
+
+      if (errMsg.includes("RATE_LIMITED") || errMsg.includes("429")) {
+        errorContent =
+          "I'm receiving too many requests right now. Please wait a moment and try again.";
+      } else if (errMsg.includes("timeout") || errMsg.includes("timed out")) {
+        errorContent =
+          "The request took too long to process. Please try a simpler request or try again.";
+      } else if (errMsg.includes("API") || errMsg.includes("fetch")) {
+        errorContent =
+          "There was a connection issue. Please check your internet and try again.";
+      } else if (
+        errMsg.includes("not configured") ||
+        errMsg.includes("API key")
+      ) {
+        errorContent =
+          "The AI service is not configured. Please contact the administrator.";
+      }
+
       const errorMessage: AgentMessage = {
         id: generateId(),
         role: "assistant",
-        content:
-          "Sorry, I encountered an issue processing your request. Please try again.",
+        content: errorContent,
         status: "error",
         timestamp: Date.now(),
       };
@@ -1367,19 +1541,48 @@ export const AgentPanel = ({
             pendingCategory,
           );
 
-          const designTypeLabel = {
-            wedding: "Wedding Invitation",
-            birthday: "Birthday Invitation",
-            event: "Event Invitation",
-            poster: "Poster",
-            card: "Card",
-            gym: "Gym/Fitness Poster",
-            restaurant: "Restaurant/Food Poster",
-            music: "Music/Concert Poster",
-            tech: "Tech/Startup Poster",
-            sports: "Sports Poster",
-            generic: "Design"
-          }[designType] || "Design";
+          const designTypeLabel =
+            {
+              wedding: "Wedding Invitation",
+              birthday: "Birthday Invitation",
+              event: "Event Invitation",
+              poster: "Poster",
+              card: "Card",
+              gym: "Gym/Fitness Poster",
+              restaurant: "Restaurant/Food Poster",
+              music: "Music/Concert Poster",
+              tech: "Tech/Startup Poster",
+              sports: "Sports Poster",
+              generic: "Design",
+            }[designType] || "Design";
+
+          // get dynamic fields based on design type
+          const fieldsForType: Record<string, string[]> = {
+            wedding: ["couple_names", "date", "time", "venue", "rsvp_details"],
+            birthday: ["name", "age", "date", "time", "venue", "theme"],
+            event: [
+              "event_name",
+              "tagline",
+              "date",
+              "time",
+              "venue",
+              "details",
+            ],
+            gym: ["gym_name", "offer", "schedule", "contact"],
+            restaurant: [
+              "restaurant_name",
+              "cuisine",
+              "offer",
+              "hours",
+              "address",
+            ],
+            music: ["artist", "event_name", "date", "venue", "ticket_info"],
+            poster: ["headline", "subheadline", "details", "call_to_action"],
+            card: ["headline", "subheadline", "date", "venue", "details"],
+            tech: ["headline", "subheadline", "details", "call_to_action"],
+            sports: ["event_name", "tagline", "date", "venue", "ticket_info"],
+            generic: ["headline", "subheadline", "date", "venue", "details"],
+          };
 
           const wizardRequest: UIComponentRequest = {
             id: generateId(),
@@ -1389,6 +1592,7 @@ export const AgentPanel = ({
               designType,
               title: `Create ${designTypeLabel}`,
               description: "Fill in the details for your design",
+              fields: fieldsForType[designType] || fieldsForType.generic,
             },
             followUpPrompt: "Create design with these requirements",
           };
@@ -1408,6 +1612,26 @@ export const AgentPanel = ({
             messageId: wizardMessageId,
             request: wizardRequest,
           });
+
+          // save wizard message to DB
+          if (activeConversationId) {
+            createMessage
+              .mutateAsync({
+                conversationId: activeConversationId,
+                role: "ASSISTANT",
+                content: wizardMessage.content,
+                context: {
+                  uiComponentRequest: {
+                    id: wizardRequest.id,
+                    componentType: wizardRequest.componentType,
+                    props: wizardRequest.props,
+                    context: wizardRequest.context,
+                    followUpPrompt: wizardRequest.followUpPrompt,
+                  },
+                },
+              })
+              .catch(console.error);
+          }
         }
         return;
       }
@@ -1419,89 +1643,78 @@ export const AgentPanel = ({
 
         // detect design type from pending request props OR re-detect from original user message
         const wizardProps = pendingRequest.props as { designType?: string };
-        const originalUserMessage = messages.find((m) => m.role === "user")?.content || "";
+        const originalUserMessage =
+          messages.find((m) => m.role === "user")?.content || "";
         let designType = wizardProps?.designType || "generic";
-        
+
         // if generic, try to re-detect from original message to catch gym, restaurant, etc.
         if (designType === "generic" && originalUserMessage) {
           designType = detectDesignType(originalUserMessage);
         }
-        
-        console.log("[DESIGN_TYPE_DETECTED]", { wizardType: wizardProps?.designType, detected: designType });
 
-        // build a detailed prompt for the AI to create the design
-        let designPrompt = `Create a ${designType} design with these specifications:\n`;
+        console.log("[DESIGN_TYPE_DETECTED]", {
+          wizardType: wizardProps?.designType,
+          detected: designType,
+        });
 
-        if (requirements.primaryText)
-          designPrompt += `- Main text: "${requirements.primaryText}"\n`;
-        if (requirements.secondaryText)
-          designPrompt += `- Subtitle: "${requirements.secondaryText}"\n`;
-        if (requirements.date) designPrompt += `- Date: ${requirements.date}\n`;
-        if (requirements.time) designPrompt += `- Time: ${requirements.time}\n`;
-        if (requirements.venue)
-          designPrompt += `- Venue: ${requirements.venue}\n`;
-        if (requirements.additionalInfo)
-          designPrompt += `- Additional: ${requirements.additionalInfo}\n`;
-
-        // color palette
-        if (requirements.colorPalette) {
-          if (requirements.colorPalette.id === "auto") {
-            designPrompt += `- Colors: Let AI choose best color palette for ${designType}\n`;
-          } else {
-            designPrompt += `- Color palette: ${requirements.colorPalette.name} (${requirements.colorPalette.colors.join(", ")})\n`;
-          }
+        // save wizard response to DB with form values for history display
+        if (activeConversationId) {
+          createMessage
+            .mutateAsync({
+              conversationId: activeConversationId,
+              role: "USER",
+              content: `Design details submitted`,
+              context: {
+                designWizardResponse: {
+                  designType,
+                  requirements,
+                  timestamp: Date.now(),
+                },
+              },
+            })
+            .catch(console.error);
         }
 
-        // font pairing
-        if (requirements.fontPairing) {
-          if (requirements.fontPairing.id === "auto") {
-            designPrompt += `- Fonts: Let AI choose best font pairing for ${designType}\n`;
-          } else {
-            designPrompt += `- Fonts: ${requirements.fontPairing.heading} for headings, ${requirements.fontPairing.body} for body\n`;
-          }
-        }
+        // build internal prompt for AI (not shown to user)
+        const designSpec = {
+          type: designType,
+          primaryText:
+            requirements.primaryText ||
+            `[Generate appropriate ${designType} headline]`,
+          secondaryText:
+            requirements.secondaryText ||
+            `[Generate appropriate ${designType} subtitle]`,
+          date: requirements.date || undefined,
+          time: requirements.time || undefined,
+          venue: requirements.venue || undefined,
+          additionalInfo: requirements.additionalInfo || undefined,
+          colorPalette:
+            requirements.colorPalette?.id === "auto"
+              ? "auto"
+              : requirements.colorPalette,
+          fontPairing:
+            requirements.fontPairing?.id === "auto"
+              ? "auto"
+              : requirements.fontPairing,
+          designStyle:
+            typeof requirements.designStyle === "string"
+              ? requirements.designStyle
+              : (requirements.designStyle as any)?.id === "auto"
+                ? "auto"
+                : (requirements.designStyle as any)?.name,
+          backgroundStyle: requirements.backgroundStyle || "gradient",
+          includeDecorations: requirements.includeDecorations,
+          decorativeKeywords: requirements.imageKeywords?.length
+            ? requirements.imageKeywords
+            : getDefaultDecorativeKeywords(designType).split(", "),
+          includeImages: requirements.includeImages,
+        };
 
-        // design style
-        if (requirements.designStyle) {
-          if (typeof requirements.designStyle === "string") {
-            designPrompt += `- Style: ${requirements.designStyle}\n`;
-          } else {
-            const style = requirements.designStyle as any;
-            if (style.id === "auto") {
-              designPrompt += `- Style: Let AI choose best style for ${designType}\n`;
-            } else {
-              designPrompt += `- Style: ${style.name}\n`;
-            }
-          }
-        }
+        // send clean internal command (will not be shown as user message)
+        const internalPrompt = `__INTERNAL_DESIGN_REQUEST__${JSON.stringify(designSpec)}`;
 
-        if (requirements.backgroundStyle)
-          designPrompt += `- Background: ${requirements.backgroundStyle}\n`;
-
-        // decorative elements with PNG/stickers from Pixabay
-        if (requirements.includeDecorations) {
-          const decorativeKeywords = requirements.imageKeywords?.length
-            ? requirements.imageKeywords.join(", ")
-            : getDefaultDecorativeKeywords(designType);
-          designPrompt += `- DECORATIONS (REQUIRED): Search Pixabay for EXACTLY these terms with image_type=vector: ${decorativeKeywords}\n`;
-          designPrompt += `- DO NOT use generic terms like "abstract shapes" or "ornamental graphics" - use ONLY the keywords listed above\n`;
-        }
-
-        // images
-        if (requirements.includeImages) {
-          designPrompt += `- Include relevant images from Pixabay that match the ${designType} theme\n`;
-        }
-
-        designPrompt +=
-          `\n\nCRITICAL: For decorative elements, you MUST use search_images with the EXACT keywords specified above (e.g., "${getDefaultDecorativeKeywords(designType).split(", ")[0]}", "${getDefaultDecorativeKeywords(designType).split(", ")[1] || ""}"). DO NOT search for generic terms like "abstract shapes", "decorative elements", or "ornamental graphics". Place decorations strategically around the text. Create a complete, professional ${designType} design.`;
-
-        setInputValue(designPrompt);
-        setTimeout(() => {
-          const submitBtn = document.querySelector(
-            "[data-agent-submit]",
-          ) as HTMLButtonElement;
-          submitBtn?.click();
-        }, 100);
+        // directly call AI without showing the prompt
+        handleInternalDesignRequest(designSpec);
         return;
       }
 
@@ -1534,6 +1747,246 @@ export const AgentPanel = ({
       formatUIResponseForDisplay,
       replaceTemplatePlaceholders,
       messages,
+      activeConversationId,
+      createMessage,
+    ],
+  );
+
+  // handle internal design request without showing raw prompt
+  const handleInternalDesignRequest = useCallback(
+    async (designSpec: {
+      type: string;
+      primaryText: string;
+      secondaryText: string;
+      date?: string;
+      time?: string;
+      venue?: string;
+      additionalInfo?: string;
+      colorPalette: unknown;
+      fontPairing: unknown;
+      designStyle: string;
+      backgroundStyle: string;
+      includeDecorations?: boolean;
+      decorativeKeywords: string[];
+      includeImages?: boolean;
+    }) => {
+      if (!editor?.canvas) return;
+
+      const flowId = startFlow(`Creating ${designSpec.type} design`);
+      setIsLoading(true);
+      setPhase("analyzing", "Generating design");
+      setProgress(10, "Planning design layout");
+
+      try {
+        // build context for AI
+        const aiContext = {
+          elements: [],
+          canvasSize: {
+            width: editor.canvas.width || 800,
+            height: editor.canvas.height || 600,
+          },
+          backgroundColor: "#ffffff",
+          summary: `Create a ${designSpec.type} design`,
+        };
+
+        // build color info
+        let colorInfo = "AI choice - pick appropriate colors";
+        if (designSpec.colorPalette && designSpec.colorPalette !== "auto") {
+          const palette = designSpec.colorPalette as {
+            name?: string;
+            colors?: string[];
+          };
+          if (palette.colors) {
+            colorInfo = `${palette.name || "Custom"} (${palette.colors.join(", ")})`;
+          }
+        }
+
+        // build font info
+        let fontInfo = "AI choice - pick appropriate fonts";
+        if (designSpec.fontPairing && designSpec.fontPairing !== "auto") {
+          const font = designSpec.fontPairing as {
+            heading?: string;
+            body?: string;
+          };
+          if (font.heading) {
+            fontInfo = `${font.heading} for headings, ${font.body || font.heading} for body`;
+          }
+        }
+
+        // check if subtitle needs generation
+        const needsSubtitleGeneration =
+          !designSpec.secondaryText ||
+          designSpec.secondaryText.includes("[Generate");
+
+        // build the AI message with design spec (internal, not shown to user)
+        const aiMessage = `Execute design creation with these specifications:
+- Type: ${designSpec.type}
+- Main text: "${designSpec.primaryText}"
+- Subtitle: ${needsSubtitleGeneration ? "GENERATE a creative subtitle like 'You're Invited!', 'Join the Celebration!', 'Let's Party!'" : `"${designSpec.secondaryText}"`}
+${designSpec.date ? `- Date: ${designSpec.date}` : "- Date: (not provided, skip)"}
+${designSpec.time ? `- Time: ${designSpec.time}` : "- Time: (not provided, skip)"}
+${designSpec.venue ? `- Venue: ${designSpec.venue}` : "- Venue: (not provided, skip)"}
+${designSpec.additionalInfo ? `- Additional info: ${designSpec.additionalInfo}` : ""}
+- Color palette: ${colorInfo}
+- Fonts: ${fontInfo}
+- Style: ${designSpec.designStyle === "auto" ? "AI choice" : designSpec.designStyle}
+- Background: ${designSpec.backgroundStyle}
+${designSpec.includeDecorations ? `- Decorations: Search Pixabay with image_type=vector for: ${designSpec.decorativeKeywords.join(", ")}` : ""}
+
+CRITICAL INSTRUCTIONS:
+1. apply_gradient_background OR change_canvas_background first
+2. add_text: Main heading "${designSpec.primaryText}" (fontSize: 48-56, bold, position: top-center or center)
+3. add_text: ${needsSubtitleGeneration ? "CREATE a creative subtitle text (fontSize: 28-32)" : `Subtitle "${designSpec.secondaryText}" (fontSize: 28-32)`}
+${designSpec.date || designSpec.time || designSpec.venue ? `4. add_text: Combine date/time/venue into one line (fontSize: 18-22, position: bottom-center)` : ""}
+5. search_images: Add 2-3 decorative vectors from Pixabay (use image_type=vector, position at corners)
+
+DO NOT skip any text elements. Generate creative text for empty subtitle field.`;
+
+        setProgress(30, "Sending to AI");
+
+        const response = await aiResponse.mutateAsync({
+          message: aiMessage,
+          context: aiContext,
+          conversationHistory: [],
+          canvasIndex: canvasIndex as unknown as Record<string, unknown>,
+        });
+
+        setProgress(60, "Processing response");
+
+        if ((response as { error?: boolean }).error) {
+          const errorMessage: AgentMessage = {
+            id: generateId(),
+            role: "assistant",
+            content: "Sorry, I couldn't create the design. Please try again.",
+            status: "error",
+            timestamp: Date.now(),
+          };
+          setMessages((prev) => [...prev, errorMessage]);
+          endFlow(false, "DESIGN_ERROR");
+          return;
+        }
+
+        const aiActions =
+          (response as { actions?: AgentAction[] }).actions || [];
+        const assistantMessageId = generateId();
+
+        // show clean message to user
+        const assistantMessage: AgentMessage = {
+          id: assistantMessageId,
+          role: "assistant",
+          content: `Creating your ${designSpec.type} design with the details you provided...`,
+          status: "complete",
+          timestamp: Date.now(),
+          actions: aiActions.map((action) => ({
+            ...action,
+            id: action.id || generateId(),
+            status: "pending" as const,
+          })) as unknown as LocalAgentAction[],
+        };
+
+        setMessages((prev) => [...prev, assistantMessage]);
+
+        // execute actions
+        if (aiActions.length > 0) {
+          setPhase("executing", "Building design");
+          setProgress(70, `Executing ${aiActions.length} actions`);
+
+          // get action ids for status updates
+          const actionIds = assistantMessage.actions?.map((a) => a.id) || [];
+
+          for (let i = 0; i < aiActions.length; i++) {
+            const action = aiActions[i];
+            const actionId = actionIds[i];
+            const progress = 70 + Math.floor(((i + 1) / aiActions.length) * 25);
+            setProgress(progress, action.type.replace(/_/g, " "));
+
+            // mark action as running
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMessageId && msg.actions
+                  ? {
+                      ...msg,
+                      actions: msg.actions.map((a) =>
+                        a.id === actionId ? { ...a, status: "running" } : a,
+                      ),
+                    }
+                  : msg,
+              ),
+            );
+
+            await delay(300);
+
+            // mark action as complete
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMessageId && msg.actions
+                  ? {
+                      ...msg,
+                      actions: msg.actions.map((a) =>
+                        a.id === actionId ? { ...a, status: "complete" } : a,
+                      ),
+                    }
+                  : msg,
+              ),
+            );
+          }
+
+          try {
+            await executeActions(editor.canvas, aiActions);
+          } catch (actionError) {
+            console.error("Action execution failed:", actionError);
+          }
+
+          // ensure canvas remains interactive
+          if (editor.canvas) {
+            editor.canvas.selection = true;
+            editor.canvas.interactive = true;
+            editor.canvas.requestRenderAll();
+          }
+        }
+
+        setProgress(100, "Design complete");
+        setPhase("completed", "Done");
+        endFlow(true);
+
+        // save assistant message to db
+        if (activeConversationId) {
+          createMessage
+            .mutateAsync({
+              conversationId: activeConversationId,
+              role: "ASSISTANT",
+              content: assistantMessage.content,
+              actions: aiActions.length > 0 ? aiActions : undefined,
+            })
+            .catch(console.error);
+        }
+      } catch (error) {
+        console.error("Design creation failed:", error);
+        const errorMessage: AgentMessage = {
+          id: generateId(),
+          role: "assistant",
+          content:
+            "Something went wrong while creating the design. Please try again.",
+          status: "error",
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+        endFlow(false, "INTERNAL_ERROR");
+      } finally {
+        setIsLoading(false);
+        isSubmittingRef.current = false;
+      }
+    },
+    [
+      editor,
+      startFlow,
+      setPhase,
+      setProgress,
+      endFlow,
+      aiResponse,
+      canvasIndex,
+      activeConversationId,
+      createMessage,
     ],
   );
 

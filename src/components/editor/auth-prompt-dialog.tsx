@@ -32,7 +32,7 @@ export const AuthPromptDialog = ({
     const callbackUrl = projectId
       ? `/editor/${projectId}${shareToken ? `?share=${shareToken}` : ""}`
       : "/";
-    router.push(`/onboarding?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+    router.push(`/sign-in?callbackUrl=${encodeURIComponent(callbackUrl)}`);
   };
 
   const handleSignUp = () => {
@@ -40,9 +40,7 @@ export const AuthPromptDialog = ({
     const callbackUrl = projectId
       ? `/editor/${projectId}${shareToken ? `?share=${shareToken}` : ""}`
       : "/";
-    router.push(
-      `/onboarding?mode=signup&callbackUrl=${encodeURIComponent(callbackUrl)}`,
-    );
+    router.push(`/sign-up?callbackUrl=${encodeURIComponent(callbackUrl)}`);
   };
 
   return (
@@ -60,11 +58,7 @@ export const AuthPromptDialog = ({
         </DialogHeader>
 
         <div className="mt-4 flex flex-col gap-3">
-          <Button
-            onClick={handleLogin}
-            disabled={isLoading}
-            className="w-full"
-          >
+          <Button onClick={handleLogin} disabled={isLoading} className="w-full">
             <LogIn className="mr-2 size-4" />
             Sign in
           </Button>

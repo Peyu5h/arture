@@ -391,6 +391,34 @@ export function findFabricObject(
     .getObjects()
     .filter((obj) => (obj as unknown as { name?: string }).name !== "clip");
 
+  // handle text:contains query - find text element containing specific text
+  if (lowerQuery.startsWith("text:contains:")) {
+    const searchText = lowerQuery.slice("text:contains:".length).trim();
+    if (searchText) {
+      const textObj = objects.find((obj) => {
+        if (
+          obj.type === "textbox" ||
+          obj.type === "i-text" ||
+          obj.type === "text"
+        ) {
+          const text = (obj as fabric.Textbox).text?.toLowerCase() || "";
+          return text.includes(searchText);
+        }
+        return false;
+      });
+      if (textObj) return textObj;
+    }
+  }
+
+  // handle type:textbox query - find all text elements
+  if (lowerQuery === "type:textbox" || lowerQuery === "type:text") {
+    const textObj = objects.find(
+      (obj) =>
+        obj.type === "textbox" || obj.type === "i-text" || obj.type === "text",
+    );
+    if (textObj) return textObj;
+  }
+
   // find by exact id
   const byId = objects.find(
     (obj) =>
@@ -412,6 +440,20 @@ export function findFabricObject(
     return name === lowerQuery || name.includes(lowerQuery);
   });
   if (byName) return byName;
+
+  // find by text content (fuzzy match for any text element)
+  const byTextContent = objects.find((obj) => {
+    if (
+      obj.type === "textbox" ||
+      obj.type === "i-text" ||
+      obj.type === "text"
+    ) {
+      const text = (obj as fabric.Textbox).text?.toLowerCase() || "";
+      return text.includes(lowerQuery);
+    }
+    return false;
+  });
+  if (byTextContent) return byTextContent;
 
   // use indexer as fallback
   const index = indexCanvas(canvas);

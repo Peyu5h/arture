@@ -209,11 +209,50 @@ export interface TemplateGalleryValue {
   templateName?: string;
 }
 
+// dynamic field types for design wizard
+export type DynamicFieldType =
+  | "name"
+  | "age"
+  | "couple_names"
+  | "date"
+  | "time"
+  | "venue"
+  | "theme"
+  | "rsvp_details"
+  | "event_name"
+  | "tagline"
+  | "details"
+  | "gym_name"
+  | "offer"
+  | "schedule"
+  | "contact"
+  | "restaurant_name"
+  | "cuisine"
+  | "hours"
+  | "address"
+  | "artist"
+  | "ticket_info"
+  | "headline"
+  | "subheadline"
+  | "call_to_action";
+
 // design wizard props
 export interface DesignWizardProps extends BaseUIComponentProps {
   componentType: "design_wizard";
-  designType: "wedding" | "birthday" | "event" | "poster" | "card" | "generic";
+  designType:
+    | "wedding"
+    | "birthday"
+    | "event"
+    | "poster"
+    | "card"
+    | "gym"
+    | "restaurant"
+    | "music"
+    | "tech"
+    | "sports"
+    | "generic";
   prefilledData?: Partial<DesignRequirements>;
+  fields?: DynamicFieldType[];
 }
 
 export interface DesignRequirements {

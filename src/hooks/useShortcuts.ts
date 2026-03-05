@@ -27,13 +27,20 @@ export const useShortcuts = ({
   useEvent("keydown", (event) => {
     const isCtrlKey = event.ctrlKey || event.metaKey;
     const isDelete = event.key === "Delete";
-    const isInput = ["INPUT", "TEXTAREA"].includes(
-      (event.target as HTMLElement).tagName,
-    );
+    const target = event.target as HTMLElement;
+    const isInput = ["INPUT", "TEXTAREA"].includes(target.tagName);
+    const isEditable = target.isContentEditable;
+    const hasSelection = window.getSelection()?.toString();
 
-    if (isInput) return;
+    // allow system copy/paste when in input, editable, or text is selected
+    if (isInput || isEditable) return;
 
-    if (isDelete) {
+    // check if canvas has active selection
+    const hasCanvasSelection =
+      canvas?.getActiveObject() ||
+      (canvas?.getActiveObjects()?.length ?? 0) > 0;
+
+    if (isDelete && hasCanvasSelection) {
       canvas?.remove(...canvas.getActiveObjects());
       canvas?.discardActiveObject();
     }
@@ -48,12 +55,14 @@ export const useShortcuts = ({
       redo();
     }
 
-    if (isCtrlKey && event.key === "c") {
+    // only intercept copy if canvas has selection and no text is selected
+    if (isCtrlKey && event.key === "c" && hasCanvasSelection && !hasSelection) {
       event.preventDefault();
       copy();
     }
 
-    if (isCtrlKey && event.key === "v") {
+    // only intercept paste if canvas has focus (no text selection)
+    if (isCtrlKey && event.key === "v" && !hasSelection) {
       event.preventDefault();
       paste();
     }

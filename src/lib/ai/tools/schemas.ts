@@ -537,6 +537,140 @@ export const duplicateElementSchema: FunctionSchema = {
   },
 };
 
+// edit text - modify existing text element content and style
+export const editTextSchema: FunctionSchema = {
+  name: "edit_text",
+  description:
+    "Edit an existing text element's content, font, size, color, or alignment",
+  parameters: {
+    type: "object",
+    properties: {
+      elementId: {
+        type: "string",
+        description: "The unique ID of the text element to edit",
+      },
+      elementQuery: {
+        type: "string",
+        description:
+          "Query to find the text element (e.g., 'selected', 'text:contains:hello')",
+      },
+      text: {
+        type: "string",
+        description: "New text content (leave empty to keep current)",
+      },
+      fontSize: {
+        type: "number",
+        description: "New font size in pixels",
+      },
+      fontFamily: {
+        type: "string",
+        description: "New font family name",
+      },
+      fontWeight: {
+        type: "number",
+        description: "New font weight (100-900)",
+      },
+      fill: {
+        type: "string",
+        description: "New text color in hex format",
+      },
+      textAlign: {
+        type: "string",
+        description: "Text alignment",
+        enum: ["left", "center", "right"],
+      },
+      charSpacing: {
+        type: "number",
+        description: "Character spacing in units",
+      },
+      lineHeight: {
+        type: "number",
+        description: "Line height multiplier",
+      },
+      opacity: {
+        type: "number",
+        description: "Opacity value between 0 and 1",
+      },
+    },
+    required: [],
+  },
+};
+
+// gradient background
+export const applyGradientBackgroundSchema: FunctionSchema = {
+  name: "apply_gradient_background",
+  description: "Apply a gradient background to the canvas workspace",
+  parameters: {
+    type: "object",
+    properties: {
+      colors: {
+        type: "array",
+        description: "Array of 2-4 hex color strings for the gradient stops",
+      },
+      direction: {
+        type: "string",
+        description: "Gradient direction",
+        enum: ["vertical", "horizontal", "diagonal"],
+        default: "vertical",
+      },
+    },
+    required: ["colors"],
+  },
+};
+
+// image background
+export const setImageBackgroundSchema: FunctionSchema = {
+  name: "set_image_background",
+  description: "Set an image as the canvas background",
+  parameters: {
+    type: "object",
+    properties: {
+      url: {
+        type: "string",
+        description: "URL of the background image",
+      },
+      query: {
+        type: "string",
+        description:
+          "Search query to find a background image (alternative to url)",
+      },
+      opacity: {
+        type: "number",
+        description: "Background image opacity (0-1)",
+        default: 1,
+      },
+      fit: {
+        type: "string",
+        description: "How the image should fit the canvas",
+        enum: ["cover", "contain", "stretch"],
+        default: "cover",
+      },
+    },
+    required: [],
+  },
+};
+
+// font loading
+export const loadFontSchema: FunctionSchema = {
+  name: "load_font",
+  description: "Load a Google Font or custom font for use in text elements",
+  parameters: {
+    type: "object",
+    properties: {
+      fontFamily: {
+        type: "string",
+        description:
+          "Font family name (e.g., 'Playfair Display', 'Oswald', 'Noto Serif Devanagari')",
+      },
+      weights: {
+        type: "array",
+        description: "Font weights to load (e.g., [400, 600, 700])",
+      },
+    },
+    required: ["fontFamily"],
+  },
+};
+
 // all tool schemas
 export const allToolSchemas: FunctionSchema[] = [
   spawnShapeSchema,
@@ -547,12 +681,16 @@ export const allToolSchemas: FunctionSchema[] = [
   deleteElementSchema,
   selectElementSchema,
   modifyTextSchema,
+  editTextSchema,
   searchImagesSchema,
   addImageToCanvasSchema,
   searchIllustrationsSchema,
   removeBackgroundSchema,
   changeLayerOrderSchema,
   changeCanvasBackgroundSchema,
+  applyGradientBackgroundSchema,
+  setImageBackgroundSchema,
+  loadFontSchema,
   duplicateElementSchema,
 ];
 
@@ -566,8 +704,12 @@ export const canvasToolSchemas: FunctionSchema[] = [
   deleteElementSchema,
   selectElementSchema,
   modifyTextSchema,
+  editTextSchema,
   changeLayerOrderSchema,
   changeCanvasBackgroundSchema,
+  applyGradientBackgroundSchema,
+  setImageBackgroundSchema,
+  loadFontSchema,
   duplicateElementSchema,
 ];
 
@@ -590,6 +732,9 @@ export function generateToolsDescription(): string {
     "- spawn_shape: Create shapes (rectangle, circle, triangle, etc.)",
   );
   sections.push("- add_text: Add text with customizable font properties");
+  sections.push(
+    "- edit_text: Edit existing text content, font, size, color, spacing",
+  );
   sections.push("- move_element: Move elements to positions");
   sections.push("- modify_element: Change fill, stroke, opacity, angle");
   sections.push("- resize_element: Resize by pixels, scale, or dimensions");
@@ -598,6 +743,13 @@ export function generateToolsDescription(): string {
   sections.push("- modify_text: Change text content and styling");
   sections.push("- change_layer_order: Bring forward/send backward");
   sections.push("- change_canvas_background: Set workspace background color");
+  sections.push(
+    "- apply_gradient_background: Set gradient background with multiple color stops",
+  );
+  sections.push(
+    "- set_image_background: Use an image as the canvas background",
+  );
+  sections.push("- load_font: Load a Google Font or custom font");
   sections.push("- duplicate_element: Copy an element\n");
 
   sections.push("### Asset Search & Import");
