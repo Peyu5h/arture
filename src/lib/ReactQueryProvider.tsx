@@ -15,9 +15,9 @@ export default function ReactQueryProvider({
   return (
     <QueryClientProvider client={client}>
       {children}
-      <ClientOnly>
-        <ReactQueryDevtools initialIsOpen={false} />
-      </ClientOnly>
+      {/*<ClientOnly>*/}
+      {/*<ReactQueryDevtools initialIsOpen={false} />*/}
+      {/*</ClientOnly>*/}
     </QueryClientProvider>
   );
 }

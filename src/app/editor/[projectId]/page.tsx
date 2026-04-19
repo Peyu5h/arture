@@ -66,6 +66,10 @@ import { SvgEditorDialog } from "~/components/editor/svg-editor/svg-editor-dialo
 import { PresenceAvatars } from "~/components/editor/presence-avatars";
 import { AuthPromptDialog } from "~/components/editor/auth-prompt-dialog";
 import { authClient } from "~/lib/auth-client";
+import {
+  sanitizeCanvasJson,
+  sanitizeFabricObjectPatterns,
+} from "~/lib/canvas-json";
 
 function EditorContent() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -334,6 +338,7 @@ function EditorContent() {
                     evented: true,
                     hasControls: true,
                   });
+                  sanitizeFabricObjectPatterns(svgGroup);
 
                   // scale to reasonable size
                   const maxSize = 300;
@@ -538,8 +543,9 @@ function EditorContent() {
           typeof project.json === "string"
             ? JSON.parse(project.json)
             : project.json;
+        const safeJsonData = sanitizeCanvasJson(jsonData);
 
-        canvas.loadFromJSON(jsonData, () => {
+        canvas.loadFromJSON(safeJsonData, () => {
           const workspace = canvas
             .getObjects()
             .find((obj) => obj.name === "clip");

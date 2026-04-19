@@ -24,6 +24,7 @@ import { useClipboard } from "./useClipboard";
 import { useHistory } from "./useHistory";
 import { useShortcuts } from "./useShortcuts";
 import { useAdvancedZoom } from "./useAdvancedZoom";
+import { sanitizeCanvasJson } from "~/lib/canvas-json";
 
 const WORKSPACE_WIDTH = 900;
 const WORKSPACE_HEIGHT = 1200;
@@ -125,7 +126,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
   const loadJson = (json: string) => {
     const data = JSON.parse(json);
 
-    canvas?.loadFromJSON(data, () => {
+    canvas?.loadFromJSON(sanitizeCanvasJson(data), () => {
       autoZoom();
     });
   };

@@ -5,6 +5,7 @@ import { useUpdateProject } from "./useUpdateProject";
 import { useToast } from "~/components/ui/use-toast";
 import { generateThumbnail, compressDataUrl } from "~/lib/thumbnail";
 import { useProject } from "./projects.hooks";
+import { sanitizeCanvasJson } from "~/lib/canvas-json";
 
 const DEBOUNCE_TIME = 1000;
 const THUMBNAIL_DEBOUNCE_TIME = 5000;
@@ -153,7 +154,9 @@ export const useAutoSave = (
         "crossOrigin",
       ]);
 
-      const canvasState = rawState as unknown as CanvasState;
+      const canvasState = sanitizeCanvasJson(
+        rawState as unknown as CanvasState,
+      );
       if (!canvasState.version || !Array.isArray(canvasState.objects)) {
         throw new Error("Invalid canvas state");
       }

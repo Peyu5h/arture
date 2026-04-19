@@ -1,5 +1,6 @@
 import { fabric } from "fabric";
 import { useCallback, useRef, useState, useEffect } from "react";
+import { sanitizeCanvasJson } from "~/lib/canvas-json";
 import { JSON_KEYS } from "~/lib/types";
 
 interface HistoryProps {
@@ -135,7 +136,7 @@ export const useHistory = ({ canvas }: HistoryProps) => {
       canvas.renderOnAddRemove = false;
 
       try {
-        const parsed = JSON.parse(stateJson);
+        const parsed = sanitizeCanvasJson(JSON.parse(stateJson));
         canvas.loadFromJSON(parsed, () => {
           // restore workspace if needed
           if (workspaceData) {
