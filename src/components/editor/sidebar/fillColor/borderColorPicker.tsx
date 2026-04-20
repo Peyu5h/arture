@@ -3,6 +3,8 @@ import { rgbaObjectToString } from "~/lib/utils";
 import { Input } from "~/components/ui/input";
 import * as material from "material-colors";
 import { useState, useEffect } from "react";
+import { Button } from "~/components/ui/button";
+import { Ban } from "lucide-react";
 
 const extendedColors = [
   "#000000",
@@ -43,7 +45,7 @@ export const BorderColorPicker = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setInputValue(newValue);
-    if (/^#[0-9A-Fa-f]{6}$/.test(newValue)) {
+    if (/^#[0-9A-Fa-f]{6}$/.test(newValue) || newValue === "transparent") {
       onChange(newValue);
     }
   };
@@ -63,7 +65,18 @@ export const BorderColorPicker = ({
       <div className="bg-muted/50 flex items-center gap-3 rounded-md border p-3">
         <div
           className="size-8 rounded-md border shadow-sm"
-          style={{ backgroundColor: value }}
+          style={{
+            backgroundColor: value === "transparent" ? "transparent" : value,
+            backgroundImage:
+              value === "transparent"
+                ? "linear-gradient(45deg, #d4d4d8 25%, transparent 25%), linear-gradient(-45deg, #d4d4d8 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #d4d4d8 75%), linear-gradient(-45deg, transparent 75%, #d4d4d8 75%)"
+                : undefined,
+            backgroundSize: value === "transparent" ? "8px 8px" : undefined,
+            backgroundPosition:
+              value === "transparent"
+                ? "0 0, 0 4px, 4px -4px, -4px 0px"
+                : undefined,
+          }}
         />
         <Input
           value={inputValue}
@@ -72,6 +85,18 @@ export const BorderColorPicker = ({
           placeholder="#000000"
         />
       </div>
+
+      <Button
+        variant="outline"
+        className="w-full justify-start gap-2"
+        onClick={() => {
+          setInputValue("transparent");
+          onChange("transparent");
+        }}
+      >
+        <Ban className="size-4 text-red-500" />
+        Transparent
+      </Button>
 
       <div className="bg-card rounded-lg border p-4">
         <CirclePicker

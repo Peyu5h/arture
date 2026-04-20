@@ -206,12 +206,14 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
       ShapeClass: any,
       options: any,
       position?: { left: number; top: number },
+      overrides?: Record<string, unknown>,
     ) => {
       const object = new ShapeClass({
         ...options,
         fill: fillColor,
         stroke: strokeColor,
         strokeWidth: strokeWidth,
+        ...overrides,
         ...(position && { left: position.left, top: position.top }),
       });
       addObject(object, !!position);
@@ -395,11 +397,19 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
         canvas.isDrawingMode = false;
       },
 
-      addCircle: (position?: { left: number; top: number }) =>
-        createBasicShape(fabric.Circle, CIRCLE_OPTIONS, position),
-      addRectangle: (position?: { left: number; top: number }) =>
-        createBasicShape(fabric.Rect, RECTANGLE_OPTIONS, position),
-      addSoftRectangle: (position?: { left: number; top: number }) =>
+      addCircle: (
+        position?: { left: number; top: number },
+        overrides?: Record<string, unknown>,
+      ) => createBasicShape(fabric.Circle, CIRCLE_OPTIONS, position, overrides),
+      addRectangle: (
+        position?: { left: number; top: number },
+        overrides?: Record<string, unknown>,
+      ) =>
+        createBasicShape(fabric.Rect, RECTANGLE_OPTIONS, position, overrides),
+      addSoftRectangle: (
+        position?: { left: number; top: number },
+        overrides?: Record<string, unknown>,
+      ) =>
         createBasicShape(
           fabric.Rect,
           {
@@ -408,10 +418,22 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
             ry: 50,
           },
           position,
+          overrides,
         ),
-      addTriangle: (position?: { left: number; top: number }) =>
-        createBasicShape(fabric.Triangle, TRIANGLE_OPTIONS, position),
-      addDiamond: (position?: { left: number; top: number }) =>
+      addTriangle: (
+        position?: { left: number; top: number },
+        overrides?: Record<string, unknown>,
+      ) =>
+        createBasicShape(
+          fabric.Triangle,
+          TRIANGLE_OPTIONS,
+          position,
+          overrides,
+        ),
+      addDiamond: (
+        position?: { left: number; top: number },
+        overrides?: Record<string, unknown>,
+      ) =>
         createBasicShape(
           fabric.Rect,
           {
@@ -423,8 +445,12 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
             ry: 30,
           },
           position,
+          overrides,
         ),
-      addInverseTriangle: (position?: { left: number; top: number }) => {
+      addInverseTriangle: (
+        position?: { left: number; top: number },
+        overrides?: Record<string, unknown>,
+      ) => {
         const triangle = new fabric.Triangle({
           ...TRIANGLE_OPTIONS,
           angle: 180,
@@ -433,6 +459,7 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
           fill: fillColor,
           stroke: strokeColor,
           strokeWidth: strokeWidth,
+          ...overrides,
           ...(position && { left: position.left, top: position.top }),
         });
         addObject(triangle, !!position);
@@ -484,7 +511,10 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
       },
 
       // star shape
-      addStar: () => {
+      addStar: (
+        position?: { left: number; top: number },
+        overrides?: Record<string, unknown>,
+      ) => {
         const points = [];
         const outerRadius = 100;
         const innerRadius = 50;
@@ -503,14 +533,18 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
           fill: fillColor,
           stroke: strokeColor,
           strokeWidth: strokeWidth,
-          left: 100,
-          top: 100,
+          left: position?.left ?? 100,
+          top: position?.top ?? 100,
+          ...overrides,
         });
-        addObject(star);
+        addObject(star, !!position);
       },
 
       // hexagon shape
-      addHexagon: () => {
+      addHexagon: (
+        position?: { left: number; top: number },
+        overrides?: Record<string, unknown>,
+      ) => {
         const points = [];
         const radius = 100;
         for (let i = 0; i < 6; i++) {
@@ -525,14 +559,18 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
           fill: fillColor,
           stroke: strokeColor,
           strokeWidth: strokeWidth,
-          left: 100,
-          top: 100,
+          left: position?.left ?? 100,
+          top: position?.top ?? 100,
+          ...overrides,
         });
-        addObject(hexagon);
+        addObject(hexagon, !!position);
       },
 
       // pentagon shape
-      addPentagon: () => {
+      addPentagon: (
+        position?: { left: number; top: number },
+        overrides?: Record<string, unknown>,
+      ) => {
         const points = [];
         const radius = 100;
         for (let i = 0; i < 5; i++) {
@@ -547,30 +585,38 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
           fill: fillColor,
           stroke: strokeColor,
           strokeWidth: strokeWidth,
-          left: 100,
-          top: 100,
+          left: position?.left ?? 100,
+          top: position?.top ?? 100,
+          ...overrides,
         });
-        addObject(pentagon);
+        addObject(pentagon, !!position);
       },
 
       // heart shape
-      addHeart: () => {
+      addHeart: (
+        position?: { left: number; top: number },
+        overrides?: Record<string, unknown>,
+      ) => {
         const heartPath =
           "M 140 20 C 73 20 20 74 20 140 C 20 275 156 310 290 478 C 424 310 560 275 560 140 C 560 74 507 20 440 20 C 399 20 362 41 340 74 C 340 74 340 74 340 74 C 318 41 281 20 240 20 C 207 20 176 20 140 20 Z";
         const heart = new fabric.Path(heartPath, {
           fill: fillColor,
           stroke: strokeColor,
           strokeWidth: strokeWidth,
-          left: 100,
-          top: 100,
+          left: position?.left ?? 100,
+          top: position?.top ?? 100,
           scaleX: 0.4,
           scaleY: 0.4,
+          ...overrides,
         });
-        addObject(heart);
+        addObject(heart, !!position);
       },
 
       // octagon shape
-      addOctagon: () => {
+      addOctagon: (
+        position?: { left: number; top: number },
+        overrides?: Record<string, unknown>,
+      ) => {
         const points = [];
         const radius = 100;
         for (let i = 0; i < 8; i++) {
@@ -585,10 +631,11 @@ export const useEditor = ({ clearSelection }: UseEditorProps) => {
           fill: fillColor,
           stroke: strokeColor,
           strokeWidth: strokeWidth,
-          left: 100,
-          top: 100,
+          left: position?.left ?? 100,
+          top: position?.top ?? 100,
+          ...overrides,
         });
-        addObject(octagon);
+        addObject(octagon, !!position);
       },
 
       addText: (value: string, options?: ITextboxOptions) => {

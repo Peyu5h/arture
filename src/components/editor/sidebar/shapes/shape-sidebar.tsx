@@ -44,6 +44,7 @@ interface ShapeItem {
   name: string;
   icon: React.ReactNode;
   shapeType: string;
+  options?: Record<string, unknown>;
   action: () => void;
 }
 
@@ -57,14 +58,14 @@ const ShapeCard = ({ shape }: ShapeCardProps) => {
   const handleMouseDown = (e: React.MouseEvent) => {
     startDrag(e, {
       type: "shape",
-      data: { shapeType: shape.shapeType },
+      data: { shapeType: shape.shapeType, options: shape.options },
     });
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
     startDrag(e, {
       type: "shape",
-      data: { shapeType: shape.shapeType },
+      data: { shapeType: shape.shapeType, options: shape.options },
     });
   };
 
@@ -224,42 +225,48 @@ export const ShapeSidebar = ({
         name: "Circle",
         icon: <FaRegCircle className="size-6" />,
         shapeType: "circle",
-        action: () => editor?.addCircle(),
+        options: { fill: "transparent" },
+        action: () => editor?.addCircle(undefined, { fill: "transparent" }),
       },
       {
         id: "square-outline",
         name: "Square",
         icon: <FaRegSquare className="size-6" />,
         shapeType: "rectangle",
-        action: () => editor?.addRectangle(),
+        options: { fill: "transparent" },
+        action: () => editor?.addRectangle(undefined, { fill: "transparent" }),
       },
       {
         id: "triangle-outline",
         name: "Triangle",
         icon: <Triangle className="size-6" />,
         shapeType: "triangle",
-        action: () => editor?.addTriangle(),
+        options: { fill: "transparent" },
+        action: () => editor?.addTriangle(undefined, { fill: "transparent" }),
       },
       {
         id: "pentagon-outline",
         name: "Pentagon",
         icon: <Pentagon className="size-6" strokeWidth={1.5} />,
         shapeType: "pentagon",
-        action: () => editor?.addPentagon?.(),
+        options: { fill: "transparent" },
+        action: () => editor?.addPentagon?.(undefined, { fill: "transparent" }),
       },
       {
         id: "hexagon-outline",
         name: "Hexagon",
         icon: <Hexagon className="size-6" strokeWidth={1.5} />,
         shapeType: "hexagon",
-        action: () => editor?.addHexagon?.(),
+        options: { fill: "transparent" },
+        action: () => editor?.addHexagon?.(undefined, { fill: "transparent" }),
       },
       {
         id: "star-outline",
         name: "Star",
         icon: <Star className="size-6" strokeWidth={1.5} />,
         shapeType: "star",
-        action: () => editor?.addStar?.(),
+        options: { fill: "transparent" },
+        action: () => editor?.addStar?.(undefined, { fill: "transparent" }),
       },
     ],
     [editor],

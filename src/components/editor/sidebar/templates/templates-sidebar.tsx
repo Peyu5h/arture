@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
+import { ChromePicker, ColorResult } from "react-color";
 import { SidebarBase } from "../tool-sidebar/sidebarBase";
 import { ToolSidebarClose } from "../tool-sidebar/tool-sidebar-close";
 import { ActiveTool } from "~/lib/types";
@@ -314,6 +315,9 @@ export const TemplatesSidebar = ({
   const [height, setHeight] = useState(initialHeight);
   const [background, setBackground] = useState(initialBackground);
   const [selectedGradient, setSelectedGradient] = useState<string | null>(null);
+  const [customSolidColor, setCustomSolidColor] = useState(
+    /^#[0-9A-Fa-f]{6}$/.test(initialBackground) ? initialBackground : "#ffffff",
+  );
 
   // background images from pexels
   const { data: bgImagesData, isLoading: isLoadingBgImages } =
@@ -339,6 +343,9 @@ export const TemplatesSidebar = ({
       const fill = workspace.fill;
       if (typeof fill === "string") {
         setBackground(fill);
+        if (/^#[0-9A-Fa-f]{6}$/.test(fill)) {
+          setCustomSolidColor(fill);
+        }
         setSelectedGradient(null);
       }
     }
@@ -387,10 +394,24 @@ export const TemplatesSidebar = ({
     (color: string) => {
       editor?.changeBackground?.(color);
       setBackground(color);
+      if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+        setCustomSolidColor(color);
+      }
       setSelectedGradient(null);
     },
     [editor],
   );
+
+  const handleCustomSolidInput = (value: string) => {
+    setCustomSolidColor(value);
+    if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+      applySolidBackground(value);
+    }
+  };
+
+  const handleCustomSolidPicker = (color: ColorResult) => {
+    handleCustomSolidInput(color.hex);
+  };
 
   const applyImageBackground = useCallback(
     (imageUrl: string) => {
@@ -415,7 +436,17 @@ export const TemplatesSidebar = ({
           const pattern = new (window as any).fabric.Pattern({
             source: img,
             repeat: "no-repeat",
+            crossOrigin: "anonymous"
           });
+
+          (pattern as any).sourceUrl = imageUrl;
+          const originalToObject = pattern.toObject.bind(pattern);
+          pattern.toObject = function(propertiesToInclude: any) {
+            const obj = originalToObject(propertiesToInclude);
+            obj.source = this.sourceUrl;
+            obj.crossOrigin = "anonymous";
+            return obj;
+          };
 
           const scaleX = (workspace.width || 1) / img.width;
           const scaleY = (workspace.height || 1) / img.height;
@@ -588,23 +619,63 @@ export const TemplatesSidebar = ({
             className="p-4"
           >
             {selectedBgType === "solid" && (
-              <div className="grid grid-cols-5 gap-2">
-                {solidColors.map((item) => (
-                  <motion.button
-                    key={item.id}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => applySolidBackground(item.color)}
-                    className={ny(
-                      "aspect-square rounded-lg border-2 transition-all",
-                      background === item.color
-                        ? "border-primary ring-primary/20 ring-2"
-                        : "border-border hover:border-primary/50",
-                    )}
-                    style={{ backgroundColor: item.color }}
-                    title={item.id}
+              <div className="space-y-4">
+                <div className="space-y-3 rounded-lg border p-3">
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="color"
+                      value={
+                        /^#[0-9A-Fa-f]{6}$/.test(customSolidColor)
+                          ? customSolidColor
+                          : "#ffffff"
+                      }
+                      onChange={(e) => handleCustomSolidInput(e.target.value)}
+                      className="h-10 w-14 cursor-pointer p-1"
+                      aria-label="Pick background color"
+                    />
+                    <Input
+                      value={customSolidColor}
+                      onChange={(e) => handleCustomSolidInput(e.target.value)}
+                      className="h-10 font-mono"
+                      placeholder="#ffffff"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => applySolidBackground(customSolidColor)}
+                      disabled={!/^#[0-9A-Fa-f]{6}$/.test(customSolidColor)}
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                  <ChromePicker
+                    color={
+                      /^#[0-9A-Fa-f]{6}$/.test(customSolidColor)
+                        ? customSolidColor
+                        : "#ffffff"
+                    }
+                    onChange={handleCustomSolidPicker}
+                    className="!w-full !shadow-none"
                   />
-                ))}
+                </div>
+
+                <div className="grid grid-cols-5 gap-2">
+                  {solidColors.map((item) => (
+                    <motion.button
+                      key={item.id}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => applySolidBackground(item.color)}
+                      className={ny(
+                        "aspect-square rounded-lg border-2 transition-all",
+                        background === item.color
+                          ? "border-primary ring-primary/20 ring-2"
+                          : "border-border hover:border-primary/50",
+                      )}
+                      style={{ backgroundColor: item.color }}
+                      title={item.id}
+                    />
+                  ))}
+                </div>
               </div>
             )}
 

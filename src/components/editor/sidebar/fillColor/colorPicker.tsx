@@ -9,6 +9,7 @@ import { Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaEyeDropper } from "react-icons/fa6";
 import { Card } from "~/components/ui/card";
+import { Ban } from "lucide-react";
 
 interface ColorPickerProps {
   value: string;
@@ -92,6 +93,25 @@ export const ColorPicker = ({ value, onChange, canvas }: ColorPickerProps) => {
           <FaEyeDropper className="size-4" />
         </Button>
       </div>
+
+      <Button
+        variant="outline"
+        className="w-full justify-start gap-2"
+        onClick={() => onChange("transparent")}
+      >
+        <span
+          className="relative size-5 overflow-hidden rounded border"
+          style={{
+            backgroundImage:
+              "linear-gradient(45deg, #d4d4d8 25%, transparent 25%), linear-gradient(-45deg, #d4d4d8 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #d4d4d8 75%), linear-gradient(-45deg, transparent 75%, #d4d4d8 75%)",
+            backgroundSize: "8px 8px",
+            backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
+          }}
+        >
+          <Ban className="absolute inset-0 size-5 text-red-500" />
+        </span>
+        Transparent
+      </Button>
 
       <div className="space-y-2">
         <div className="flex items-center gap-2">

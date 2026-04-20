@@ -239,41 +239,44 @@ function EditorContent() {
 
       if (item.type === "shape") {
         const shapeType = item.data.shapeType as string;
+        const shapeOptions = item.data.options as
+          | Record<string, unknown>
+          | undefined;
         const dropPosition = { left: canvasX, top: canvasY };
 
         switch (shapeType) {
           case "circle":
-            editor.addCircle(dropPosition);
+            editor.addCircle(dropPosition, shapeOptions);
             break;
           case "rectangle":
-            editor.addRectangle(dropPosition);
+            editor.addRectangle(dropPosition, shapeOptions);
             break;
           case "softRectangle":
-            editor.addSoftRectangle(dropPosition);
+            editor.addSoftRectangle(dropPosition, shapeOptions);
             break;
           case "triangle":
-            editor.addTriangle(dropPosition);
+            editor.addTriangle(dropPosition, shapeOptions);
             break;
           case "inverseTriangle":
-            editor.addInverseTriangle(dropPosition);
+            editor.addInverseTriangle(dropPosition, shapeOptions);
             break;
           case "diamond":
-            editor.addDiamond(dropPosition);
+            editor.addDiamond(dropPosition, shapeOptions);
             break;
           case "pentagon":
-            editor.addPentagon?.();
+            editor.addPentagon?.(dropPosition, shapeOptions);
             break;
           case "hexagon":
-            editor.addHexagon?.();
+            editor.addHexagon?.(dropPosition, shapeOptions);
             break;
           case "octagon":
-            editor.addOctagon?.();
+            editor.addOctagon?.(dropPosition, shapeOptions);
             break;
           case "star":
-            editor.addStar?.();
+            editor.addStar?.(dropPosition, shapeOptions);
             break;
           case "heart":
-            editor.addHeart?.();
+            editor.addHeart?.(dropPosition, shapeOptions);
             break;
           case "line":
             editor.addLine?.(dropPosition);

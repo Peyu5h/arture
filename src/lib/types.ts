@@ -97,20 +97,53 @@ export type Editor = {
   changeFillColor: (value: string) => void;
   changeStrokeColor: (value: string) => void;
   changeStrokeWidth: (value: number) => void;
-  addCircle: () => void;
-  addSoftRectangle: () => void;
-  addRectangle: () => void;
-  addTriangle: () => void;
-  addInverseTriangle: () => void;
-  addDiamond: () => void;
+  addCircle: (
+    position?: { left: number; top: number },
+    options?: Record<string, unknown>,
+  ) => void;
+  addSoftRectangle: (
+    position?: { left: number; top: number },
+    options?: Record<string, unknown>,
+  ) => void;
+  addRectangle: (
+    position?: { left: number; top: number },
+    options?: Record<string, unknown>,
+  ) => void;
+  addTriangle: (
+    position?: { left: number; top: number },
+    options?: Record<string, unknown>,
+  ) => void;
+  addInverseTriangle: (
+    position?: { left: number; top: number },
+    options?: Record<string, unknown>,
+  ) => void;
+  addDiamond: (
+    position?: { left: number; top: number },
+    options?: Record<string, unknown>,
+  ) => void;
   addLine: () => void;
   addArrow: () => void;
   addDoubleArrow: () => void;
-  addStar: () => void;
-  addHexagon: () => void;
-  addPentagon: () => void;
-  addHeart: () => void;
-  addOctagon: () => void;
+  addStar: (
+    position?: { left: number; top: number },
+    options?: Record<string, unknown>,
+  ) => void;
+  addHexagon: (
+    position?: { left: number; top: number },
+    options?: Record<string, unknown>,
+  ) => void;
+  addPentagon: (
+    position?: { left: number; top: number },
+    options?: Record<string, unknown>,
+  ) => void;
+  addHeart: (
+    position?: { left: number; top: number },
+    options?: Record<string, unknown>,
+  ) => void;
+  addOctagon: (
+    position?: { left: number; top: number },
+    options?: Record<string, unknown>,
+  ) => void;
   getActiveFillColor: () => string | fabric.Pattern | fabric.Gradient;
   getActiveStrokeColor: () => string | fabric.Pattern | fabric.Gradient;
   bringForward: () => void;
